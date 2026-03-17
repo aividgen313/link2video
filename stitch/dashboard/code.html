@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-primary-fixed-variant": "#004493",
+                        "surface-container": "#202020",
+                        "primary-container": "#4b8eff",
+                        "on-secondary": "#082f65",
+                        "on-tertiary-container": "#4c1a00",
+                        "error-container": "#93000a",
+                        "surface-bright": "#393939",
+                        "primary-fixed-dim": "#adc6ff",
+                        "primary-fixed": "#d8e2ff",
+                        "surface-container-low": "#1b1b1c",
+                        "on-secondary-container": "#98b5f3",
+                        "surface-container-high": "#2a2a2a",
+                        "on-tertiary-fixed": "#351000",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "secondary-fixed": "#d8e2ff",
+                        "secondary-container": "#26467d",
+                        "on-background": "#e5e2e1",
+                        "surface": "#131313",
+                        "primary": "#adc6ff",
+                        "background": "#131313",
+                        "on-error-container": "#ffdad6",
+                        "on-tertiary-fixed-variant": "#7c2e00",
+                        "on-primary-container": "#00285c",
+                        "on-error": "#690005",
+                        "inverse-on-surface": "#303030",
+                        "tertiary": "#ffb595",
+                        "on-tertiary": "#571e00",
+                        "surface-container-lowest": "#0e0e0e",
+                        "error": "#ffb4ab",
+                        "surface-variant": "#353535",
+                        "surface-dim": "#131313",
+                        "inverse-surface": "#e5e2e1",
+                        "outline-variant": "#414755",
+                        "on-secondary-fixed": "#001a41",
+                        "outline": "#8b90a0",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-surface-variant": "#c1c6d7",
+                        "tertiary-fixed-dim": "#ffb595",
+                        "on-primary": "#002e69",
+                        "on-surface": "#e5e2e1",
+                        "surface-tint": "#adc6ff",
+                        "tertiary-container": "#ef6719",
+                        "inverse-primary": "#005bc1",
+                        "on-secondary-fixed-variant": "#26467d",
+                        "surface-container-highest": "#353535",
+                        "on-primary-fixed": "#001a41",
+                        "secondary": "#adc6ff"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #131313;
+            color: #E5E2E1;
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(42, 42, 42, 0.7);
+            backdrop-filter: blur(20px);
+        }
+        .primary-gradient {
+            background: linear-gradient(135deg, #ADC6FF 0%, #4B8EFF 100%);
+        }
+    </style>
+</head>
+<body class="flex min-h-screen">
+<!-- SideNavBar -->
+<aside class="w-64 bg-surface-container-low flex flex-col border-r border-outline-variant/10">
+<div class="p-8 flex flex-col gap-1">
+<div class="flex items-center gap-3 mb-8">
+<div class="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container">auto_awesome</span>
+</div>
+<div>
+<h1 class="font-headline font-bold text-on-surface leading-tight">Link2Video AI</h1>
+<p class="text-xs font-label text-outline uppercase tracking-widest">Creator Studio</p>
+</div>
+</div>
+<button class="primary-gradient text-on-primary-container font-headline font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 mb-10 shadow-lg shadow-primary-container/20">
+<span class="material-symbols-outlined">add</span>
+                New Project
+            </button>
+<nav class="space-y-2">
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl bg-surface-container-high text-primary font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                    Dashboard
+                </a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-variant/50 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="video_library">video_library</span>
+                    Projects
+                </a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-variant/50 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="auto_awesome_motion">auto_awesome_motion</span>
+                    Templates
+                </a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-variant/50 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span>
+                    Assets
+                </a>
+</nav>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col overflow-hidden">
+<!-- TopNavBar -->
+<header class="h-20 flex items-center justify-between px-12 border-b border-outline-variant/10 bg-surface/50 backdrop-blur-md sticky top-0 z-10">
+<div class="flex items-center">
+<h2 class="font-headline font-bold text-2xl tracking-tight">Dashboard</h2>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4 text-outline">
+<button class="hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+<div class="h-10 w-10 rounded-full overflow-hidden border-2 border-outline-variant/30">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="Close up portrait of a smiling man" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBQsfKVpfeRfxoCQlU-HMh_xTyCd8PqIuYBnaUg4tOs01Lt7sp1XZ5P2jopCyS8OtFcNjqJUY4Ok9jwONbhSs7X8yhTRGFkAOK-A_B0FiylZSt4DmOpDg-r5qyflA10xjP1fDdtDglyxOSGYmI1NtZhp2uP0j91ssrwnmkSw9vv3-qFas_L3d9hwv-2rCeDkvEJ6i-7Xtpxx98TyaOI3Y5BynkLgxDssWKw5JYCv2UUd0plZaUbbITMkwr6rkwQgCCV9eZy8zpoZEr2"/>
+</div>
+</div>
+</header>
+<section class="flex-1 overflow-y-auto p-12 space-y-16">
+<!-- Hero Creation Section -->
+<div class="max-w-5xl mx-auto">
+<div class="bg-surface-container-high rounded-[2rem] p-10 relative overflow-hidden shadow-2xl">
+<!-- Background Decoration -->
+<div class="absolute -top-24 -right-24 w-96 h-96 bg-primary-container/10 rounded-full blur-[100px]"></div>
+<div class="absolute -bottom-24 -left-24 w-64 h-64 bg-tertiary-container/5 rounded-full blur-[80px]"></div>
+<div class="relative z-10">
+<h3 class="font-headline text-4xl font-extrabold mb-8 tracking-tighter">Create New Video</h3>
+<div class="grid grid-cols-1 gap-8">
+<!-- Input Field -->
+<div class="space-y-3">
+<label class="text-sm font-label text-outline uppercase tracking-widest pl-1">Paste a link or topic</label>
+<div class="relative group">
+<input class="w-full bg-surface-container-low border-none rounded-2xl py-5 px-6 text-on-surface placeholder:text-outline/50 focus:ring-2 focus:ring-primary/40 transition-all text-lg" placeholder="Paste a Wikipedia link, news article, or type a story idea..." type="text"/>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 flex gap-2">
+<button class="p-2 text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined">link</span>
+</button>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Platform Selector -->
+<div class="space-y-3">
+<label class="text-sm font-label text-outline uppercase tracking-widest pl-1">Platform</label>
+<div class="flex gap-2 bg-surface-container-low p-1.5 rounded-2xl">
+<button class="flex-1 py-3 px-2 rounded-xl bg-surface-container-highest text-primary flex flex-col items-center gap-1 font-medium text-xs">
+<span class="material-symbols-outlined text-xl">theater_comedy</span>
+                                            TikTok
+                                        </button>
+<button class="flex-1 py-3 px-2 rounded-xl text-outline hover:bg-surface-variant/30 flex flex-col items-center gap-1 text-xs">
+<span class="material-symbols-outlined text-xl">camera_roll</span>
+                                            Instagram
+                                        </button>
+<button class="flex-1 py-3 px-2 rounded-xl text-outline hover:bg-surface-variant/30 flex flex-col items-center gap-1 text-xs">
+<span class="material-symbols-outlined text-xl">smart_display</span>
+                                            YouTube
+                                        </button>
+</div>
+</div>
+<!-- Length Dropdown -->
+<div class="space-y-3">
+<label class="text-sm font-label text-outline uppercase tracking-widest pl-1">Video Length</label>
+<div class="relative">
+<select class="w-full bg-surface-container-low border-none rounded-2xl py-4 px-6 text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer">
+<option>1 min</option>
+<option>3 min</option>
+<option>5 min</option>
+<option>10 min</option>
+<option>30 min</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-outline">expand_more</span>
+</div>
+</div>
+<!-- Orientation Toggle -->
+<div class="space-y-3">
+<label class="text-sm font-label text-outline uppercase tracking-widest pl-1">Orientation</label>
+<div class="flex h-[60px] bg-surface-container-low p-1.5 rounded-2xl">
+<button class="flex-1 rounded-xl bg-surface-container-highest text-primary flex items-center justify-center gap-2 text-sm font-semibold">
+<span class="material-symbols-outlined text-lg">stay_current_portrait</span>
+                                            Vertical
+                                        </button>
+<button class="flex-1 rounded-xl text-outline hover:bg-surface-variant/30 flex items-center justify-center gap-2 text-sm">
+<span class="material-symbols-outlined text-lg">stay_current_landscape</span>
+                                            Horizontal
+                                        </button>
+</div>
+</div>
+</div>
+<div class="pt-4 flex justify-end">
+<button class="primary-gradient text-on-primary-container font-headline font-extrabold py-5 px-12 rounded-2xl text-xl flex items-center gap-3 transition-transform hover:scale-[1.02] active:scale-[0.98]">
+                                    Generate Story
+                                    <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Videos Section -->
+<div class="max-w-6xl mx-auto">
+<div class="flex items-center justify-between mb-8 px-4">
+<h3 class="font-headline text-2xl font-bold tracking-tight">Recent Videos</h3>
+<button class="text-primary font-medium flex items-center gap-2 hover:underline">
+                        View All
+                        <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<!-- Bento Grid Layout for Recent Videos -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+<!-- Video Card 1 -->
+<div class="group bg-surface-container rounded-[2rem] overflow-hidden flex flex-col transition-all hover:translate-y-[-4px]">
+<div class="h-48 relative overflow-hidden">
+<img alt="Nature video thumbnail" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Cinematic aerial view of a dense foggy forest" src="https://lh3.googleusercontent.com/aida-public/AB6AXuABpDAM-i-_JA37ynsh_gJVK4I2ywLtKKFGp_BcnKvGn4x7mIfKOGRjRtj-auhtQ0TyIJd7pv8iEzZFCz901grvAitOpon3tX2H_VCNoKcAbb13rUxVQjtCaHGxansGDHqOvQuB5QDvz55ul84jGNPNjK059Ko6n1wL8Z8Pr57a4v_05-L2Z5PhBLeUePHkAP4zVyJB_5g-i47GwbVpzcUmls7ZSnwHwYEnX15dPsnMSdxfVzarjcm7GfKOFvnOlWLOTVxRnWS9s7FC"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 to-transparent"></div>
+<div class="absolute bottom-4 left-4 flex items-center gap-2">
+<span class="bg-primary/20 backdrop-blur-md text-primary px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">Vertical</span>
+<span class="bg-black/40 backdrop-blur-md text-white px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">3:45</span>
+</div>
+</div>
+<div class="p-6 space-y-4 flex-1 flex flex-col justify-between">
+<div>
+<h4 class="font-headline font-bold text-lg leading-tight mb-2">The Hidden Mysteries of the Amazon Rainforest</h4>
+<p class="text-xs text-outline font-label">Modified 2 hours ago</p>
+</div>
+<div class="flex items-center justify-between pt-2">
+<button class="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl bg-surface-container-highest hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-lg">edit</span>
+                                    Edit
+                                </button>
+<button class="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl border border-outline-variant/30 text-on-surface hover:bg-surface-variant/30 transition-colors">
+<span class="material-symbols-outlined text-lg">refresh</span>
+                                    Regenerate
+                                </button>
+</div>
+</div>
+</div>
+<!-- Video Card 2 -->
+<div class="group bg-surface-container rounded-[2rem] overflow-hidden flex flex-col transition-all hover:translate-y-[-4px]">
+<div class="h-48 relative overflow-hidden">
+<img alt="Technology video thumbnail" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Abstract glowing blue computer circuit board patterns" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCD7uKMJsZEv3x_xyZNclEG3gTKw62_n0zDPGTq7JIIMbw-CdayYSUXOK7G_mQXzJp39l842bPfzp6xaXh9YxOhoZ6Em3pWGWkNKfYWhLLOjFD6PJ7WLWYIw-4Igc5h5No9t7Z40klaMue1zwUfQY4ni2FTKaPweUkvCIPRveiV1jyaHmtryRy_DPAjEuF0JSqNUtwUCvr-VrtWEUxbGdZFrXir4reksVWIATAo2hpfzrZlb5XgrRGe5ssgvPRbUV8x88_ByGZ160yK"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 to-transparent"></div>
+<div class="absolute bottom-4 left-4 flex items-center gap-2">
+<span class="bg-primary/20 backdrop-blur-md text-primary px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">Horizontal</span>
+<span class="bg-black/40 backdrop-blur-md text-white px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">12:20</span>
+</div>
+</div>
+<div class="p-6 space-y-4 flex-1 flex flex-col justify-between">
+<div>
+<h4 class="font-headline font-bold text-lg leading-tight mb-2">How Quantum Computing is Changing the World</h4>
+<p class="text-xs text-outline font-label">Modified yesterday</p>
+</div>
+<div class="flex items-center justify-between pt-2">
+<button class="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl bg-surface-container-highest hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-lg">edit</span>
+                                    Edit
+                                </button>
+<button class="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl border border-outline-variant/30 text-on-surface hover:bg-surface-variant/30 transition-colors">
+<span class="material-symbols-outlined text-lg">refresh</span>
+                                    Regenerate
+                                </button>
+</div>
+</div>
+</div>
+<!-- Video Card 3 -->
+<div class="group bg-surface-container rounded-[2rem] overflow-hidden flex flex-col transition-all hover:translate-y-[-4px]">
+<div class="h-48 relative overflow-hidden">
+<img alt="History video thumbnail" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Cinematic low angle shot of ancient roman columns" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnt1Wo8ixYmZIcJlFfW_-LcAgJ9_QiChY8jDLOXpJwI2wkz6Cf8uIuPj1lN227E9Pz5p3CRdSF8PYgLB6RFhNFfRZXD30e7Fnh95-I4b1FZzMBwCw7EJaGVxtcYTCfCUrCuAIndHVTJClwQdgjuu-bGPNjAtvMC2uSx3iaMzWuR4pqRQIim2sEZUJvEMViHutLR3IXmkPdQ_4AtiaU6ZfBzj8nBfaLZCtBUFtmZ8Z_RQ6BjTfqJSi8ACLAs3-qPGFpugwAmAf74rDs"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 to-transparent"></div>
+<div class="absolute bottom-4 left-4 flex items-center gap-2">
+<span class="bg-primary/20 backdrop-blur-md text-primary px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">Vertical</span>
+<span class="bg-black/40 backdrop-blur-md text-white px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">0:58</span>
+</div>
+</div>
+<div class="p-6 space-y-4 flex-1 flex flex-col justify-between">
+<div>
+<h4 class="font-headline font-bold text-lg leading-tight mb-2">The Fall of Rome: A 60-Second Deep Dive</h4>
+<p class="text-xs text-outline font-label">Modified 3 days ago</p>
+</div>
+<div class="flex items-center justify-between pt-2">
+<button class="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl bg-surface-container-highest hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-lg">edit</span>
+                                    Edit
+                                </button>
+<button class="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl border border-outline-variant/30 text-on-surface hover:bg-surface-variant/30 transition-colors">
+<span class="material-symbols-outlined text-lg">refresh</span>
+                                    Regenerate
+                                </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+</body></html>
