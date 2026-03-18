@@ -1,17 +1,57 @@
 "use client";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAppContext, Scene } from "@/context/AppContext";
+import { calculateModelCost } from "@/lib/pricing";
 
 export default function ScriptBuilder() {
   const router = useRouter();
-  const { url, angle, scriptData, setScriptData } = useAppContext();
+  const { 
+    url, 
+    angle, 
+    scriptData, 
+    setScriptData,
+    globalVideoModel, setGlobalVideoModel,
+    globalImageModel, setGlobalImageModel,
+    globalAudioModel, setGlobalAudioModel,
+    qualityTier, setQualityTier
+  } = useAppContext();
   const [isLoading, setIsLoading] = useState(!scriptData);
   const [activeScene, setActiveScene] = useState<Scene | null>(null);
   const [scenePreviewUrl, setScenePreviewUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [enhancedTip, setEnhancedTip] = useState<string | null>(null);
+
+  const estimatedTotalCost = useMemo(() => {
+    if (!scriptData || !scriptData.scenes) return 0;
+    let totalCost = 0;
+    let totalDurationSeconds = 0;
+
+    scriptData.scenes.forEach(scene => {
+      const activeVideoModel = scene.video_model_override || globalVideoModel;
+      const activeImageModel = scene.image_model_override || globalImageModel;
+      
+      const videoCost = calculateModelCost(activeVideoModel, "video", scene.duration_estimate_seconds);
+      const imageCost = calculateModelCost(activeImageModel, "image");
+      
+      totalCost += videoCost + imageCost;
+      totalDurationSeconds += scene.duration_estimate_seconds;
+    });
+
+    const audioCost = calculateModelCost(globalAudioModel, "audio", totalDurationSeconds);
+    totalCost += audioCost;
+
+    return totalCost;
+  }, [scriptData, globalVideoModel, globalImageModel, globalAudioModel]);
+
+  // Cost Per Minute Estimator (Assuming ~5s scenes = 12 images per minute)
+  const costPerMinute = useMemo(() => {
+    const videoCost = calculateModelCost(globalVideoModel, "video", 60);
+    const audioCost = calculateModelCost(globalAudioModel, "audio", 60);
+    const imageCost = calculateModelCost(globalImageModel, "image") * 12;
+    return videoCost + audioCost + imageCost;
+  }, [globalVideoModel, globalImageModel, globalAudioModel]);
 
   useEffect(() => {
     if (scriptData) {
@@ -57,6 +97,7 @@ export default function ScriptBuilder() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: activeScene.visual_prompt,
+          model: activeScene.image_model_override || globalImageModel,
           width: 1280,
           height: 720,
           numberResults: 1,
@@ -118,17 +159,101 @@ export default function ScriptBuilder() {
 
       <div className="max-w-7xl mx-auto flex flex-col gap-8 w-full mt-4">
         {/* Header Section */}
-        <div className="flex items-end justify-between border-b border-outline-variant/5 pb-8">
+        <div className="flex flex-col md:flex-row items-start md:items-end justify-between border-b border-outline-variant/5 pb-8 gap-6">
           <div>
             <span className="font-label text-tertiary text-xs font-bold uppercase tracking-[0.2em] block mb-2">Editor Phase 02</span>
             <h2 className="font-headline text-4xl font-extrabold tracking-tight text-on-surface">Generated Story Script</h2>
           </div>
-          <div className="flex gap-4">
-            <button className="px-6 py-2.5 rounded-xl border border-outline-variant/20 font-body text-sm font-semibold hover:bg-surface-container-high transition-all flex items-center gap-2">
-              <span className="material-symbols-outlined text-sm" data-icon="edit">edit</span>
-              Edit Script
-            </button>
-            <button onClick={handleGenerateVideo} className="px-8 py-2.5 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-headline font-bold hover:shadow-lg transition-all flex items-center gap-2">
+          
+          {/* Global Model Settings */}
+          <div className="flex gap-3 bg-surface-container-low p-2 rounded-2xl items-center border border-outline-variant/10 shadow-sm overflow-x-auto w-full xl:w-auto">
+            
+            {/* Master Quality Tier Controller */}
+            <div className="flex flex-col border-r border-outline-variant/20 pr-3 shrink-0">
+              <div className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-primary text-sm" data-icon="diamond">diamond</span>
+                <div className="relative group">
+                  <select 
+                    value={qualityTier}
+                    onChange={(e) => setQualityTier(e.target.value)}
+                    className="bg-transparent text-primary border-none rounded-xl py-1 pl-2 pr-6 font-label text-xs uppercase font-bold tracking-widest appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+                  >
+                    <option value="Basic">Basic Quality</option>
+                    <option value="Medium">Medium Quality</option>
+                    <option value="Premium">Premium Quality</option>
+                    <option value="Custom">Custom Mix</option>
+                  </select>
+                  <span className="material-symbols-outlined absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none text-primary text-sm" data-icon="expand_more">expand_more</span>
+                </div>
+              </div>
+              <span className="text-[9px] font-body text-outline font-medium px-2 ml-4">
+                Rate: ~${costPerMinute.toFixed(2)} / min
+              </span>
+            </div>
+
+            <span className="text-[10px] font-label font-bold uppercase tracking-widest text-outline px-2 whitespace-nowrap">Model Defaults:</span>
+            
+            <div className="relative group shrink-0">
+              <select 
+                value={globalVideoModel}
+                onChange={(e) => {
+                  setGlobalVideoModel(e.target.value);
+                  setQualityTier("Custom");
+                }}
+                className="bg-surface-container-highest border-none rounded-xl py-2 pl-3 pr-8 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer min-w-[140px]"
+              >
+                <option value="klingai:video-3-0-standard">Kling 3.0 Standard</option>
+                <option value="klingai:5@3">Kling 1.5</option>
+                <option value="klingai:video-3-0-pro">Kling 3.0 Pro</option>
+                <option value="lightricks:ltx-2.3">LTX 2.3</option>
+                <option value="lightricks:ltx-2.3-fast">LTX 2.3 Fast</option>
+              </select>
+              <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="videocam">videocam</span>
+            </div>
+
+            <div className="relative group shrink-0">
+              <select 
+                value={globalImageModel}
+                onChange={(e) => {
+                  setGlobalImageModel(e.target.value);
+                  setQualityTier("Custom");
+                }}
+                className="bg-surface-container-highest border-none rounded-xl py-2 pl-3 pr-8 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer min-w-[140px]"
+              >
+                <option value="runware:101@1">FLUX.1 Dev</option>
+                <option value="alibaba:qwen-image-2-0">Qwen Image 2.0</option>
+                <option value="bytedance:seedream-5-0-lite">Seedream 5.0 Lite</option>
+              </select>
+              <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="image">image</span>
+            </div>
+            
+            <div className="relative group shrink-0">
+              <select 
+                value={globalAudioModel}
+                onChange={(e) => {
+                  setGlobalAudioModel(e.target.value);
+                  setQualityTier("Custom");
+                }}
+                className="bg-surface-container-highest border-none rounded-xl py-2 pl-3 pr-8 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer min-w-[140px]"
+              >
+                <option value="elevenlabs:1@1">ElevenLabs</option>
+                <option value="google:tts-1">Google Cloud TTS</option>
+              </select>
+              <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="mic">mic</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 shrink-0 w-full md:w-auto">
+            {/* Cost Estimator Badge */}
+            <div className="flex flex-col justify-center bg-surface-container-highest px-4 py-2 rounded-xl border border-outline-variant/10">
+              <span className="font-label text-[10px] text-outline uppercase tracking-widest font-bold">Estimated Cost</span>
+              <div className="flex items-center gap-1">
+                <span className="font-headline font-bold text-on-surface">${estimatedTotalCost.toFixed(2)}</span>
+                <span className="text-[10px] text-outline font-body">total</span>
+              </div>
+            </div>
+
+            <button onClick={handleGenerateVideo} className="px-8 py-3 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-headline font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2">
               <span className="material-symbols-outlined" data-icon="movie">movie</span>
               Generate Video
             </button>
@@ -157,13 +282,47 @@ export default function ScriptBuilder() {
                     </span>
                     <h3 className={`font-headline font-bold text-lg ${activeScene?.id === scene.id ? '' : 'text-outline'}`}>Scene {index + 1}</h3>
                   </div>
-                  <span className="font-label text-xs text-outline bg-surface-container-low px-2 py-1 rounded">
-                    ~{scene.duration_estimate_seconds}s
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-label text-xs text-outline bg-surface-container-low px-2 py-1 rounded">
+                      ~{scene.duration_estimate_seconds}s
+                    </span>
+                    <button 
+                      className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-error/10 text-outline hover:text-error transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!scriptData || scriptData.scenes.length <= 1) return;
+                        
+                        const newScenes = scriptData.scenes.filter(s => s.id !== scene.id);
+                        // Re-number scenes
+                        newScenes.forEach((s, idx) => s.scene_number = idx + 1);
+                        
+                        setScriptData({ ...scriptData, scenes: newScenes });
+                        if (activeScene?.id === scene.id) {
+                          setActiveScene(newScenes[0]);
+                        }
+                      }}
+                    >
+                      <span className="material-symbols-outlined text-[16px]" data-icon="close">close</span>
+                    </button>
+                  </div>
                 </div>
-                <p className={`font-body leading-relaxed pl-4 border-l-2 ${activeScene?.id === scene.id ? 'text-on-surface/80 italic border-primary-container' : 'text-on-surface/60 border-outline-variant/30'}`}>
-                  "{scene.narration}"
-                </p>
+                <textarea 
+                  className={`w-full bg-transparent border-none p-0 font-body leading-relaxed pl-4 border-l-2 resize-none focus:ring-0 ${activeScene?.id === scene.id ? 'text-on-surface/90 border-primary-container' : 'text-on-surface/60 border-outline-variant/30 overflow-hidden'}`}
+                  value={scene.narration}
+                  rows={activeScene?.id === scene.id ? 4 : 2}
+                  onChange={(e) => {
+                    if (!scriptData) return;
+                    const newScenes = [...scriptData.scenes];
+                    newScenes[index] = { ...newScenes[index], narration: e.target.value };
+                    setScriptData({ ...scriptData, scenes: newScenes });
+                    if (activeScene?.id === scene.id) {
+                      setActiveScene(newScenes[index]);
+                    }
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  onFocus={() => setActiveScene(scene)}
+                  placeholder="Enter narration script for this scene..."
+                />
                 {activeScene?.id === scene.id && (
                   <div className="absolute -right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="material-symbols-outlined text-primary" data-icon="chevron_right">chevron_right</span>
@@ -173,7 +332,25 @@ export default function ScriptBuilder() {
             ))}
 
             {/* Add Scene Button */}
-            <button className="w-full py-4 border-2 border-dashed border-outline-variant/20 rounded-2xl font-body text-outline hover:border-primary/40 hover:text-primary transition-all flex items-center justify-center gap-2">
+            <button 
+              onClick={() => {
+                if (!scriptData) return;
+                const newId = Math.max(...scriptData.scenes.map(s => s.id), 0) + 1;
+                const newScene: Scene = {
+                  id: newId,
+                  scene_number: scriptData.scenes.length + 1,
+                  duration_estimate_seconds: 5,
+                  narration: "",
+                  visual_prompt: ""
+                };
+                setScriptData({
+                  ...scriptData,
+                  scenes: [...scriptData.scenes, newScene]
+                });
+                setActiveScene(newScene);
+              }}
+              className="w-full py-4 border-2 border-dashed border-outline-variant/20 rounded-2xl font-body text-outline hover:border-primary/40 hover:text-primary transition-all flex items-center justify-center gap-2"
+            >
               <span className="material-symbols-outlined" data-icon="add_circle">add_circle</span>
               Insert New Scene
             </button>
@@ -217,30 +394,82 @@ export default function ScriptBuilder() {
 
               {/* Prompt Input */}
               <div className="space-y-3">
-                <label className="font-label text-xs text-outline uppercase tracking-wider font-bold">Scene Prompt</label>
+                <label className="font-label text-xs text-outline uppercase tracking-wider font-bold">Scene Visual Prompt</label>
                 <textarea 
-                  className="w-full bg-surface-container-low border-none rounded-xl p-4 font-body text-sm text-on-surface focus:ring-2 focus:ring-primary/40 resize-none transition-all" 
+                  className="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl p-4 font-body text-sm text-on-surface focus:ring-2 focus:ring-primary/40 focus:border-primary/40 resize-none transition-all placeholder:text-outline-variant" 
                   placeholder="Describe the visuals for this scene..." 
                   rows={4} 
                   value={activeScene?.visual_prompt || ""}
-                  readOnly
+                  onChange={(e) => {
+                    if (!scriptData || !activeScene) return;
+                    const sceneIndex = scriptData.scenes.findIndex(s => s.id === activeScene.id);
+                    if (sceneIndex === -1) return;
+                    
+                    const newScenes = [...scriptData.scenes];
+                    newScenes[sceneIndex] = { ...newScenes[sceneIndex], visual_prompt: e.target.value };
+                    setScriptData({ ...scriptData, scenes: newScenes });
+                    setActiveScene(newScenes[sceneIndex]);
+                  }}
                 ></textarea>
               </div>
 
-              {/* Style Selection */}
-              <div className="space-y-3">
-                <label className="font-label text-xs text-outline uppercase tracking-wider font-bold">Visual Style</label>
-                <div className="relative group">
-                  <select className="w-full bg-surface-container-low border-none rounded-xl p-4 font-body text-sm text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer">
-                    <option>Cinematic</option>
-                    <option>Documentary</option>
-                    <option>Dark Thriller</option>
-                    <option>Luxury Aesthetic</option>
-                    <option>Anime</option>
-                    <option>News Style</option>
-                    <option>Storytime</option>
-                  </select>
-                  <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-outline" data-icon="expand_more">expand_more</span>
+              {/* Advanced Model Overrides */}
+              <div className="space-y-4 pt-4 border-t border-outline-variant/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="material-symbols-outlined text-outline text-sm" data-icon="tune">tune</span>
+                  <h4 className="font-label text-xs text-outline uppercase tracking-wider font-bold">Scene Overrides</h4>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="font-label text-[10px] text-outline-variant uppercase tracking-widest">Video Model</label>
+                    <div className="relative group">
+                      <select 
+                        value={activeScene?.video_model_override || ""}
+                        onChange={(e) => {
+                          if (!scriptData || !activeScene) return;
+                          const sceneIndex = scriptData.scenes.findIndex(s => s.id === activeScene.id);
+                          const newScenes = [...scriptData.scenes];
+                          newScenes[sceneIndex] = { ...newScenes[sceneIndex], video_model_override: e.target.value || undefined };
+                          setScriptData({ ...scriptData, scenes: newScenes });
+                          setActiveScene(newScenes[sceneIndex]);
+                        }}
+                        className="w-full bg-surface-container-low border border-outline-variant/10 rounded-lg p-2.5 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+                      >
+                        <option value="">Global Default</option>
+                        <option value="klingai:video-3-0-standard">Kling 3.0 Std</option>
+                        <option value="klingai:5@3">Kling 1.5</option>
+                        <option value="klingai:video-3-0-pro">Kling 3.0 Pro</option>
+                        <option value="lightricks:ltx-2.3">LTX 2.3</option>
+                        <option value="lightricks:ltx-2.3-fast">LTX 2.3 Fast</option>
+                      </select>
+                      <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="expand_more">expand_more</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="font-label text-[10px] text-outline-variant uppercase tracking-widest">Image Model</label>
+                    <div className="relative group">
+                      <select 
+                        value={activeScene?.image_model_override || ""}
+                        onChange={(e) => {
+                          if (!scriptData || !activeScene) return;
+                          const sceneIndex = scriptData.scenes.findIndex(s => s.id === activeScene.id);
+                          const newScenes = [...scriptData.scenes];
+                          newScenes[sceneIndex] = { ...newScenes[sceneIndex], image_model_override: e.target.value || undefined };
+                          setScriptData({ ...scriptData, scenes: newScenes });
+                          setActiveScene(newScenes[sceneIndex]);
+                        }}
+                        className="w-full bg-surface-container-low border border-outline-variant/10 rounded-lg p-2.5 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+                      >
+                        <option value="">Global Default</option>
+                        <option value="runware:101@1">FLUX.1 Dev</option>
+                        <option value="alibaba:qwen-image-2-0">Qwen 2.0</option>
+                        <option value="bytedance:seedream-5-0-lite">Seedream</option>
+                      </select>
+                      <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="expand_more">expand_more</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

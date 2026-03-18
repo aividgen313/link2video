@@ -16,7 +16,14 @@ type SceneStatus = {
 };
 
 export default function VideoGeneration() {
-  const { scriptData, finalVideoUrl, setFinalVideoUrl } = useAppContext();
+  const { 
+    scriptData, 
+    finalVideoUrl, 
+    setFinalVideoUrl,
+    globalVideoModel,
+    globalImageModel,
+    globalAudioModel
+  } = useAppContext();
   const [progress, setProgress] = useState(0);
   const [activeSceneIndex, setActiveSceneIndex] = useState(0);
   const [sceneStatuses, setSceneStatuses] = useState<Record<number, SceneStatus>>({});
@@ -45,6 +52,7 @@ export default function VideoGeneration() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: scene.visual_prompt,
+          model: scene.image_model_override || globalImageModel,
           width: 1280,
           height: 720,
           numberResults: 1,
@@ -73,6 +81,7 @@ export default function VideoGeneration() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: scene.visual_prompt,
+          model: scene.video_model_override || globalVideoModel,
           duration: Math.min(scene.duration_estimate_seconds, 10),
           width: 1280,
           height: 720,
@@ -112,6 +121,7 @@ export default function VideoGeneration() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: `cinematic background music for a video about: ${scriptData?.title || "a documentary"}`,
+          model: globalAudioModel,
           duration: 30,
         }),
       });
@@ -264,7 +274,7 @@ export default function VideoGeneration() {
               <h2 className="font-headline text-display-lg text-4xl font-extrabold tracking-tight">Video Generation</h2>
               <div className="flex items-center gap-3 text-outline">
                 <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>crop_16_9</span>
-                <span className="font-label text-xs uppercase tracking-widest">Landscape • 1280x720 • Runware AI</span>
+                <span className="font-label text-xs uppercase tracking-widest">HD Landscape • Multi-Model Orchestration</span>
               </div>
             </div>
             <div className="w-full md:w-96 space-y-3">
@@ -470,7 +480,7 @@ export default function VideoGeneration() {
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-bold text-on-surface">Powered by Runware</p>
-                    <p className="text-[10px] text-outline">Image → Video pipeline with FLUX & Kling AI</p>
+                    <p className="text-[10px] text-outline">Dynamic Multi-Model Orchestration Pipeline</p>
                   </div>
                 </div>
               </div>

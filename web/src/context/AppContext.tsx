@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 export type Scene = {
   id: number;
@@ -8,6 +8,8 @@ export type Scene = {
   narration: string;
   visual_prompt: string;
   duration_estimate_seconds: number;
+  video_model_override?: string;
+  image_model_override?: string;
 };
 
 export type ScriptData = {
@@ -27,6 +29,14 @@ interface AppContextType {
   setIsGenerating: (val: boolean) => void;
   finalVideoUrl: string | null;
   setFinalVideoUrl: (url: string | null) => void;
+  globalVideoModel: string;
+  setGlobalVideoModel: (model: string) => void;
+  globalImageModel: string;
+  setGlobalImageModel: (model: string) => void;
+  globalAudioModel: string;
+  setGlobalAudioModel: (model: string) => void;
+  qualityTier: string;
+  setQualityTier: (tier: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -37,6 +47,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [scriptData, setScriptData] = useState<ScriptData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
+  
+  // Quality Tier State
+  const [qualityTier, setQualityTier] = useState("Medium");
+  
+  // Default Global Models
+  const [globalVideoModel, setGlobalVideoModel] = useState("klingai:video-3-0-standard");
+  const [globalImageModel, setGlobalImageModel] = useState("runware:101@1");
+  const [globalAudioModel, setGlobalAudioModel] = useState("elevenlabs:1@1");
+
+  // Sync Quality Tier to Models
+  useEffect(() => {
+    switch (qualityTier) {
+      case "Premium":
+        setGlobalVideoModel("klingai:video-3-0-pro");
+        setGlobalImageModel("alibaba:qwen-image-2-0");
+        break;
+      case "Medium":
+        setGlobalVideoModel("klingai:video-3-0-standard");
+        setGlobalImageModel("runware:101@1");
+        break;
+      case "Basic":
+        setGlobalVideoModel("lightricks:ltx-2.3-fast");
+        setGlobalImageModel("bytedance:seedream-5-0-lite");
+        break;
+      case "Custom":
+      default:
+        break; // Leave models as they are
+    }
+  }, [qualityTier]);
 
   return (
     <AppContext.Provider value={{
@@ -44,7 +83,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       angle, setAngle,
       scriptData, setScriptData,
       isGenerating, setIsGenerating,
-      finalVideoUrl, setFinalVideoUrl
+      finalVideoUrl, setFinalVideoUrl,
+      globalVideoModel, setGlobalVideoModel,
+      globalImageModel, setGlobalImageModel,
+      globalAudioModel, setGlobalAudioModel,
+      qualityTier, setQualityTier
     }}>
       {children}
     </AppContext.Provider>
