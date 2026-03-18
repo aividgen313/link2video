@@ -8,7 +8,6 @@ export async function POST(req: NextRequest) {
       prompt,
       duration = 30,
       model = "elevenlabs:1@1",
-      outputFormat = "mp3",
     } = await req.json();
 
     if (!prompt) {
@@ -16,6 +15,9 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("Runware Audio Inference:", prompt.substring(0, 80) + "...");
+
+    // Ensure duration is an integer within valid range
+    const validDuration = Math.max(10, Math.min(300, Math.floor(duration)));
 
     const response = await fetch("https://api.runware.ai/v1", {
       method: "POST",
@@ -29,9 +31,11 @@ export async function POST(req: NextRequest) {
           taskUUID: uuidv4(),
           positivePrompt: prompt,
           model,
-          duration,
+          audioSettings: {
+            duration: validDuration,
+          },
           outputType: "URL",
-          outputFormat,
+          outputFormat: "MP3",
           numberResults: 1,
           includeCost: true,
         },
