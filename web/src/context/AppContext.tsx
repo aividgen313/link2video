@@ -59,7 +59,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [globalVideoModel, setGlobalVideoModel] = useState("klingai:video-3-0-standard");
   const [globalImageModel, setGlobalImageModel] = useState("runware:101@1");
   const [globalAudioModel, setGlobalAudioModel] = useState("elevenlabs:1@1");
-  const [globalScriptModel, setGlobalScriptModel] = useState("gemini-2.0-flash");
+  const [globalScriptModel, setGlobalScriptModel] = useState("runware:meta:llama-3.1-8b-instruct");
   const [globalVisualStyle, setGlobalVisualStyle] = useState("Cinematic Documentary");
 
   // Sync Quality Tier to Models

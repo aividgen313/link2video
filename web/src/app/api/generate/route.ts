@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as cheerio from "cheerio";
 import { generateRunwareText } from "@/lib/runware";
 
-const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
-
 export async function POST(req: NextRequest) {
   try {
-    const { topic, url, angle, provider = "gemini", model: modelOverride, visualStyle = "Cinematic Documentary" } = await req.json();
+    const { topic, url, angle, provider = "runware", model: modelOverride, visualStyle = "Cinematic Documentary" } = await req.json();
 
     if (!topic && !url) {
       return NextResponse.json({ error: "URL or Topic is required" }, { status: 400 });
@@ -65,27 +62,10 @@ Format your response as a JSON object with 'title', 'angle', and a 'scenes' arra
 Return ONLY the JSON.
 `;
 
-    let responseText = "";
+    const runwareModel = modelOverride || "meta:llama-3.1-8b-instruct";
+    const finalModel = runwareModel.replace("runware:", "");
 
-    if (provider === "runware" || (modelOverride && modelOverride.includes(":"))) {
-      const runwareModel = modelOverride || "minimax:m2.5";
-      responseText = await generateRunwareText(prompt, runwareModel);
-    } else {
-      if (!process.env.GEMINI_API_KEY || !genAI) {
-        console.warn("GEMINI_API_KEY missing, falling back to Runware");
-        responseText = await generateRunwareText(prompt, "minimax:m2.5");
-      } else {
-        const modelIdentifier = modelOverride || "gemini-2.0-flash";
-        try {
-          const model = genAI.getGenerativeModel({ model: modelIdentifier });
-          const result = await model.generateContent(prompt);
-          responseText = result.response.text();
-        } catch (geminiError: any) {
-          console.error("Gemini failed, falling back to Runware:", geminiError);
-          responseText = await generateRunwareText(prompt, "minimax:m2.5");
-        }
-      }
-    }
+    const responseText = await generateRunwareText(prompt, finalModel);
     
     // Clean up potential markdown formatting from the response
     const jsonStr = responseText.replace(/```json\n?|\n?|```/g, '').trim();

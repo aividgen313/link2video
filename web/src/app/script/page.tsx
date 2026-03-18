@@ -259,10 +259,10 @@ export default function ScriptBuilder() {
                 onChange={(e) => setGlobalScriptModel(e.target.value)}
                 className="bg-surface-container-highest border-none rounded-xl py-2 pl-3 pr-8 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer min-w-[140px]"
               >
-                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                <option value="runware:meta:llama-3.1-8b-instruct">Runware Llama 8B (Fast & Cheap)</option>
                 <option value="runware:minimax:m2.5">Runware MiniMax</option>
-                <option value="runware:meta:llama-3.1-405b-instruct">Runware Llama 405B</option>
                 <option value="runware:meta:llama-3.1-70b-instruct">Runware Llama 70B</option>
+                <option value="runware:meta:llama-3.1-405b-instruct">Runware Llama 405B</option>
               </select>
               <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="edit_note">edit_note</span>
             </div>
