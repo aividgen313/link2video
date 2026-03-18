@@ -62,13 +62,16 @@ Format your response as a JSON object with 'title', 'angle', and a 'scenes' arra
 Return ONLY the JSON.
 `;
 
-    const runwareModel = modelOverride || "meta:llama-3.1-8b-instruct";
+    const runwareModel = modelOverride || "minimax:m2.5@0";
     const finalModel = runwareModel.replace("runware:", "");
 
     const responseText = await generateRunwareText(prompt, finalModel);
     
-    // Clean up potential markdown formatting from the response
-    const jsonStr = responseText.replace(/```json\n?|\n?|```/g, '').trim();
+    // Clean up response text: strip <think> tags and extract JSON
+    const cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    const jsonMatch = cleanText.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : cleanText;
+    
     let scriptData;
     try {
       scriptData = JSON.parse(jsonStr);

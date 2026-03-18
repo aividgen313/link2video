@@ -56,21 +56,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [qualityTier, setQualityTier] = useState("Medium");
   
   // Default Global Models
-  const [globalVideoModel, setGlobalVideoModel] = useState("klingai:video-3-0-standard");
+  const [globalVideoModel, setGlobalVideoModel] = useState("klingai:kling-video@3-standard");
   const [globalImageModel, setGlobalImageModel] = useState("runware:101@1");
   const [globalAudioModel, setGlobalAudioModel] = useState("elevenlabs:1@1");
-  const [globalScriptModel, setGlobalScriptModel] = useState("runware:meta:llama-3.1-8b-instruct");
+  const [globalScriptModel, setGlobalScriptModel] = useState("runware:minimax:m2.5@0");
   const [globalVisualStyle, setGlobalVisualStyle] = useState("Cinematic Documentary");
 
   // Sync Quality Tier to Models
   useEffect(() => {
     switch (qualityTier) {
       case "Premium":
-        setGlobalVideoModel("klingai:video-3-0-pro");
+        setGlobalVideoModel("klingai:kling-video@3-pro");
         setGlobalImageModel("alibaba:qwen-image-2-0");
         break;
       case "Medium":
-        setGlobalVideoModel("klingai:video-3-0-standard");
+        setGlobalVideoModel("klingai:kling-video@3-standard");
         setGlobalImageModel("runware:101@1");
         break;
       case "Basic":

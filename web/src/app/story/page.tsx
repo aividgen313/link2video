@@ -16,9 +16,11 @@ export default function StoryAngleGenerator() {
   const { url, setAngle, globalScriptModel } = useAppContext();
   const [selectedAngle, setSelectedAngle] = useState("");
   const [angles, setAngles] = useState<Angle[]>([]);
+  const [hasMounted, setHasMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchAngles = async () => {
+    if (!url) return;
     setIsLoading(true);
     try {
       const isRunware = globalScriptModel.startsWith("runware:");
@@ -29,7 +31,7 @@ export default function StoryAngleGenerator() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          topic: url || "Technology and Future",
+          topic: url,
           provider,
           model
         })
@@ -45,8 +47,12 @@ export default function StoryAngleGenerator() {
     }
   };
 
+
   useEffect(() => {
-    fetchAngles();
+    setHasMounted(true);
+    if (url && angles.length === 0) {
+      fetchAngles();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
@@ -54,6 +60,8 @@ export default function StoryAngleGenerator() {
     setAngle(selectedAngle || angles[0]?.title || "General Story");
     router.push("/script");
   };
+
+  if (!hasMounted) return null;
 
   return (
     <>

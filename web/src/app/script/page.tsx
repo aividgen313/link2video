@@ -20,10 +20,16 @@ export default function ScriptBuilder() {
     globalVisualStyle
   } = useAppContext();
   const [isLoading, setIsLoading] = useState(!scriptData);
+  const [hasMounted, setHasMounted] = useState(false);
   const [activeScene, setActiveScene] = useState<Scene | null>(null);
   const [scenePreviewUrl, setScenePreviewUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [enhancedTip, setEnhancedTip] = useState<string | null>(null);
+
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   const estimatedTotalCost = useMemo(() => {
     if (!scriptData || !scriptData.scenes) return 0;
@@ -157,6 +163,8 @@ export default function ScriptBuilder() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeScene?.id]);
 
+  if (!hasMounted) return null;
+
   return (
     <>
       <div className="mb-4 flex items-center gap-2">
@@ -214,9 +222,9 @@ export default function ScriptBuilder() {
                 }}
                 className="bg-surface-container-highest border-none rounded-xl py-2 pl-3 pr-8 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer min-w-[140px]"
               >
-                <option value="klingai:video-3-0-standard">Kling 3.0 Standard</option>
+                <option value="klingai:kling-video@3-standard">Kling 3.0 Standard</option>
                 <option value="klingai:5@3">Kling 1.5</option>
-                <option value="klingai:video-3-0-pro">Kling 3.0 Pro</option>
+                <option value="klingai:kling-video@3-pro">Kling 3.0 Pro</option>
                 <option value="lightricks:ltx-2.3">LTX 2.3</option>
                 <option value="lightricks:ltx-2.3-fast">LTX 2.3 Fast</option>
               </select>
@@ -259,10 +267,10 @@ export default function ScriptBuilder() {
                 onChange={(e) => setGlobalScriptModel(e.target.value)}
                 className="bg-surface-container-highest border-none rounded-xl py-2 pl-3 pr-8 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer min-w-[140px]"
               >
-                <option value="runware:meta:llama-3.1-8b-instruct">Runware Llama 8B (Fast & Cheap)</option>
-                <option value="runware:minimax:m2.5">Runware MiniMax</option>
-                <option value="runware:meta:llama-3.1-70b-instruct">Runware Llama 70B</option>
-                <option value="runware:meta:llama-3.1-405b-instruct">Runware Llama 405B</option>
+                <option value="runware:minimax:m2.5@0">Runware MiniMax (Fast & Smart)</option>
+                <option value="runware:150@2">Runware LLaVA 7B (Multi-modal)</option>
+                <option value="runware:152@2">Runware Qwen 7B (Powerful)</option>
+                <option value="google:gemini@3.1-pro">Google Gemini 3.1 Pro</option>
               </select>
               <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="edit_note">edit_note</span>
             </div>
@@ -462,9 +470,9 @@ export default function ScriptBuilder() {
                         className="w-full bg-surface-container-low border border-outline-variant/10 rounded-lg p-2.5 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
                       >
                         <option value="">Global Default</option>
-                        <option value="klingai:video-3-0-standard">Kling 3.0 Std</option>
+                        <option value="klingai:kling-video@3-standard">Kling 3.0 Std</option>
                         <option value="klingai:5@3">Kling 1.5</option>
-                        <option value="klingai:video-3-0-pro">Kling 3.0 Pro</option>
+                        <option value="klingai:kling-video@3-pro">Kling 3.0 Pro</option>
                         <option value="lightricks:ltx-2.3">LTX 2.3</option>
                         <option value="lightricks:ltx-2.3-fast">LTX 2.3 Fast</option>
                       </select>

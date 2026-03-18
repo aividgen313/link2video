@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
       duration = 5,
       width = 1280,
       height = 720,
-      model = "klingai:5@3",
+      model = "klingai:kling-video@3-standard",
       imageUUID,
       fps = 24,
       steps = 30,

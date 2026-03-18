@@ -31,7 +31,13 @@ export default function VideoGeneration() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
   const [stitchStatus, setStitchStatus] = useState<string>("");
+  const [hasMounted, setHasMounted] = useState(false);
   const ffmpegRef = useRef<FFmpeg | null>(null);
+
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   useEffect(() => {
     ffmpegRef.current = new FFmpeg();
@@ -266,6 +272,8 @@ export default function VideoGeneration() {
 
     runPipeline();
   }, [scriptData]);
+
+  if (!hasMounted) return null;
 
   return (
     <>

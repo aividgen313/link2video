@@ -6,10 +6,10 @@
 export const RUNWARE_PRICING = {
   // --- VIDEO MODELS (Price per second of video) ---
   // Premium Tier
-  "klingai:video-3-0-pro": 0.08, // ~$4.80 per minute
+  "klingai:kling-video@3-pro": 0.08, // ~$4.80 per minute
   
   // Medium Tier
-  "klingai:video-3-0-standard": 0.012, // ~$0.72 per minute
+  "klingai:kling-video@3-standard": 0.012, // ~$0.72 per minute
   "klingai:5@3": 0.01, // ~$0.60 per minute
 
   // Basic/Budget Tier
