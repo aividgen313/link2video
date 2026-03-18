@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       model = "klingai:kling-video@3-standard",
       imageUUID,
       fps = 24,
-      steps = 30,
+      CFGScale = 7.5,
     } = await req.json();
 
     if (!prompt) {
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       width,
       height,
       fps,
-      steps,
+      CFGScale,
       numberResults: 1,
       outputType: "URL",
       outputFormat: "MP4",
@@ -57,13 +57,44 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify([taskPayload]),
     });
 
+    if (!response.ok) {
+      console.error(`Runware API HTTP error: ${response.status} ${response.statusText}`);
+      return NextResponse.json(
+        { error: `API request failed with status ${response.status}` },
+        { status: response.status }
+      );
+    }
+
     const data = await response.json();
 
     if (data.errors) {
       console.error("Runware video error:", data.errors);
-      
+
+      // Check for unsupported parameter errors
+      const hasUnsupportedParam = data.errors.some((e: any) =>
+        e.code === "unsupportedParameter"
+      );
+
+      if (hasUnsupportedParam) {
+        const paramName = data.errors[0]?.parameter;
+        console.error(`Unsupported parameter detected: ${paramName}`);
+        return NextResponse.json(
+          {
+            error: `Invalid parameter '${paramName}' for this video model. Please check API documentation.`,
+            details: data.errors[0]?.message,
+            documentation: data.errors[0]?.documentation
+          },
+          { status: 400 }
+        );
+      }
+
       // Fallback for credit errors to ensure the app flow still completes for demo purposes
-      const isCreditError = data.errors.some((e: any) => e.message?.toLowerCase().includes("credit") || e.message?.toLowerCase().includes("invoice"));
+      const isCreditError = data.errors.some((e: any) =>
+        e.message?.toLowerCase().includes("credit") ||
+        e.message?.toLowerCase().includes("invoice") ||
+        e.code === "insufficientCredits"
+      );
+
       if (isCreditError) {
         console.warn("Runware out of credits. Falling back to mock video to allow flow completion.");
         return NextResponse.json({
@@ -73,10 +104,18 @@ export async function POST(req: NextRequest) {
           seed: Math.floor(Math.random() * 1000000),
           cost: 0,
           duration,
+          isMockData: true,
         });
       }
 
-      return NextResponse.json({ error: data.errors[0]?.message || "Video generation failed" }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: data.errors[0]?.message || "Video generation failed",
+          errorCode: data.errors[0]?.code,
+          details: data.errors
+        },
+        { status: 500 }
+      );
     }
 
     // Video generation may be async — check if we got a result or need to poll
@@ -103,6 +142,38 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Video generation error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+
+    // Check for network errors
+    if (errorMessage.includes("fetch") || errorMessage.includes("network")) {
+      return NextResponse.json(
+        {
+          error: "Network error: Unable to connect to Runware API. Please check your internet connection.",
+          retryable: true
+        },
+        { status: 503 }
+      );
+    }
+
+    // Check for timeout errors
+    if (errorMessage.includes("timeout")) {
+      return NextResponse.json(
+        {
+          error: "Request timeout: The video generation took too long. Please try again.",
+          retryable: true
+        },
+        { status: 504 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error: "Internal Server Error during video generation",
+        message: errorMessage,
+        retryable: true
+      },
+      { status: 500 }
+    );
   }
 }

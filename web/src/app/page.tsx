@@ -8,10 +8,26 @@ export default function Home() {
   const router = useRouter();
   const { url, setUrl, globalScriptModel, setGlobalScriptModel, globalVisualStyle, setGlobalVisualStyle } = useAppContext();
   const [inputValue, setInputValue] = useState(url || "");
+  const [selectedPlatform, setSelectedPlatform] = useState<"tiktok" | "instagram" | "youtube">("tiktok");
+  const [videoLength, setVideoLength] = useState("1 min");
+  const [voiceEngine, setVoiceEngine] = useState<"elevenlabs" | "google">("elevenlabs");
+  const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
 
   const handleGenerate = () => {
     setUrl(inputValue);
     router.push("/story");
+  };
+
+  const handleViewAllVideos = () => {
+    alert("View All Videos feature coming soon! This will navigate to a complete video library.");
+  };
+
+  const handleEditVideo = (videoTitle: string) => {
+    alert(`Edit video: "${videoTitle}"\n\nThis feature will open the video in the editor for modifications.`);
+  };
+
+  const handleRegenerateVideo = (videoTitle: string) => {
+    alert(`Regenerate video: "${videoTitle}"\n\nThis will create a new version with updated AI models.`);
   };
 
   return (
@@ -49,15 +65,21 @@ export default function Home() {
                 <div className="space-y-3">
                   <label className="text-sm font-label text-outline uppercase tracking-widest pl-1">Platform</label>
                   <div className="flex gap-2 bg-surface-container-low p-1.5 rounded-2xl">
-                    <button className="flex-1 py-3 px-2 rounded-xl bg-surface-container-highest text-primary flex flex-col items-center gap-1 font-medium text-xs">
+                    <button
+                      onClick={() => setSelectedPlatform("tiktok")}
+                      className={`flex-1 py-3 px-2 rounded-xl flex flex-col items-center gap-1 font-medium text-xs transition-all ${selectedPlatform === "tiktok" ? "bg-surface-container-highest text-primary" : "text-outline hover:bg-surface-variant/30"}`}>
                       <span className="material-symbols-outlined text-xl">theater_comedy</span>
                       TikTok
                     </button>
-                    <button className="flex-1 py-3 px-2 rounded-xl text-outline hover:bg-surface-variant/30 flex flex-col items-center gap-1 text-xs">
+                    <button
+                      onClick={() => setSelectedPlatform("instagram")}
+                      className={`flex-1 py-3 px-2 rounded-xl flex flex-col items-center gap-1 text-xs transition-all ${selectedPlatform === "instagram" ? "bg-surface-container-highest text-primary" : "text-outline hover:bg-surface-variant/30"}`}>
                       <span className="material-symbols-outlined text-xl">camera_roll</span>
                       Instagram
                     </button>
-                    <button className="flex-1 py-3 px-2 rounded-xl text-outline hover:bg-surface-variant/30 flex flex-col items-center gap-1 text-xs">
+                    <button
+                      onClick={() => setSelectedPlatform("youtube")}
+                      className={`flex-1 py-3 px-2 rounded-xl flex flex-col items-center gap-1 text-xs transition-all ${selectedPlatform === "youtube" ? "bg-surface-container-highest text-primary" : "text-outline hover:bg-surface-variant/30"}`}>
                       <span className="material-symbols-outlined text-xl">smart_display</span>
                       YouTube
                     </button>
@@ -68,7 +90,10 @@ export default function Home() {
                 <div className="space-y-3">
                   <label className="text-sm font-label text-outline uppercase tracking-widest pl-1">Video Length</label>
                   <div className="relative">
-                    <select className="w-full bg-surface-container-low border-none rounded-2xl py-4 px-6 text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer">
+                    <select
+                      value={videoLength}
+                      onChange={(e) => setVideoLength(e.target.value)}
+                      className="w-full bg-surface-container-low border-none rounded-2xl py-4 px-6 text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer">
                       <option>1 min</option>
                       <option>3 min</option>
                       <option>5 min</option>
@@ -102,11 +127,15 @@ export default function Home() {
                 <div className="space-y-3">
                   <label className="text-sm font-label text-outline uppercase tracking-widest pl-1">Voiceover Engine</label>
                   <div className="flex gap-2 bg-surface-container-low p-1.5 rounded-2xl">
-                    <button className="flex-1 py-3 px-2 rounded-xl bg-surface-container-highest text-primary flex items-center justify-center gap-2 font-medium text-xs">
+                    <button
+                      onClick={() => setVoiceEngine("elevenlabs")}
+                      className={`flex-1 py-3 px-2 rounded-xl flex items-center justify-center gap-2 font-medium text-xs transition-all ${voiceEngine === "elevenlabs" ? "bg-surface-container-highest text-primary" : "text-outline hover:bg-surface-variant/30"}`}>
                       <span className="material-symbols-outlined text-lg">graphic_eq</span>
                       ElevenLabs
                     </button>
-                    <button className="flex-1 py-3 px-2 rounded-xl text-outline hover:bg-surface-variant/30 flex items-center justify-center gap-2 text-xs">
+                    <button
+                      onClick={() => setVoiceEngine("google")}
+                      className={`flex-1 py-3 px-2 rounded-xl flex items-center justify-center gap-2 text-xs transition-all ${voiceEngine === "google" ? "bg-surface-container-highest text-primary" : "text-outline hover:bg-surface-variant/30"}`}>
                       <span className="material-symbols-outlined text-lg">cloud_queue</span>
                       Google Cloud TTS
                     </button>
@@ -115,11 +144,15 @@ export default function Home() {
                 <div className="space-y-3">
                   <label className="text-sm font-label text-outline uppercase tracking-widest pl-1">Subtitles &amp; Captions</label>
                   <div className="flex gap-2 bg-surface-container-low p-1.5 rounded-2xl">
-                    <button className="flex-1 py-3 px-2 rounded-xl bg-surface-container-highest text-primary flex items-center justify-center gap-2 font-medium text-xs">
+                    <button
+                      onClick={() => setSubtitlesEnabled(true)}
+                      className={`flex-1 py-3 px-2 rounded-xl flex items-center justify-center gap-2 font-medium text-xs transition-all ${subtitlesEnabled ? "bg-surface-container-highest text-primary" : "text-outline hover:bg-surface-variant/30"}`}>
                       <span className="material-symbols-outlined text-lg">closed_caption</span>
                       Deepgram + FFmpeg
                     </button>
-                    <button className="flex-1 py-3 px-2 rounded-xl text-outline hover:bg-surface-variant/30 flex items-center justify-center gap-2 text-xs">
+                    <button
+                      onClick={() => setSubtitlesEnabled(false)}
+                      className={`flex-1 py-3 px-2 rounded-xl flex items-center justify-center gap-2 text-xs transition-all ${!subtitlesEnabled ? "bg-surface-container-highest text-primary" : "text-outline hover:bg-surface-variant/30"}`}>
                       <span className="material-symbols-outlined text-lg">block</span>
                       None
                     </button>
@@ -145,7 +178,9 @@ export default function Home() {
       <div className="max-w-6xl mx-auto pt-16">
         <div className="flex items-center justify-between mb-8 px-4">
           <h3 className="font-headline text-2xl font-bold tracking-tight">Recent Videos</h3>
-          <button className="text-primary font-medium flex items-center gap-2 hover:underline">
+          <button
+            onClick={handleViewAllVideos}
+            className="text-primary font-medium flex items-center gap-2 hover:underline transition-colors">
             View All
             <span className="material-symbols-outlined text-sm">arrow_forward</span>
           </button>
@@ -170,11 +205,15 @@ export default function Home() {
                 <p className="text-xs text-outline font-label">Modified 2 hours ago</p>
               </div>
               <div className="flex items-center justify-between pt-2">
-                <button className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl bg-surface-container-highest hover:bg-surface-variant transition-colors">
+                <button
+                  onClick={() => handleEditVideo("The Hidden Mysteries of the Amazon Rainforest")}
+                  className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl bg-surface-container-highest hover:bg-surface-variant transition-colors">
                   <span className="material-symbols-outlined text-lg">edit</span>
                   Edit
                 </button>
-                <button className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl border border-outline-variant/30 text-on-surface hover:bg-surface-variant/30 transition-colors">
+                <button
+                  onClick={() => handleRegenerateVideo("The Hidden Mysteries of the Amazon Rainforest")}
+                  className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl border border-outline-variant/30 text-on-surface hover:bg-surface-variant/30 transition-colors">
                   <span className="material-symbols-outlined text-lg">refresh</span>
                   Regenerate
                 </button>
@@ -198,11 +237,15 @@ export default function Home() {
                 <p className="text-xs text-outline font-label">Modified yesterday</p>
               </div>
               <div className="flex items-center justify-between pt-2">
-                <button className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl bg-surface-container-highest hover:bg-surface-variant transition-colors">
+                <button
+                  onClick={() => handleEditVideo("How Quantum Computing is Changing the World")}
+                  className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl bg-surface-container-highest hover:bg-surface-variant transition-colors">
                   <span className="material-symbols-outlined text-lg">edit</span>
                   Edit
                 </button>
-                <button className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl border border-outline-variant/30 text-on-surface hover:bg-surface-variant/30 transition-colors">
+                <button
+                  onClick={() => handleRegenerateVideo("How Quantum Computing is Changing the World")}
+                  className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl border border-outline-variant/30 text-on-surface hover:bg-surface-variant/30 transition-colors">
                   <span className="material-symbols-outlined text-lg">refresh</span>
                   Regenerate
                 </button>
@@ -226,11 +269,15 @@ export default function Home() {
                 <p className="text-xs text-outline font-label">Modified 3 days ago</p>
               </div>
               <div className="flex items-center justify-between pt-2">
-                <button className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl bg-surface-container-highest hover:bg-surface-variant transition-colors">
+                <button
+                  onClick={() => handleEditVideo("The Fall of Rome: A 60-Second Deep Dive")}
+                  className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl bg-surface-container-highest hover:bg-surface-variant transition-colors">
                   <span className="material-symbols-outlined text-lg">edit</span>
                   Edit
                 </button>
-                <button className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl border border-outline-variant/30 text-on-surface hover:bg-surface-variant/30 transition-colors">
+                <button
+                  onClick={() => handleRegenerateVideo("The Fall of Rome: A 60-Second Deep Dive")}
+                  className="flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl border border-outline-variant/30 text-on-surface hover:bg-surface-variant/30 transition-colors">
                   <span className="material-symbols-outlined text-lg">refresh</span>
                   Regenerate
                 </button>

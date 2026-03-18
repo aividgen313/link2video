@@ -67,6 +67,26 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Music generation error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+
+    if (errorMessage.includes("fetch") || errorMessage.includes("network")) {
+      return NextResponse.json(
+        {
+          error: "Network error: Unable to connect to Runware Audio API.",
+          retryable: true
+        },
+        { status: 503 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error: "Internal Server Error during music generation",
+        message: errorMessage,
+        retryable: true
+      },
+      { status: 500 }
+    );
   }
 }

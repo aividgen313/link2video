@@ -271,7 +271,7 @@ export default function VideoGeneration() {
     };
 
     runPipeline();
-  }, [scriptData]);
+  }, [scriptData, isGenerating, finalVideoUrl, generateMusic, generateSceneAudio, generateSceneImage, generateSceneVideo, updateSceneStatus]);
 
   if (!hasMounted) return null;
 
@@ -379,11 +379,41 @@ export default function VideoGeneration() {
               {/* Action Bar */}
               <div className="flex flex-wrap items-center justify-between gap-4 p-6 bg-surface-container-high/50 backdrop-blur-2xl rounded-xl border border-outline-variant/10">
                 <div className="flex items-center gap-3">
-                  <button className="px-6 py-3 rounded-xl bg-primary text-on-primary font-headline font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform">
+                  <button
+                    onClick={() => {
+                      if (finalVideoUrl) {
+                        const a = document.createElement('a');
+                        a.href = finalVideoUrl;
+                        a.download = `${scriptData?.title || 'video'}.mp4`;
+                        a.click();
+                      } else {
+                        alert('Video is still being generated. Please wait until the video is complete.');
+                      }
+                    }}
+                    disabled={!finalVideoUrl}
+                    className="px-6 py-3 rounded-xl bg-primary text-on-primary font-headline font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
                     <span className="material-symbols-outlined">download</span>
                     Download Video
                   </button>
-                  <button className="px-6 py-3 rounded-xl bg-surface-container-highest text-on-surface font-headline font-bold flex items-center gap-2 hover:bg-surface-variant transition-colors border border-outline-variant/20">
+                  <button
+                    onClick={() => {
+                      if (!scriptData) return;
+                      const promptsData = scriptData.scenes.map((s, i) => ({
+                        scene: i + 1,
+                        narration: s.narration,
+                        visualPrompt: s.visual_prompt,
+                        duration: s.duration_estimate_seconds
+                      }));
+                      const blob = new Blob([JSON.stringify(promptsData, null, 2)], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${scriptData.title}-prompts.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    disabled={!scriptData}
+                    className="px-6 py-3 rounded-xl bg-surface-container-highest text-on-surface font-headline font-bold flex items-center gap-2 hover:bg-surface-variant transition-colors border border-outline-variant/20 disabled:opacity-50 disabled:cursor-not-allowed">
                     <span className="material-symbols-outlined">description</span>
                     Export Prompts
                   </button>
