@@ -15,27 +15,27 @@ export async function POST(req: NextRequest) {
 
     let extractedText = "";
     
-    // 1. Extract content from the URL
+    // 1. Check if input is a URL or a Topic
     try {
+      // Simple validation for URL structure before attempting to fetch
+      new URL(url); // This will throw if it's not a valid URL
+      
       const response = await fetch(url);
       const html = await response.text();
       const $ = cheerio.load(html);
       
-      // Basic extraction: get all paragraph text
       $('p').each((i, el) => {
         extractedText += $(el).text() + "\n\n";
       });
       
-      // Fallback if no paragraphs found
       if (extractedText.trim().length < 50) {
         extractedText = $('body').text().replace(/\s+/g, ' ');
       }
-      
-      // Limit text to roughly 4000 words to avoid massive prompts if not needed
       extractedText = extractedText.substring(0, 20000);
-    } catch (fetchError) {
-      console.warn("Failed to fetch or parse URL, continuing with the URL text only:", fetchError);
-      extractedText = `Source URL: ${url}`;
+    } catch (e) {
+      // It's likely a topic string like "lil wayne", so we use it directly as the source text
+      console.log(`Input "${url}" is not a valid URL or fetch failed. Treating as a topic prompt.`);
+      extractedText = `Topic: ${url}`;
     }
 
     // 2. Generate Script using Gemini
@@ -44,7 +44,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "GEMINI_API_KEY is not configured on the server." }, { status: 500 });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Using stable gemini model to avoid 404 versioning errors
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     
     const prompt = `
 You are an expert Youtube video scriptwriter and director. 
