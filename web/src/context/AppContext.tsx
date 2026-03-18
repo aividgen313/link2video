@@ -37,6 +37,8 @@ interface AppContextType {
   setGlobalAudioModel: (model: string) => void;
   qualityTier: string;
   setQualityTier: (tier: string) => void;
+  globalScriptModel: string;
+  setGlobalScriptModel: (model: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -55,6 +57,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [globalVideoModel, setGlobalVideoModel] = useState("klingai:video-3-0-standard");
   const [globalImageModel, setGlobalImageModel] = useState("runware:101@1");
   const [globalAudioModel, setGlobalAudioModel] = useState("elevenlabs:1@1");
+  const [globalScriptModel, setGlobalScriptModel] = useState("gemini-2.0-flash");
 
   // Sync Quality Tier to Models
   useEffect(() => {
@@ -87,7 +90,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       globalVideoModel, setGlobalVideoModel,
       globalImageModel, setGlobalImageModel,
       globalAudioModel, setGlobalAudioModel,
-      qualityTier, setQualityTier
+      qualityTier, setQualityTier,
+      globalScriptModel, setGlobalScriptModel
     }}>
       {children}
     </AppContext.Provider>

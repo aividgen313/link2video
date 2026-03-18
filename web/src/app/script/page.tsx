@@ -15,7 +15,8 @@ export default function ScriptBuilder() {
     globalVideoModel, setGlobalVideoModel,
     globalImageModel, setGlobalImageModel,
     globalAudioModel, setGlobalAudioModel,
-    qualityTier, setQualityTier
+    qualityTier, setQualityTier,
+    globalScriptModel, setGlobalScriptModel
   } = useAppContext();
   const [isLoading, setIsLoading] = useState(!scriptData);
   const [activeScene, setActiveScene] = useState<Scene | null>(null);
@@ -63,10 +64,19 @@ export default function ScriptBuilder() {
     const fetchScript = async () => {
       try {
         setIsLoading(true);
+        const isRunware = globalScriptModel.startsWith("runware:");
+        const provider = isRunware ? "runware" : "gemini";
+        const model = isRunware ? globalScriptModel.replace("runware:", "") : globalScriptModel;
+
         const res = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: url || "https://example.com/mock", angle })
+          body: JSON.stringify({ 
+            url: url || "https://example.com/mock", 
+            angle,
+            provider,
+            model
+          })
         });
         const data = await res.json();
         setScriptData(data);
@@ -239,7 +249,20 @@ export default function ScriptBuilder() {
                 <option value="elevenlabs:1@1">ElevenLabs</option>
                 <option value="google:tts-1">Google Cloud TTS</option>
               </select>
-              <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="mic">mic</span>
+            </div>
+            
+            <div className="relative group shrink-0">
+              <select 
+                value={globalScriptModel}
+                onChange={(e) => setGlobalScriptModel(e.target.value)}
+                className="bg-surface-container-highest border-none rounded-xl py-2 pl-3 pr-8 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer min-w-[140px]"
+              >
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                <option value="runware:minimax:m2.5">Runware MiniMax</option>
+                <option value="runware:meta:llama-3.1-405b-instruct">Runware Llama 405B</option>
+                <option value="runware:meta:llama-3.1-70b-instruct">Runware Llama 70B</option>
+              </select>
+              <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="edit_note">edit_note</span>
             </div>
           </div>
 
@@ -334,8 +357,8 @@ export default function ScriptBuilder() {
             {/* Add Scene Button */}
             <button 
               onClick={() => {
-                if (!scriptData) return;
-                const newId = Math.max(...scriptData.scenes.map(s => s.id), 0) + 1;
+                if (!scriptData || !scriptData.scenes) return;
+                const newId = Math.max(...(scriptData.scenes?.map(s => s.id) || [0]), 0) + 1;
                 const newScene: Scene = {
                   id: newId,
                   scene_number: scriptData.scenes.length + 1,

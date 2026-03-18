@@ -1,101 +1,83 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as cheerio from "cheerio";
+import { generateRunwareText } from "@/lib/runware";
 
-// Initialize Gemini
 const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
 export async function POST(req: NextRequest) {
   try {
-    const { url, angle, length = 60 } = await req.json();
+    const { topic, url, angle, provider = "gemini", model: modelOverride } = await req.json();
 
-    if (!url) {
-      return NextResponse.json({ error: "URL is required" }, { status: 400 });
+    if (!topic && !url) {
+      return NextResponse.json({ error: "URL or Topic is required" }, { status: 400 });
     }
 
     let extractedText = "";
-    
-    // 1. Check if input is a URL or a Topic
-    try {
-      // Simple validation for URL structure before attempting to fetch
-      new URL(url); // This will throw if it's not a valid URL
-      
-      const response = await fetch(url);
-      const html = await response.text();
-      const $ = cheerio.load(html);
-      
-      $('p').each((i, el) => {
-        extractedText += $(el).text() + "\n\n";
-      });
-      
-      if (extractedText.trim().length < 50) {
-        extractedText = $('body').text().replace(/\s+/g, ' ');
+    if (topic) {
+      extractedText = topic;
+    } else if (url) {
+      try {
+        const response = await fetch(url);
+        const html = await response.text();
+        const $ = cheerio.load(html);
+        extractedText = $("body").text().slice(0, 5000); // Limit context
+      } catch (e) {
+        console.error("Failed to fetch URL, falling back to URL text only");
+        extractedText = `Topic: ${url}`;
       }
-      extractedText = extractedText.substring(0, 20000);
-    } catch (e) {
-      // It's likely a topic string like "lil wayne", so we use it directly as the source text
-      console.log(`Input "${url}" is not a valid URL or fetch failed. Treating as a topic prompt.`);
-      extractedText = `Topic: ${url}`;
     }
 
-    // 2. Generate Script using Gemini
-    if (!genAI) {
-      console.error("GEMINI_API_KEY not found in environment.");
-      return NextResponse.json({ error: "GEMINI_API_KEY is not configured on the server." }, { status: 500 });
-    }
-
-    // Using stable gemini model to avoid 404 versioning errors
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-    
     const prompt = `
 You are an expert Youtube video scriptwriter and director. 
-I will provide you with the core Subject Matter (either extracted from a URL or provided as a topic), and a requested Story Angle.
-Your job is to write a script ABOUT the Subject Matter, using the STYLE dictated by the Story Angle. The Story Angle describes *how* to tell the story, not *what* the story is about. Do not let the Story Angle replace the Subject Matter.
+Subject Matter: ${extractedText}
+Angle: ${angle}
 
-Write a script for a video that is approximately ${length} seconds long.
+Generate a short video script (3-5 scenes). 
+Each scene must have:
+- narration: The voiceover text.
+- visual_prompt: A detailed prompt for an AI image generator to create the background.
+- duration_estimate_seconds: The duration of the narration in seconds (default to 8 seconds).
 
-Subject Matter:
-${extractedText}
-
-Story Angle (Narrative Style):
-${angle || "A balanced, engaging overview of the topic"}
-
-Please output the response strictly in JSON format as follows:
-{
-  "title": "A catchy title for the video",
-  "angle": "The narrative angle used",
-  "scenes": [
-    {
-      "id": 1,
-      "scene_number": 1,
-      "narration": "The spoken voiceover script for this scene.",
-      "visual_prompt": "A highly detailed midjourney/stable-diffusion style prompt describing the visual for this scene. Focus on lighting, camera angle, and style.",
-      "duration_estimate_seconds": 8
-    }
-  ]
-}
-
-Only return the raw JSON object without markdown formatting blocks.
+Format your response as a JSON object with 'title', 'angle', and a 'scenes' array.
+Return ONLY the JSON.
 `;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    let responseText = "";
+
+    if (provider === "runware" || (modelOverride && modelOverride.includes(":"))) {
+      const runwareModel = modelOverride || "minimax:m2.5";
+      responseText = await generateRunwareText(prompt, runwareModel);
+    } else {
+      if (!process.env.GEMINI_API_KEY || !genAI) {
+        console.warn("GEMINI_API_KEY missing, falling back to Runware");
+        responseText = await generateRunwareText(prompt, "minimax:m2.5");
+      } else {
+        const modelIdentifier = modelOverride || "gemini-2.0-flash";
+        try {
+          const model = genAI.getGenerativeModel({ model: modelIdentifier });
+          const result = await model.generateContent(prompt);
+          responseText = result.response.text();
+        } catch (geminiError: any) {
+          console.error("Gemini failed, falling back to Runware:", geminiError);
+          responseText = await generateRunwareText(prompt, "minimax:m2.5");
+        }
+      }
+    }
     
     // Clean up potential markdown formatting from the response
-    const jsonStr = responseText.replace(/```json\n?|\n?```/g, '').trim();
-    
+    const jsonStr = responseText.replace(/```json\n?|\n?|```/g, '').trim();
     let scriptData;
     try {
       scriptData = JSON.parse(jsonStr);
-    } catch (parseError) {
-      console.error("Failed to parse Gemini JSON output:", responseText);
-      return NextResponse.json({ error: "Failed to generate valid script format." }, { status: 500 });
+    } catch (e) {
+      console.error("JSON Parse failed for response:", responseText);
+      throw new Error("Failed to parse AI response as JSON");
     }
 
     return NextResponse.json(scriptData);
-    
-  } catch (error) {
+  } catch (error: any) {
     console.error("Script generation error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to generate script" }, { status: 500 });
   }
 }

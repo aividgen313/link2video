@@ -59,6 +59,11 @@ export default function VideoGeneration() {
           numberResults: 1,
         }),
       });
+
+      if (res.status === 429) {
+        throw new Error("API Quota exceeded. Please try again in 1 minute.");
+      }
+
       const data = await res.json();
       if (data.success && data.images?.[0]) {
         const img = data.images[0];
@@ -166,56 +171,43 @@ export default function VideoGeneration() {
     const runPipeline = async () => {
       setIsGenerating(true);
 
-      // Initialize all scenes as queued
+      // Initial statuses
       const initialStatuses: Record<number, SceneStatus> = {};
       scriptData.scenes.forEach(s => {
         initialStatuses[s.id] = { phase: "queued", progress: 0 };
       });
       setSceneStatuses(initialStatuses);
 
-      // Start music generation in parallel
-      generateMusic();
-
-      const sceneAssets: { video: string; audio: string | null }[] = [];
-
-      // Process scenes sequentially
-      for (let i = 0; i < scriptData.scenes.length; i++) {
-        const scene = scriptData.scenes[i];
-        setActiveSceneIndex(i);
-
-        // Step 1: Generate image
-        const imageResult = await generateSceneImage(scene);
-        if (!imageResult) {
-          setIsGenerating(false); // Stop the pipeline on image generation error
-          return;
-        }
-
-        // Step 2: Generate video from the image
-        const videoUrl = await generateSceneVideo(scene, imageResult?.imageUUID);
-        if (!videoUrl) {
-          setIsGenerating(false); // Stop the pipeline on video generation error
-          return;
-        }
-
-        // Step 3: Generate proper TTS Audio per scene
-        setStitchStatus(`Generating Voiceover for scene ${i + 1}...`);
-        const audioUrl = await generateSceneAudio(scene);
+      // Track all pending promises
+      const musicPromise = generateMusic();
+      
+      // Wave 1: Parallel Images + TTS
+      const sceneResults = scriptData.scenes.map(async (scene, index) => {
+        // Start TTS immediately
+        const audioPromise = generateSceneAudio(scene);
         
-        sceneAssets.push({ video: videoUrl, audio: audioUrl });
+        // Start Image generation
+        const imageResult = await generateSceneImage(scene);
+        if (!imageResult) throw new Error(`Scene ${index + 1} image failed`);
 
-        // Update overall progress
-        const newProgress = Math.round(((i + 1) / scriptData.scenes.length) * 100);
-        setProgress(newProgress);
-      }
+        // Wave 2: Trigger Video as soon as Image is ready
+        const videoUrl = await generateSceneVideo(scene, imageResult.imageUUID);
+        if (!videoUrl) throw new Error(`Scene ${index + 1} video failed`);
 
-      // Step 4: Stitch all videos and audio together using FFmpeg built into the browser
-      if (sceneAssets.length > 0) {
-        try {
-          updateSceneStatus(scriptData.scenes[scriptData.scenes.length - 1].id, { phase: "complete", progress: 100 });
+        const audioUrl = await audioPromise;
+        return { video: videoUrl, audio: audioUrl };
+      });
+
+      try {
+        setStitchStatus("Generating all assets in parallel...");
+        const sceneAssets = await Promise.all(sceneResults);
+        await musicPromise;
+
+        // Step 4: Stitching
+        if (sceneAssets.length > 0) {
           setStitchStatus("Loading FFmpeg engine...");
-          
           const ffmpeg = ffmpegRef.current;
-          if (!ffmpeg) throw new Error("FFmpeg not initialized properly on client");
+          if (!ffmpeg) throw new Error("FFmpeg not initialized properly");
           
           if (!ffmpeg.loaded) {
             await ffmpeg.load({
@@ -224,79 +216,55 @@ export default function VideoGeneration() {
             });
           }
 
-          setStitchStatus("Downloading media files...");
+          setStitchStatus("Stitching scenes...");
           const concatList: string[] = [];
 
-          // Download and merge video+tts per scene
           for (let index = 0; index < sceneAssets.length; index++) {
             const asset = sceneAssets[index];
-            const vUrl = asset.video;
-            const aUrl = asset.audio;
-            
             const vidFile = `vid${index}.mp4`;
-            await ffmpeg.writeFile(vidFile, await fetchFile(vUrl));
-            
             const mergedFile = `scene${index}.mp4`;
 
-            if (aUrl) {
+            await ffmpeg.writeFile(vidFile, await fetchFile(asset.video));
+            
+            if (asset.audio) {
               const audFile = `tts${index}.mp3`;
-              await ffmpeg.writeFile(audFile, await fetchFile(aUrl));
-              setStitchStatus(`Merging Video + Voiceover for scene ${index + 1}...`);
-              // Combine video and audio. Shortest determines length.
+              await ffmpeg.writeFile(audFile, await fetchFile(asset.audio));
               await ffmpeg.exec(['-i', vidFile, '-i', audFile, '-c:v', 'copy', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0', '-shortest', mergedFile]);
             } else {
-              // Just rename/copy if no audio
               await ffmpeg.exec(['-i', vidFile, '-c', 'copy', mergedFile]);
             }
-            
             concatList.push(`file '${mergedFile}'`);
           }
 
-          setStitchStatus("Concatenating all scenes...");
           await ffmpeg.writeFile('concat.txt', concatList.join('\n'));
           await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'concat.txt', '-c', 'copy', 'master.mp4']);
 
           if (musicUrl) {
-            setStitchStatus("Mixing background music...");
             await ffmpeg.writeFile('music.mp3', await fetchFile(musicUrl));
-            
-            // Mix master.mp4 audio (the voiceovers) with music.mp3.
-            // Duck the music volume down to 15% so voice is clearly heard.
             await ffmpeg.exec([
-              '-i', 'master.mp4', 
-              '-i', 'music.mp3', 
+              '-i', 'master.mp4', '-i', 'music.mp3', 
               '-filter_complex', '[1:a]volume=0.15[bgm]; [0:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[a]',
-              '-map', '0:v', 
-              '-map', '[a]', 
-              '-c:v', 'copy', 
-              '-c:a', 'aac', 
-              'output.mp4'
+              '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', 'output.mp4'
             ]);
           } else {
-            setStitchStatus("Saving final video...");
             await ffmpeg.exec(['-i', 'master.mp4', '-c', 'copy', 'output.mp4']);
           }
 
-          setStitchStatus("Finalizing file...");
           const fileData = await ffmpeg.readFile('output.mp4');
-          const data = fileData as Uint8Array;
-          const blobUrl = URL.createObjectURL(new Blob([data.buffer as ArrayBuffer], { type: 'video/mp4' }));
-
-          setFinalVideoUrl(blobUrl);
+          const uint8Array = new Uint8Array(fileData as unknown as ArrayBuffer);
+          setFinalVideoUrl(URL.createObjectURL(new Blob([uint8Array], { type: 'video/mp4' })));
           setStitchStatus("");
-        } catch (err) {
-          console.error("FFmpeg Stitch error:", err);
-          setStitchStatus("Error stitching video: " + (err as Error).message);
         }
+      } catch (err) {
+        console.error("Pipeline error:", err);
+        setStitchStatus("Error: " + (err as Error).message);
+      } finally {
+        setProgress(100);
+        setIsGenerating(false);
       }
-
-      setProgress(100);
-      setIsGenerating(false);
     };
 
     runPipeline();
-  // Run once
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scriptData]);
 
   return (

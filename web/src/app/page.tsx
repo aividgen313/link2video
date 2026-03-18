@@ -6,7 +6,7 @@ import { useAppContext } from "@/context/AppContext";
 
 export default function Home() {
   const router = useRouter();
-  const { url, setUrl } = useAppContext();
+  const { url, setUrl, globalScriptModel, setGlobalScriptModel } = useAppContext();
   const [inputValue, setInputValue] = useState(url || "");
 
   const handleGenerate = () => {

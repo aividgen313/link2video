@@ -11,7 +11,7 @@ export function generateTaskUUID(): string {
  * Helper to make a Runware API request.
  * Accepts an array of task objects, returns the parsed JSON response.
  */
-export async function runwareRequest(tasks: Record<string, unknown>[]) {
+export async function runwareRequest(tasks: any[]) {
   const response = await fetch(RUNWARE_API_URL, {
     method: "POST",
     headers: {
@@ -21,4 +21,26 @@ export async function runwareRequest(tasks: Record<string, unknown>[]) {
     body: JSON.stringify(tasks),
   });
   return response.json();
+}
+
+/**
+ * Text Inference via Runware LLMs (Llama 3.1, MiniMax, etc.)
+ */
+export async function generateRunwareText(prompt: string, model: string = "minimax:m2.5") {
+  const data = await runwareRequest([
+    {
+      taskType: "textInference",
+      taskUUID: generateTaskUUID(),
+      positivePrompt: prompt,
+      model: model,
+      maxNewTokens: 2048,
+      temperature: 0.7,
+    },
+  ]);
+  
+  if (data.errors) {
+    throw new Error(data.errors[0]?.message || "Runware Text Generation failed");
+  }
+  
+  return data.data?.[0]?.text || "";
 }

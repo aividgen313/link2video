@@ -13,7 +13,7 @@ interface Angle {
 
 export default function StoryAngleGenerator() {
   const router = useRouter();
-  const { url, setAngle } = useAppContext();
+  const { url, setAngle, globalScriptModel } = useAppContext();
   const [selectedAngle, setSelectedAngle] = useState("");
   const [angles, setAngles] = useState<Angle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,10 +21,18 @@ export default function StoryAngleGenerator() {
   const fetchAngles = async () => {
     setIsLoading(true);
     try {
+      const isRunware = globalScriptModel.startsWith("runware:");
+      const provider = isRunware ? "runware" : "gemini";
+      const model = isRunware ? globalScriptModel.replace("runware:", "") : globalScriptModel;
+
       const res = await fetch("/api/angles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: url || "Technology and Future" })
+        body: JSON.stringify({ 
+          topic: url || "Technology and Future",
+          provider,
+          model
+        })
       });
       const data = await res.json();
       if (data.angles) {
