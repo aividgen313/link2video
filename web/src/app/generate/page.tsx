@@ -88,10 +88,18 @@ export default function VideoGeneration() {
         updateSceneStatus(scene.id, { phase: "complete", progress: 100 });
         return null;
       }
+      // Check for API errors specifically
+      if (data.errors) {
+        console.error("Video Error:", data.errors);
+        updateSceneStatus(scene.id, { phase: "error", error: data.errors[0]?.message || "Video Generation failed" });
+        setStitchStatus(`API Error: ${data.errors[0]?.message || "Video Generation failed"}`);
+        return null; // Signal failure to the main pipeline
+      }
       throw new Error(data.error || "Video generation failed");
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Video generation failed";
       updateSceneStatus(scene.id, { phase: "error", error: errorMsg });
+      setStitchStatus(`Error: ${errorMsg}`);
       return null;
     }
   }, [updateSceneStatus]);
@@ -142,12 +150,18 @@ export default function VideoGeneration() {
 
         // Step 1: Generate image
         const imageResult = await generateSceneImage(scene);
+        if (!imageResult) {
+          setIsGenerating(false); // Stop the pipeline on image generation error
+          return;
+        }
 
         // Step 2: Generate video from the image
         const videoUrl = await generateSceneVideo(scene, imageResult?.imageUUID);
-        if (videoUrl) {
-          videoUrls.push(videoUrl);
+        if (!videoUrl) {
+          setIsGenerating(false); // Stop the pipeline on video generation error
+          return;
         }
+        videoUrls.push(videoUrl);
 
         // Update overall progress
         const newProgress = Math.round(((i + 1) / scriptData.scenes.length) * 100);

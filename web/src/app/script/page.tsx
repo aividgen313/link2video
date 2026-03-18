@@ -112,8 +112,8 @@ export default function ScriptBuilder() {
           Back to Story Angle
         </Link>
         <span className="text-outline mx-2">|</span>
-        <span className="text-outline text-sm font-label uppercase tracking-widest">Project:</span>
-        <span className="font-headline font-bold text-on-surface">The Future of AI Cities</span>
+        <span className="material-symbols-outlined text-outline">chevron_right</span>
+        <span className="font-headline font-bold text-on-surface truncate max-w-[200px]">{scriptData?.title || url || "Draft Script"}</span>
       </div>
 
       <div className="max-w-7xl mx-auto flex flex-col gap-8 w-full mt-4">
