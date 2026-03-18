@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Using stable gemini model to avoid 404 versioning errors
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     
     const prompt = `
 You are an expert Youtube video scriptwriter and director. 
@@ -70,7 +70,7 @@ Please output the response strictly in JSON format as follows:
       "scene_number": 1,
       "narration": "The spoken voiceover script for this scene.",
       "visual_prompt": "A highly detailed midjourney/stable-diffusion style prompt describing the visual for this scene. Focus on lighting, camera angle, and style.",
-      "duration_estimate_seconds": 5
+      "duration_estimate_seconds": 8
     }
   ]
 }

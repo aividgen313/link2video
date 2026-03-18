@@ -11,6 +11,7 @@ type SceneStatus = {
   imageURL?: string;
   imageUUID?: string;
   videoURL?: string;
+  audioURL?: string;
   error?: string;
   progress: number;
 };
@@ -54,7 +55,7 @@ export default function VideoGeneration() {
           prompt: scene.visual_prompt,
           model: scene.image_model_override || globalImageModel,
           width: 1280,
-          height: 720,
+          height: 768,
           numberResults: 1,
         }),
       });
@@ -84,7 +85,7 @@ export default function VideoGeneration() {
           model: scene.video_model_override || globalVideoModel,
           duration: Math.min(scene.duration_estimate_seconds, 10),
           width: 1280,
-          height: 720,
+          height: 768,
           imageUUID,
         }),
       });
@@ -111,7 +112,31 @@ export default function VideoGeneration() {
       setStitchStatus(`Error: ${errorMsg}`);
       return null;
     }
-  }, [updateSceneStatus]);
+  }, [globalVideoModel, updateSceneStatus]);
+
+  // Generate Voiceover (TTS) for a scene
+  const generateSceneAudio = useCallback(async (scene: Scene): Promise<string | null> => {
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: scene.narration,
+          voiceProvider: globalAudioModel,
+          duration: scene.duration_estimate_seconds
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.audioUrl) {
+        updateSceneStatus(scene.id, { audioURL: data.audioUrl });
+        return data.audioUrl;
+      }
+      return null;
+    } catch (err) {
+      console.error("TTS generation error:", err);
+      return null;
+    }
+  }, [globalAudioModel, updateSceneStatus]);
 
   // Generate background music
   const generateMusic = useCallback(async () => {
@@ -151,7 +176,7 @@ export default function VideoGeneration() {
       // Start music generation in parallel
       generateMusic();
 
-      const videoUrls: string[] = [];
+      const sceneAssets: { video: string; audio: string | null }[] = [];
 
       // Process scenes sequentially
       for (let i = 0; i < scriptData.scenes.length; i++) {
@@ -171,15 +196,20 @@ export default function VideoGeneration() {
           setIsGenerating(false); // Stop the pipeline on video generation error
           return;
         }
-        videoUrls.push(videoUrl);
+
+        // Step 3: Generate proper TTS Audio per scene
+        setStitchStatus(`Generating Voiceover for scene ${i + 1}...`);
+        const audioUrl = await generateSceneAudio(scene);
+        
+        sceneAssets.push({ video: videoUrl, audio: audioUrl });
 
         // Update overall progress
         const newProgress = Math.round(((i + 1) / scriptData.scenes.length) * 100);
         setProgress(newProgress);
       }
 
-      // Step 3: Stitch all videos together using FFmpeg built into the browser
-      if (videoUrls.length > 0) {
+      // Step 4: Stitch all videos and audio together using FFmpeg built into the browser
+      if (sceneAssets.length > 0) {
         try {
           updateSceneStatus(scriptData.scenes[scriptData.scenes.length - 1].id, { phase: "complete", progress: 100 });
           setStitchStatus("Loading FFmpeg engine...");
@@ -197,35 +227,56 @@ export default function VideoGeneration() {
           setStitchStatus("Downloading media files...");
           const concatList: string[] = [];
 
-          // Download all videos to FFmpeg's virtual FS
-          for (let index = 0; index < videoUrls.length; index++) {
-            const vUrl = videoUrls[index];
-            const fileName = `vid${index}.mp4`;
-            await ffmpeg.writeFile(fileName, await fetchFile(vUrl));
-            concatList.push(`file '${fileName}'`);
+          // Download and merge video+tts per scene
+          for (let index = 0; index < sceneAssets.length; index++) {
+            const asset = sceneAssets[index];
+            const vUrl = asset.video;
+            const aUrl = asset.audio;
+            
+            const vidFile = `vid${index}.mp4`;
+            await ffmpeg.writeFile(vidFile, await fetchFile(vUrl));
+            
+            const mergedFile = `scene${index}.mp4`;
+
+            if (aUrl) {
+              const audFile = `tts${index}.mp3`;
+              await ffmpeg.writeFile(audFile, await fetchFile(aUrl));
+              setStitchStatus(`Merging Video + Voiceover for scene ${index + 1}...`);
+              // Combine video and audio. Shortest determines length.
+              await ffmpeg.exec(['-i', vidFile, '-i', audFile, '-c:v', 'copy', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0', '-shortest', mergedFile]);
+            } else {
+              // Just rename/copy if no audio
+              await ffmpeg.exec(['-i', vidFile, '-c', 'copy', mergedFile]);
+            }
+            
+            concatList.push(`file '${mergedFile}'`);
           }
 
-          // Create concat demuxer text file
+          setStitchStatus("Concatenating all scenes...");
           await ffmpeg.writeFile('concat.txt', concatList.join('\n'));
-
-          let cmd = ['-f', 'concat', '-safe', '0', '-i', 'concat.txt'];
+          await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'concat.txt', '-c', 'copy', 'master.mp4']);
 
           if (musicUrl) {
-            setStitchStatus("Adding audio track...");
+            setStitchStatus("Mixing background music...");
             await ffmpeg.writeFile('music.mp3', await fetchFile(musicUrl));
-            cmd.push('-i', 'music.mp3');
-            // Copy video codec from concatenated input, encode audio input to aac
-            // map video from the concat stream (0:v), map audio from the music stream (1:a)
-            // Use shortest to truncate video or audio to the shortest length.
-            cmd.push('-c:v', 'copy', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0', '-shortest', 'output.mp4');
+            
+            // Mix master.mp4 audio (the voiceovers) with music.mp3.
+            // Duck the music volume down to 15% so voice is clearly heard.
+            await ffmpeg.exec([
+              '-i', 'master.mp4', 
+              '-i', 'music.mp3', 
+              '-filter_complex', '[1:a]volume=0.15[bgm]; [0:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[a]',
+              '-map', '0:v', 
+              '-map', '[a]', 
+              '-c:v', 'copy', 
+              '-c:a', 'aac', 
+              'output.mp4'
+            ]);
           } else {
-            setStitchStatus("Merging video clips...");
-            cmd.push('-c', 'copy', 'output.mp4');
+            setStitchStatus("Saving final video...");
+            await ffmpeg.exec(['-i', 'master.mp4', '-c', 'copy', 'output.mp4']);
           }
 
-          setStitchStatus("Rendering final video...");
-          await ffmpeg.exec(cmd);
-          
           setStitchStatus("Finalizing file...");
           const fileData = await ffmpeg.readFile('output.mp4');
           const data = fileData as Uint8Array;

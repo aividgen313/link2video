@@ -99,7 +99,7 @@ export default function ScriptBuilder() {
           prompt: activeScene.visual_prompt,
           model: activeScene.image_model_override || globalImageModel,
           width: 1280,
-          height: 720,
+          height: 768,
           numberResults: 1,
         }),
       });
@@ -269,7 +269,7 @@ export default function ScriptBuilder() {
               <div className="flex justify-center py-20">
                 <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
               </div>
-            ) : scriptData?.scenes.map((scene: Scene, index: number) => (
+            ) : scriptData?.scenes?.map((scene: Scene, index: number) => (
               <div 
                 key={scene.id} 
                 onClick={() => setActiveScene(scene)}
@@ -339,7 +339,7 @@ export default function ScriptBuilder() {
                 const newScene: Scene = {
                   id: newId,
                   scene_number: scriptData.scenes.length + 1,
-                  duration_estimate_seconds: 5,
+                  duration_estimate_seconds: 8,
                   narration: "",
                   visual_prompt: ""
                 };

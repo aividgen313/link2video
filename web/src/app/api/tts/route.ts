@@ -3,13 +3,13 @@ import { runwareRequest, generateTaskUUID } from "@/lib/runware";
 
 export async function POST(req: NextRequest) {
   try {
-    const { text, voiceProvider = "elevenlabs:1@1", duration = 30 } = await req.json();
+    const { text, voiceProvider = "elevenlabs:1@1", voice = "Adam", duration = 30 } = await req.json();
 
     if (!text) {
       return NextResponse.json({ error: "Text is required" }, { status: 400 });
     }
 
-    console.log(`Generating TTS using Runware (${voiceProvider}):`, text.substring(0, 50) + "...");
+    console.log(`Generating TTS using Runware (${voiceProvider}) with voice: ${voice}:`, text.substring(0, 50) + "...");
 
     const data = await runwareRequest([
       {
@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
         taskUUID: generateTaskUUID(),
         positivePrompt: text,
         model: voiceProvider.includes("elevenlabs") ? voiceProvider : "elevenlabs:1@1",
+        voice: voice,
         duration,
         outputType: "URL",
         outputFormat: "mp3",
