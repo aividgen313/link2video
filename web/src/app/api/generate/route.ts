@@ -49,13 +49,15 @@ export async function POST(req: NextRequest) {
     
     const prompt = `
 You are an expert Youtube video scriptwriter and director. 
-I will provide you with the source text extracted from a URL, and a requested story angle.
+I will provide you with the core Subject Matter (either extracted from a URL or provided as a topic), and a requested Story Angle.
+Your job is to write a script ABOUT the Subject Matter, using the STYLE dictated by the Story Angle. The Story Angle describes *how* to tell the story, not *what* the story is about. Do not let the Story Angle replace the Subject Matter.
+
 Write a script for a video that is approximately ${length} seconds long.
 
-Source Text:
+Subject Matter:
 ${extractedText}
 
-Requested Story Angle:
+Story Angle (Narrative Style):
 ${angle || "A balanced, engaging overview of the topic"}
 
 Please output the response strictly in JSON format as follows:
