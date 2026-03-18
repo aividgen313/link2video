@@ -4,6 +4,7 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import TopNav from "@/components/TopNav";
 import { AppProvider } from "@/context/AppContext";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 const manrope = Manrope({
   variable: "--font-headline",
@@ -30,16 +31,18 @@ export default function RootLayout({
       <head>
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
-      <body className={`${manrope.variable} ${inter.variable} min-h-screen flex bg-background text-on-surface antialiased`}>
-        <AppProvider>
-          <Sidebar />
-          <main className="flex-1 flex flex-col overflow-hidden">
-            <TopNav />
-            <section className="flex-1 overflow-y-auto p-12 space-y-16">
-              {children}
-            </section>
-          </main>
-        </AppProvider>
+      <body className={`${manrope.variable} ${inter.variable} min-h-screen flex bg-background text-on-surface antialiased transition-colors duration-300`}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AppProvider>
+            <Sidebar />
+            <main className="flex-1 flex flex-col overflow-hidden">
+              <TopNav />
+              <section className="flex-1 overflow-y-auto p-12 space-y-16">
+                {children}
+              </section>
+            </main>
+          </AppProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

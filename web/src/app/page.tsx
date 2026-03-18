@@ -6,7 +6,7 @@ import { useAppContext } from "@/context/AppContext";
 
 export default function Home() {
   const router = useRouter();
-  const { url, setUrl, globalScriptModel, setGlobalScriptModel } = useAppContext();
+  const { url, setUrl, globalScriptModel, setGlobalScriptModel, globalVisualStyle, setGlobalVisualStyle } = useAppContext();
   const [inputValue, setInputValue] = useState(url || "");
 
   const handleGenerate = () => {
@@ -79,18 +79,21 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Orientation Toggle */}
+                {/* Visual Style Dropdown */}
                 <div className="space-y-3">
-                  <label className="text-sm font-label text-outline uppercase tracking-widest pl-1">Orientation</label>
-                  <div className="flex h-[60px] bg-surface-container-low p-1.5 rounded-2xl">
-                    <button className="flex-1 rounded-xl bg-surface-container-highest text-primary flex items-center justify-center gap-2 text-sm font-semibold">
-                      <span className="material-symbols-outlined text-lg">stay_current_portrait</span>
-                      Vertical
-                    </button>
-                    <button className="flex-1 rounded-xl text-outline hover:bg-surface-variant/30 flex items-center justify-center gap-2 text-sm">
-                      <span className="material-symbols-outlined text-lg">stay_current_landscape</span>
-                      Horizontal
-                    </button>
+                  <label className="text-sm font-label text-outline uppercase tracking-widest pl-1">Visual Style</label>
+                  <div className="relative">
+                    <select 
+                      value={globalVisualStyle}
+                      onChange={(e) => setGlobalVisualStyle(e.target.value)}
+                      className="w-full bg-surface-container-low border-none rounded-2xl py-4 px-6 text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer">
+                      <option value="Cinematic Documentary">🎥 Cinematic Documentary (Realistic)</option>
+                      <option value="Animated Storytime">🎨 Animated Storytime (2D flat vector)</option>
+                      <option value="3D Render">🖼️ 3D Render (Pixar/Disney Style)</option>
+                      <option value="Photorealistic">📸 Photorealistic (Natural Lighting)</option>
+                      <option value="Anime">🌸 Anime (Studio Ghibli Style)</option>
+                    </select>
+                    <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-outline">expand_more</span>
                   </div>
                 </div>
               </div>

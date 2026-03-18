@@ -35,10 +35,12 @@ interface AppContextType {
   setGlobalImageModel: (model: string) => void;
   globalAudioModel: string;
   setGlobalAudioModel: (model: string) => void;
-  qualityTier: string;
-  setQualityTier: (tier: string) => void;
   globalScriptModel: string;
   setGlobalScriptModel: (model: string) => void;
+  qualityTier: string;
+  setQualityTier: (tier: string) => void;
+  globalVisualStyle: string;
+  setGlobalVisualStyle: (style: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -58,6 +60,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [globalImageModel, setGlobalImageModel] = useState("runware:101@1");
   const [globalAudioModel, setGlobalAudioModel] = useState("elevenlabs:1@1");
   const [globalScriptModel, setGlobalScriptModel] = useState("gemini-2.0-flash");
+  const [globalVisualStyle, setGlobalVisualStyle] = useState("Cinematic Documentary");
 
   // Sync Quality Tier to Models
   useEffect(() => {
@@ -91,7 +94,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       globalImageModel, setGlobalImageModel,
       globalAudioModel, setGlobalAudioModel,
       qualityTier, setQualityTier,
-      globalScriptModel, setGlobalScriptModel
+      globalScriptModel, setGlobalScriptModel,
+      globalVisualStyle, setGlobalVisualStyle
     }}>
       {children}
     </AppContext.Provider>

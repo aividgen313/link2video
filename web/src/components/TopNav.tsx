@@ -1,4 +1,16 @@
+"use client";
+
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
+
 export default function TopNav() {
+  const [mounted, setMounted] = useState(false);
+  const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <header className="h-20 shrink-0 flex items-center justify-between px-12 border-b border-outline-variant/10 bg-surface/50 backdrop-blur-md sticky top-0 z-10">
       <div className="flex items-center">
@@ -6,10 +18,21 @@ export default function TopNav() {
       </div>
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-4 text-outline">
-          <button className="hover:text-on-surface transition-colors">
+          {mounted && (
+            <button 
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="hover:text-on-surface transition-colors flex items-center justify-center h-8 w-8 rounded-full"
+              title="Toggle Theme"
+            >
+              <span className="material-symbols-outlined">
+                {theme === 'dark' ? 'light_mode' : 'dark_mode'}
+              </span>
+            </button>
+          )}
+          <button className="hover:text-on-surface transition-colors flex items-center justify-center h-8 w-8 rounded-full">
             <span className="material-symbols-outlined" data-icon="notifications">notifications</span>
           </button>
-          <button className="hover:text-on-surface transition-colors">
+          <button className="hover:text-on-surface transition-colors flex items-center justify-center h-8 w-8 rounded-full">
             <span className="material-symbols-outlined" data-icon="settings">settings</span>
           </button>
         </div>

@@ -16,7 +16,8 @@ export default function ScriptBuilder() {
     globalImageModel, setGlobalImageModel,
     globalAudioModel, setGlobalAudioModel,
     qualityTier, setQualityTier,
-    globalScriptModel, setGlobalScriptModel
+    globalScriptModel, setGlobalScriptModel,
+    globalVisualStyle
   } = useAppContext();
   const [isLoading, setIsLoading] = useState(!scriptData);
   const [activeScene, setActiveScene] = useState<Scene | null>(null);
@@ -75,7 +76,8 @@ export default function ScriptBuilder() {
             url: url || "https://example.com/mock", 
             angle,
             provider,
-            model
+            model,
+            visualStyle: globalVisualStyle
           })
         });
         const data = await res.json();
