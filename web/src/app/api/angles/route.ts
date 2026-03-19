@@ -54,6 +54,16 @@ Return ONLY the JSON.
     return NextResponse.json({ angles });
   } catch (error: any) {
     console.error("Angle generation error:", error);
+
+    // Check if it's a credit error
+    if (error.message?.includes('INSUFFICIENT_CREDITS')) {
+      return NextResponse.json({
+        error: "Runware Credits Exhausted",
+        message: "Your Runware account has run out of credits. Please add credits at https://runware.ai to continue using AI features.",
+        isCreditsError: true
+      }, { status: 402 }); // 402 Payment Required
+    }
+
     return NextResponse.json({ error: error.message || "Failed to generate angles" }, { status: 500 });
   }
 }

@@ -63,6 +63,18 @@ export async function generateRunwareText(prompt: string, model: string = "minim
 
   if (data.errors) {
     console.error("Runware Text Generation errors:", JSON.stringify(data.errors, null, 2));
+
+    // Check for credit exhaustion
+    const isCreditError = data.errors.some((e: any) =>
+      e.code === 'insufficientCredits' ||
+      e.message?.toLowerCase().includes('credit') ||
+      e.message?.toLowerCase().includes('invoice')
+    );
+
+    if (isCreditError) {
+      throw new Error('INSUFFICIENT_CREDITS: Your Runware account has run out of credits. Please add credits at https://runware.ai or contact support.');
+    }
+
     const errorDetails = data.errors.map((e: any) =>
       `${e.code || 'ERROR'}: ${e.message || 'Unknown error'} (param: ${e.parameter || 'N/A'})`
     ).join('; ');

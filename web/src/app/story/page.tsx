@@ -18,6 +18,7 @@ export default function StoryAngleGenerator() {
   const [angles, setAngles] = useState<Angle[]>([]);
   const [hasMounted, setHasMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchAngles = async () => {
     if (!url) return;
@@ -37,11 +38,20 @@ export default function StoryAngleGenerator() {
         })
       });
       const data = await res.json();
-      if (data.angles) {
+
+      if (res.status === 402 && data.isCreditsError) {
+        setErrorMessage(data.message || "Runware credits exhausted. Please add credits to continue.");
+        setAngles([]);
+      } else if (data.angles) {
         setAngles(data.angles);
+        setErrorMessage(null);
+      } else if (data.error) {
+        setErrorMessage(data.error);
+        setAngles([]);
       }
     } catch (e) {
       console.error("Failed to fetch angles:", e);
+      setErrorMessage("Network error: Unable to connect to the server.");
     } finally {
       setIsLoading(false);
     }
@@ -85,13 +95,38 @@ export default function StoryAngleGenerator() {
           </p>
         </section>
 
+        {/* Error State */}
+        {errorMessage && !isLoading && (
+          <div className="max-w-2xl mx-auto mb-12">
+            <div className="bg-error-container border-2 border-error rounded-2xl p-8">
+              <div className="flex items-start gap-4">
+                <span className="material-symbols-outlined text-error text-3xl">error</span>
+                <div>
+                  <h3 className="font-headline font-bold text-xl text-on-error-container mb-2">Unable to Generate Angles</h3>
+                  <p className="text-on-error-container/80 mb-4">{errorMessage}</p>
+                  {errorMessage.includes('credits') && (
+                    <a
+                      href="https://runware.ai"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 bg-error text-on-error px-4 py-2 rounded-xl font-medium hover:opacity-90 transition-opacity">
+                      <span className="material-symbols-outlined text-sm">account_balance_wallet</span>
+                      Add Credits on Runware
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Loading State */}
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
             <p className="font-headline font-bold text-xl animate-pulse">Brainstorming Angles...</p>
           </div>
-        ) : (
+        ) : !errorMessage && (
           <div className="grid grid-cols-12 gap-8 mb-20">
             {angles.map((angle, index) => {
               const isSelected = selectedAngle === angle.title;
