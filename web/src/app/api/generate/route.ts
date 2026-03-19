@@ -46,20 +46,92 @@ export async function POST(req: NextRequest) {
     }
 
     const prompt = `
-You are an expert Youtube video scriptwriter and director. 
+You are an expert YouTube video scriptwriter and cinematic documentary director specializing in viral storytelling.
+
 Subject Matter: ${extractedText}
 Angle: ${angle}
 
-Generate a short video script (3-5 scenes). 
+CORE STORY RULE (MANDATORY):
+Every script MUST follow this 3-act narrative structure:
+
+1. BEGINNING (HOOK + SETUP)
+   - Open with a POWERFUL HOOK within the first 5-10 seconds
+   - A shocking statement, question, or moment that creates immediate curiosity or tension
+   - Introduce the subject, context, and central question or mystery
+   - Goal: Make the viewer NEED to keep watching
+
+2. MIDDLE (BUILD + CONFLICT + ESCALATION)
+   - Gradually reveal deeper layers of the story
+   - Introduce conflict, obstacles, contradictions, and stakes
+   - Build tension and add new information that changes perspective
+   - Include emotional beats and turning points
+   - Important: The story must EVOLVE—not just list facts
+
+3. CLIMAX (PEAK MOMENT)
+   - The most intense, revealing, or emotional moment
+   - Where the truth is exposed, conflict reaches its highest point
+   - Everything comes together
+   - Goal: Deliver a moment that feels impactful and unforgettable
+
+4. ENDING (RESOLUTION + AFTERMATH)
+   - Provide closure or reflection
+   - Show what happened after, the consequences, the bigger meaning
+   - End with a strong final line, thought, or question
+   - Goal: Leave the viewer thinking
+
+WRITING STYLE REQUIREMENTS:
+- Write in cinematic, documentary narration style
+- Use short, punchy sentences for impact
+- Use occasional longer lines for emotional weight
+- Avoid robotic or overly formal language
+- Avoid flat, encyclopedic explanations
+- Tone should feel: real, immersive, slightly dramatic (but not fake)
+
+PACING RULES:
+- Every 10-20 seconds, something new must happen: new information, a twist, or a deeper layer
+- Avoid long stretches of static or repetitive narration
+
+VISUAL AWARENESS:
+- Write with visual storytelling in mind
+- Each narration line should connect to a visual moment
+- Think like an editor cutting between shots
+
+ENGAGEMENT RULES:
+- Trigger curiosity early
+- Build emotional investment
+- Maintain tension throughout
+- Deliver a satisfying payoff
+
+SCRIPT STRUCTURE:
+Generate a compelling short video script with 5-8 scenes following the 3-act structure above.
+
 Each scene must have:
-- narration: The voiceover text.
-- visual_prompt: A detailed prompt for an AI image generator to create the background.
-- duration_estimate_seconds: The duration of the narration in seconds (default to 8 seconds).
+- narration: Cinematic voiceover text (short, punchy, engaging)
+- visual_prompt: Detailed prompt for AI image/video generation describing the exact visual moment
+- duration_estimate_seconds: Duration based on narration length (typically 6-12 seconds per scene)
 
 ${aestheticRules}
 
-Format your response as a JSON object with 'title', 'angle', and a 'scenes' array.
-Return ONLY the JSON.
+QUALITY CHECK BEFORE RESPONDING:
+- Does the story have a clear beginning, middle, and end?
+- Is there real tension and progression?
+- Does it feel like something people would actually watch?
+- Does it tell a STORY, not just inform?
+
+Format your response as a JSON object with:
+{
+  "title": "Compelling video title",
+  "angle": "The narrative angle/hook",
+  "scenes": [
+    {
+      "narration": "The voiceover text",
+      "visual_prompt": "Detailed visual description",
+      "duration_estimate_seconds": 8
+    }
+  ]
+}
+
+Return ONLY the JSON. No explanations.
 `;
 
     const runwareModel = modelOverride || "minimax:m2.5@0";
