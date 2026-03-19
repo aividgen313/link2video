@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       CFGScale,
       numberResults: 1,
       outputType: "URL",
-      outputFormat: "mp4",
+      outputFormat: "MP4",
       includeCost: true,
     };
 
@@ -57,15 +57,22 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify([taskPayload]),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
       console.error(`Runware API HTTP error: ${response.status} ${response.statusText}`);
+      console.error("Runware API error details:", JSON.stringify(data, null, 2));
+
+      // Return detailed error information
       return NextResponse.json(
-        { error: `API request failed with status ${response.status}` },
+        {
+          error: `API request failed with status ${response.status}`,
+          details: data.errors || data,
+          errors: data.errors
+        },
         { status: response.status }
       );
     }
-
-    const data = await response.json();
 
     if (data.errors) {
       console.error("Runware video error:", data.errors);
