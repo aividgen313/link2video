@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
             bitrate: 128,
           },
           outputType: "URL",
-          outputFormat: "mp3",
+          outputFormat: "MP3",
           numberResults: 1,
           includeCost: true,
         },
