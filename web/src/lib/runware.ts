@@ -12,6 +12,13 @@ export function generateTaskUUID(): string {
  * Accepts an array of task objects, returns the parsed JSON response.
  */
 export async function runwareRequest(tasks: any[]) {
+  console.log("Runware API Request:", {
+    url: RUNWARE_API_URL,
+    taskTypes: tasks.map(t => t.taskType),
+    apiKeyPresent: !!RUNWARE_API_KEY,
+    apiKeyLength: RUNWARE_API_KEY?.length || 0
+  });
+
   const response = await fetch(RUNWARE_API_URL, {
     method: "POST",
     headers: {
@@ -20,7 +27,18 @@ export async function runwareRequest(tasks: any[]) {
     },
     body: JSON.stringify(tasks),
   });
-  return response.json();
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error("Runware API HTTP Error:", {
+      status: response.status,
+      statusText: response.statusText,
+      errors: data.errors || data
+    });
+  }
+
+  return data;
 }
 
 /**
