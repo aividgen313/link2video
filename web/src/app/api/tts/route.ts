@@ -11,9 +11,9 @@ export async function POST(req: NextRequest) {
 
     console.log(`Generating TTS using Runware (${voiceProvider}) with voice: ${voice}:`, text.substring(0, 50) + "...");
 
-    // Ensure duration is an integer within valid range (10-300)
-    const validDuration = Math.max(10, Math.min(300, Math.floor(duration)));
-
+    // Runware API requires specific audioSettings format:
+    // Only sampleRate and bitrate are allowed in audioSettings
+    // Valid combinations: mp3_{22050|44100}_{32|64|96|128|192}
     const data = await runwareRequest([
       {
         taskType: "audioInference",
@@ -21,11 +21,11 @@ export async function POST(req: NextRequest) {
         positivePrompt: text,
         model: voiceProvider.includes("elevenlabs") ? voiceProvider : "elevenlabs:1@1",
         audioSettings: {
-          voice: voice,
-          duration: validDuration,
+          sampleRate: 44100,
+          bitrate: 128,
         },
         outputType: "URL",
-        outputFormat: "MP3",
+        outputFormat: "mp3",
         numberResults: 1,
         includeCost: true,
       },

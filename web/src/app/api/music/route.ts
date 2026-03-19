@@ -16,9 +16,9 @@ export async function POST(req: NextRequest) {
 
     console.log("Runware Audio Inference:", prompt.substring(0, 80) + "...");
 
-    // Ensure duration is an integer within valid range
-    const validDuration = Math.max(10, Math.min(300, Math.floor(duration)));
-
+    // Runware API requires specific audioSettings format:
+    // Only sampleRate and bitrate are allowed in audioSettings
+    // Valid combinations: mp3_{22050|44100}_{32|64|96|128|192}
     const response = await fetch("https://api.runware.ai/v1", {
       method: "POST",
       headers: {
@@ -32,10 +32,11 @@ export async function POST(req: NextRequest) {
           positivePrompt: prompt,
           model,
           audioSettings: {
-            duration: validDuration,
+            sampleRate: 44100,
+            bitrate: 128,
           },
           outputType: "URL",
-          outputFormat: "MP3",
+          outputFormat: "mp3",
           numberResults: 1,
           includeCost: true,
         },
