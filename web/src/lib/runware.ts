@@ -45,6 +45,8 @@ export async function runwareRequest(tasks: any[]) {
  * Text Inference via Runware LLMs (Llama 3.1, MiniMax, etc.)
  */
 export async function generateRunwareText(prompt: string, model: string = "minimax:m2.5@0") {
+  console.log("generateRunwareText called with model:", model);
+
   const data = await runwareRequest([
     {
       taskType: "textInference",
@@ -58,10 +60,21 @@ export async function generateRunwareText(prompt: string, model: string = "minim
       model: model,
     },
   ]);
-  
+
   if (data.errors) {
-    throw new Error(data.errors[0]?.message || "Runware Text Generation failed");
+    console.error("Runware Text Generation errors:", JSON.stringify(data.errors, null, 2));
+    const errorDetails = data.errors.map((e: any) =>
+      `${e.code || 'ERROR'}: ${e.message || 'Unknown error'} (param: ${e.parameter || 'N/A'})`
+    ).join('; ');
+    throw new Error(`Runware Text Generation failed: ${errorDetails}`);
   }
-  
-  return data.data?.[0]?.text || "";
+
+  if (!data.data || !data.data[0] || !data.data[0].text) {
+    console.error("Invalid response from Runware:", data);
+    throw new Error("Runware returned no text data");
+  }
+
+  console.log("Generated text length:", data.data[0].text.length);
+
+  return data.data[0].text;
 }
