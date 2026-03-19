@@ -134,22 +134,34 @@ Format your response as a JSON object with:
 Return ONLY the JSON. No explanations.
 `;
 
+    console.log("Generating script with model:", modelOverride || "minimax:m2.5@0");
+
     const runwareModel = modelOverride || "minimax:m2.5@0";
     const finalModel = runwareModel.replace("runware:", "");
 
     const responseText = await generateRunwareText(prompt, finalModel);
-    
+
+    console.log("Raw AI response (first 500 chars):", responseText.substring(0, 500));
+
     // Clean up response text: strip <think> tags and extract JSON
     const cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
     const jsonMatch = cleanText.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
     const jsonStr = jsonMatch ? jsonMatch[0] : cleanText;
-    
+
     let scriptData;
     try {
       scriptData = JSON.parse(jsonStr);
+      console.log("Successfully parsed script with", scriptData.scenes?.length || 0, "scenes");
     } catch (e) {
       console.error("JSON Parse failed for response:", responseText);
-      throw new Error("Failed to parse AI response as JSON");
+      console.error("Parse error:", e);
+      throw new Error("Failed to parse AI response as JSON. Response may not be in correct format.");
+    }
+
+    // Validate the response has required fields
+    if (!scriptData.scenes || !Array.isArray(scriptData.scenes)) {
+      console.error("Invalid script data structure:", scriptData);
+      throw new Error("AI response missing required 'scenes' array");
     }
 
     return NextResponse.json(scriptData);
