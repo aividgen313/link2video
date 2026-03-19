@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
       inputImage,
       upscaleFactor = 2,
       model = "runware:501@1",
-      outputFormat = "JPG",
+      outputFormat = "jpg",
     } = await req.json();
 
     if (!inputImage) {

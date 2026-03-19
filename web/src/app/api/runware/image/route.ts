@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       steps = 30,
       cfgScale = 7.5,
       numberResults = 1,
-      outputFormat = "JPG",
+      outputFormat = "jpg",
     } = await req.json();
 
     if (!prompt) {

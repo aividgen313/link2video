@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       CFGScale,
       numberResults: 1,
       outputType: "URL",
-      outputFormat: "MP4",
+      outputFormat: "mp4",
       includeCost: true,
     };
 

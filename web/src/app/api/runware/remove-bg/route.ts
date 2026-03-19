@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const {
       inputImage,
       model = "runware:109@1",
-      outputFormat = "PNG",
+      outputFormat = "png",
     } = await req.json();
 
     if (!inputImage) {
