@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateRunwareText } from "@/lib/runware";
+import { generateGeminiText } from "@/lib/gemini";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,12 +19,24 @@ Format your response as a JSON array of objects, each with 'title' and 'descript
 Return ONLY the JSON.
 `;
 
-    console.log("Generating angles with model:", modelOverride || "minimax:m2.5@0");
+    console.log("Generating angles with provider:", provider, "model:", modelOverride);
 
-    const runwareModel = modelOverride || "minimax:m2.5@0";
-    const finalModel = runwareModel.replace("runware:", "");
+    let responseText: string;
 
-    const responseText = await generateRunwareText(prompt, finalModel);
+    // Use Gemini for free text generation, Runware only if explicitly requested
+    if (provider === "gemini" || !provider || provider === "runware") {
+      try {
+        responseText = await generateGeminiText(prompt, modelOverride || "gemini-2.0-flash-exp");
+        console.log("Used FREE Gemini API");
+      } catch (geminiError) {
+        console.error("Gemini failed, not falling back to Runware to prevent credit usage:", geminiError);
+        throw geminiError;
+      }
+    } else {
+      const runwareModel = modelOverride || "minimax:m2.5@0";
+      const finalModel = runwareModel.replace("runware:", "");
+      responseText = await generateRunwareText(prompt, finalModel);
+    }
 
     console.log("Raw angles response (first 300 chars):", responseText.substring(0, 300));
 

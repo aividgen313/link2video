@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { generateRunwareText } from "@/lib/runware";
+import { generateGeminiText } from "@/lib/gemini";
 
 export async function POST(req: NextRequest) {
   try {
@@ -134,12 +135,24 @@ Format your response as a JSON object with:
 Return ONLY the JSON. No explanations.
 `;
 
-    console.log("Generating script with model:", modelOverride || "minimax:m2.5@0");
+    console.log("Generating script with provider:", provider, "model:", modelOverride);
 
-    const runwareModel = modelOverride || "minimax:m2.5@0";
-    const finalModel = runwareModel.replace("runware:", "");
+    let responseText: string;
 
-    const responseText = await generateRunwareText(prompt, finalModel);
+    // Use Gemini for free text generation to avoid Runware credit usage
+    if (provider === "gemini" || !provider || provider === "runware") {
+      try {
+        responseText = await generateGeminiText(prompt, modelOverride || "gemini-2.0-flash-exp");
+        console.log("Used FREE Gemini API");
+      } catch (geminiError) {
+        console.error("Gemini failed, not falling back to Runware to prevent credit usage:", geminiError);
+        throw geminiError;
+      }
+    } else {
+      const runwareModel = modelOverride || "minimax:m2.5@0";
+      const finalModel = runwareModel.replace("runware:", "");
+      responseText = await generateRunwareText(prompt, finalModel);
+    }
 
     console.log("Raw AI response (first 500 chars):", responseText.substring(0, 500));
 
