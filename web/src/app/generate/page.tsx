@@ -45,6 +45,7 @@ export default function VideoGeneration() {
     captionsEnabled,
     creditsUsed, setCreditsUsed,
     storyboardImages,
+    referenceImages,
     url,
     mode,
     audioFile,
@@ -102,6 +103,19 @@ export default function VideoGeneration() {
       updateSceneStatus(scene.id, { phase: "image", progress: 20 });
       // Use xAI Grok Imagine for Pro, Medium, Story, and Music Video modes
       const useGrok = qualityTier === "pro" || qualityTier === "medium" || mode === "short-story" || mode === "music-video";
+
+      // Find best matching reference image for this scene
+      let refUrl: string | undefined;
+      if (useGrok && Object.keys(referenceImages).length > 0) {
+        const promptLower = (scene.visual_prompt + " " + scene.narration).toLowerCase();
+        for (const [name, urls] of Object.entries(referenceImages)) {
+          if (urls.length > 0 && promptLower.includes(name)) {
+            refUrl = urls[0];
+            break;
+          }
+        }
+      }
+
       const res = await fetch("/api/runware/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -110,6 +124,7 @@ export default function VideoGeneration() {
           width: 1280,
           height: 768,
           useGrok,
+          ...(refUrl && { referenceImageUrl: refUrl }),
         }),
       });
 

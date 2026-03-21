@@ -18,6 +18,7 @@ export default function ScriptBuilder() {
     musicEnabled, setMusicEnabled,
     targetDurationMinutes,
     storyboardImages, setStoryboardImages,
+    referenceImages, setReferenceImages,
     storyText,
     characterProfiles,
     lyrics,
@@ -52,6 +53,19 @@ export default function ScriptBuilder() {
     try {
       // Use xAI Grok for Pro, Medium, Story, and Music Video modes
       const useGrok = qualityTier === "pro" || qualityTier === "medium" || mode === "short-story" || mode === "music-video";
+
+      // Find best matching reference image for this scene's subjects
+      let refUrl: string | undefined;
+      if (useGrok && Object.keys(referenceImages).length > 0) {
+        const promptLower = (scene.visual_prompt + " " + scene.narration).toLowerCase();
+        for (const [name, urls] of Object.entries(referenceImages)) {
+          if (urls.length > 0 && promptLower.includes(name)) {
+            refUrl = urls[0];
+            break;
+          }
+        }
+      }
+
       const res = await fetch("/api/runware/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -60,6 +74,7 @@ export default function ScriptBuilder() {
           width: 1280,
           height: 768,
           useGrok,
+          ...(refUrl && { referenceImageUrl: refUrl }),
         }),
       });
       const data = await res.json();
@@ -75,6 +90,49 @@ export default function ScriptBuilder() {
       setGeneratingImages(prev => ({ ...prev, [scene.id]: false }));
     }
   }, [qualityTier, generatingImages, setStoryboardImages]);
+
+  // Search for reference images of key subjects (people, locations, brands)
+  const searchReferenceImages = useCallback(async (data: any) => {
+    if (!data?.scenes) return;
+    try {
+      // Extract unique subjects from all visual prompts and narrations
+      const allText = data.scenes.map((s: any) => `${s.narration} ${s.visual_prompt}`).join(" ");
+
+      // Ask AI to identify key subjects
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "extract-subjects",
+          storyText: allText.substring(0, 3000),
+        }),
+      });
+      const subjectData = await res.json();
+      if (!subjectData.subjects || subjectData.subjects.length === 0) return;
+
+      // Search for images of each subject
+      const imgRes = await fetch("/api/reference-images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subjects: subjectData.subjects }),
+      });
+      const imgData = await imgRes.json();
+      if (imgData.subjects) {
+        const refMap: Record<string, string[]> = {};
+        for (const sub of imgData.subjects) {
+          if (sub.images && sub.images.length > 0) {
+            refMap[sub.name.toLowerCase()] = sub.images;
+          }
+        }
+        if (Object.keys(refMap).length > 0) {
+          console.log("Reference images found:", Object.keys(refMap).join(", "));
+          setReferenceImages(refMap);
+        }
+      }
+    } catch (err) {
+      console.warn("Reference image search failed (non-critical):", err);
+    }
+  }, [setReferenceImages]);
 
   // Auto-generate images for scenes that don't have one yet (2 at a time)
   useEffect(() => {
@@ -136,6 +194,8 @@ export default function ScriptBuilder() {
           if (data.scenes && data.scenes.length > 0) {
             setActiveScene(data.scenes[0]);
           }
+          // Search for reference images of key subjects in the background
+          searchReferenceImages(data);
         }
       } catch (e) {
         console.error(e);

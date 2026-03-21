@@ -74,8 +74,39 @@ export async function POST(req: NextRequest) {
     const { topic, url, angle, visualStyle = "Cinematic Documentary", durationMinutes = 3, continueFrom, endStory, existingTitle, mode, storyText, characterProfiles, lyrics, musicSegments } = await req.json();
 
     // Short Story and Music Video modes don't need topic/url
-    if (!topic && !url && mode !== "short-story" && mode !== "music-video" && mode !== "extract-characters") {
+    if (!topic && !url && mode !== "short-story" && mode !== "music-video" && mode !== "extract-characters" && mode !== "extract-subjects") {
       return NextResponse.json({ error: "URL or Topic is required" }, { status: 400 });
+    }
+
+    // ========== EXTRACT SUBJECTS MODE (for reference image search) ==========
+    if (mode === "extract-subjects" && storyText) {
+      console.log("Extracting subjects for reference image search...");
+      const subjectPrompt = `Read this text and identify the key REAL subjects that would need reference images for accurate visual generation.
+
+TEXT:
+${storyText.substring(0, 3000)}
+
+Extract REAL people (celebrities, historical figures, public figures), REAL locations (specific buildings, cities, landmarks), and REAL brands/products.
+Do NOT include generic descriptions or fictional elements.
+
+Return ONLY raw JSON (no markdown fences):
+{ "subjects": [ { "name": "Full Name", "type": "person" }, { "name": "Location Name", "type": "location" }, { "name": "Brand Name", "type": "brand" } ] }
+
+Keep to the most important 5-8 subjects max.`;
+
+      try {
+        const responseText = await generateGeminiText(subjectPrompt);
+        let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+        cleanText = cleanText.replace(/```(?:json)?\s*\r?\n?/gi, '').trim();
+        const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          return NextResponse.json(parsed);
+        }
+      } catch (err) {
+        console.warn("Subject extraction failed:", err);
+      }
+      return NextResponse.json({ subjects: [] });
     }
 
     // ========== EXTRACT CHARACTERS MODE ==========

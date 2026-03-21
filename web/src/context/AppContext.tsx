@@ -151,6 +151,9 @@ interface AppContextType {
   setTargetDurationMinutes: (min: number) => void;
   storyboardImages: Record<number, string>;
   setStoryboardImages: (imgs: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
+  // Reference images for subjects (people, locations, brands)
+  referenceImages: Record<string, string[]>; // { "Lorena Bobbitt": ["url1", "url2"], ... }
+  setReferenceImages: (imgs: Record<string, string[]>) => void;
   // Short Story Mode
   storyText: string;
   setStoryText: (text: string) => void;
@@ -193,6 +196,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [creditsUsed, setCreditsUsed] = useState(0);
   const [targetDurationMinutes, setTargetDurationMinutes] = useState(3);
   const [storyboardImages, setStoryboardImages] = useState<Record<number, string>>({});
+  const [referenceImages, setReferenceImages] = useState<Record<string, string[]>>({});
   const [globalScriptModel] = useState("groq");
   // Short Story Mode
   const [storyText, setStoryText] = useState("");
@@ -226,6 +230,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       creditsUsed, setCreditsUsed,
       targetDurationMinutes, setTargetDurationMinutes,
       storyboardImages, setStoryboardImages,
+      referenceImages, setReferenceImages,
       storyText, setStoryText,
       characterProfiles, setCharacterProfiles,
       audioFile, setAudioFile,

@@ -60,12 +60,50 @@ function sanitizePrompt(prompt: string, maxLen: number): string {
 
 /**
  * Generate image via xAI Grok Imagine API
+ * If referenceImageUrl is provided, uses the edits endpoint for better likeness
  */
-async function generateViaGrok(prompt: string): Promise<{ dataUrl: string; id: string } | null> {
+async function generateViaGrok(prompt: string, referenceImageUrl?: string): Promise<{ dataUrl: string; id: string } | null> {
   if (!XAI_API_KEY) return null;
 
   try {
-    console.log("Trying xAI Grok Imagine...");
+    // If we have a reference image, use the edits endpoint for better likeness
+    if (referenceImageUrl) {
+      console.log("Trying xAI Grok Imagine with reference image...");
+      const editResponse = await fetch("https://api.x.ai/v1/images/edits", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${XAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "grok-imagine-image",
+          prompt: prompt,
+          image_url: referenceImageUrl,
+          n: 1,
+          response_format: "url",
+        }),
+        signal: AbortSignal.timeout(60000),
+      });
+
+      if (editResponse.ok) {
+        const editData = await editResponse.json();
+        const editUrl = editData?.data?.[0]?.url;
+        if (editUrl) {
+          const result = await downloadImage(editUrl);
+          if (result) {
+            console.log("xAI Grok Imagine (with reference) success");
+            return result;
+          }
+        }
+      } else {
+        const errText = await editResponse.text().catch(() => "");
+        console.warn(`xAI edits failed: ${editResponse.status}`, errText.substring(0, 200));
+        // Fall through to standard generation
+      }
+    }
+
+    // Standard generation without reference
+    console.log("Trying xAI Grok Imagine (standard)...");
     const response = await fetch("https://api.x.ai/v1/images/generations", {
       method: "POST",
       headers: {
@@ -89,27 +127,32 @@ async function generateViaGrok(prompt: string): Promise<{ dataUrl: string; id: s
 
     const data = await response.json();
     const imageUrl = data?.data?.[0]?.url;
-
     if (!imageUrl) {
       console.warn("xAI Grok returned no image URL");
       return null;
     }
 
-    // Download the image and convert to base64
+    return await downloadImage(imageUrl);
+  } catch (err: any) {
+    console.warn("xAI Grok Imagine error:", err.message);
+    return null;
+  }
+}
+
+/** Download an image URL and convert to base64 data URL */
+async function downloadImage(imageUrl: string): Promise<{ dataUrl: string; id: string } | null> {
+  try {
     const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });
     if (!imgRes.ok) {
-      console.warn(`Failed to download Grok image: ${imgRes.status}`);
+      console.warn(`Failed to download image: ${imgRes.status}`);
       return null;
     }
-
     const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
     const contentType = imgRes.headers.get("content-type") || "image/png";
     const dataUrl = `data:${contentType};base64,${imgBuffer.toString("base64")}`;
-
-    console.log("xAI Grok Imagine success");
     return { dataUrl, id: `grok-${Date.now()}` };
   } catch (err: any) {
-    console.warn("xAI Grok Imagine error:", err.message);
+    console.warn("Image download error:", err.message);
     return null;
   }
 }
@@ -125,6 +168,7 @@ export async function POST(req: NextRequest) {
       height = 768,
       model,
       useGrok = false,
+      referenceImageUrl,
     } = await req.json();
 
     if (!prompt) {
@@ -139,7 +183,7 @@ export async function POST(req: NextRequest) {
     // Try xAI Grok Imagine first for Medium/Pro/Story/Music tiers
     if (useGrok) {
       const grokPrompt = sanitizePrompt(prompt, maxPromptLen) + suffix;
-      const result = await generateViaGrok(grokPrompt);
+      const result = await generateViaGrok(grokPrompt, referenceImageUrl);
       if (result) {
         return NextResponse.json({
           success: true,
