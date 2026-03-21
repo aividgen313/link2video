@@ -132,25 +132,77 @@ Structure: HOOK → SETUP → RISING TENSION → CLIMAX → RESOLUTION → FINAL
 `;
     }
 
-    let aestheticRules = "";
-    switch (visualStyle) {
-      case "Animated Storytime":
-        aestheticRules = "CRITICAL AESTHETIC: You must write visual_prompts that describe 2D flat vector graphics, vibrant colors, cartoon style, and bold outlines. Do NOT request photorealism.";
-        break;
-      case "3D Render":
-        aestheticRules = "CRITICAL AESTHETIC: You must write visual_prompts that describe 3D renders, Pixar/Disney style characters, soft lighting, and high-quality 3D assets.";
-        break;
-      case "Photorealistic":
-        aestheticRules = "CRITICAL AESTHETIC: You must write visual_prompts that describe highly detailed, hyperrealistic photography, natural lighting, and 8k resolution.";
-        break;
-      case "Anime":
-        aestheticRules = "CRITICAL AESTHETIC: You must write visual_prompts that describe Japanese anime style, Studio Ghibli aesthetics, beautiful hand-drawn backgrounds, and cel-shaded characters.";
-        break;
-      case "Cinematic Documentary":
-      default:
-        aestheticRules = "CRITICAL AESTHETIC: You must write visual_prompts that describe cinematic documentary footage, hyperrealistic 4k B-roll, dramatic lighting, and shallow depth of field.";
-        break;
-    }
+    // Map visual style to aesthetic instructions for the AI
+    const STYLE_MAP: Record<string, string> = {
+      "Cinematic Documentary": "cinematic documentary footage, hyperrealistic 4k B-roll, dramatic lighting, shallow depth of field",
+      "Photorealistic": "highly detailed hyperrealistic photography, natural lighting, 8k resolution, DSLR quality",
+      "Animated Storytime": "2D flat vector graphics, vibrant colors, cartoon style, bold outlines. Do NOT request photorealism",
+      "3D Render": "3D renders, Pixar/Disney style characters, soft lighting, high-quality 3D assets",
+      "Anime": "Japanese anime style, Studio Ghibli aesthetics, hand-drawn backgrounds, cel-shaded characters",
+      "Film Noir": "high contrast black and white, deep shadows, dramatic venetian blind lighting, 1940s detective aesthetic",
+      "70s Retro Film": "grainy 35mm film, warm amber tones, lens flare, vintage 1970s color grading, soft focus",
+      "80s VHS Aesthetic": "VHS tape quality, scan lines, chromatic aberration, neon colors, 1980s retro aesthetic",
+      "90s Camcorder": "handheld camcorder footage, slightly grainy, timestamped, natural 1990s home video look",
+      "Golden Hour Cinema": "warm golden hour sunlight, long shadows, cinematic lens flare, magic hour photography",
+      "Neon Noir": "neon-lit dark streets, rain reflections, cyberpunk noir, electric blue and magenta lighting",
+      "Wes Anderson": "symmetrical composition, pastel color palette, whimsical staging, centered framing, quirky aesthetic",
+      "Christopher Nolan": "IMAX quality, desaturated tones, epic scale, practical effects look, Hans Zimmer mood",
+      "Tarantino Grindhouse": "gritty 70s exploitation film, film grain, saturated colors, dramatic close-ups, retro title cards",
+      "Blade Runner Cyberpunk": "rain-soaked neon cityscape, holographic ads, dark futuristic dystopia, teal and orange grading",
+      "IMAX Documentary": "ultra-wide IMAX format, crystal clear 8k, sweeping panoramic shots, nature documentary quality",
+      "Drone Footage": "aerial drone perspective, sweeping overhead shots, vast landscapes, bird's eye view, smooth gimbal",
+      "Manga Panel": "black and white manga style, screen tones, speed lines, dramatic panel layouts, Japanese comic art",
+      "Comic Book": "bold comic book art, halftone dots, speech bubbles, dynamic action poses, vibrant primary colors",
+      "Graphic Novel": "moody graphic novel illustration, ink wash, limited color palette, noir storytelling",
+      "Flat Vector": "clean flat vector illustration, geometric shapes, minimal detail, modern infographic style",
+      "Isometric 3D": "isometric perspective, 3D diorama style, clean edges, miniature world, tilted top-down view",
+      "Claymation": "clay animation style, handmade texture, stop-motion look, plasticine characters, warm lighting",
+      "Stop Motion": "stop motion animation, handcrafted miniatures, visible textures, Laika Studios quality",
+      "Papercraft": "paper cutout art, layered paper textures, origami style, craft materials, shadow puppet aesthetic",
+      "Storybook Illustration": "children's book illustration, soft watercolors, whimsical characters, fairy tale aesthetic",
+      "Pixel Art": "detailed pixel art, 16-bit retro game style, limited color palette, crisp pixels",
+      "Retro Game": "retro video game aesthetic, 8-bit/16-bit sprites, chiptune mood, arcade cabinet screen",
+      "Low Poly 3D": "low polygon 3D art, geometric facets, minimalist 3D, vibrant flat shading",
+      "Chibi Cartoon": "cute chibi characters, oversized heads, small bodies, kawaii style, bright colors",
+      "Oil Painting": "classical oil painting, visible brushstrokes, rich pigments, gallery-quality fine art",
+      "Watercolor": "soft watercolor painting, wet-on-wet technique, gentle color bleeds, translucent washes",
+      "Charcoal Sketch": "detailed charcoal drawing, dramatic shading, textured paper, black and white, smudged edges",
+      "Pencil Drawing": "precise pencil illustration, cross-hatching, fine detail, sketch pad texture",
+      "Renaissance Art": "Italian Renaissance painting, classical composition, chiaroscuro lighting, Michelangelo/Da Vinci style",
+      "Impressionist": "impressionist painting, visible brushstrokes, dappled light, Monet/Renoir color palette",
+      "Surrealism": "surrealist art, dream-like imagery, impossible geometry, Salvador Dali melting aesthetic",
+      "Pop Art": "bold pop art, Ben-Day dots, bright primary colors, Andy Warhol/Roy Lichtenstein style",
+      "Art Deco": "art deco design, geometric patterns, gold and black, 1920s glamour, ornate details",
+      "Ukiyo-e Japanese": "traditional ukiyo-e woodblock print, wave patterns, Japanese landscape, Hokusai style",
+      "Graffiti Street Art": "urban graffiti art, spray paint texture, street wall, Banksy-style stencil, bold colors",
+      "Collage Mixed Media": "mixed media collage, torn paper, magazine cutouts, layered textures, assemblage art",
+      "Portrait Photography": "professional portrait, studio lighting, shallow depth of field, 85mm lens, sharp focus on face",
+      "Street Photography": "candid street photography, urban environment, natural moment, Henri Cartier-Bresson style",
+      "Fashion Editorial": "high fashion editorial, studio lighting, Vogue magazine quality, stylized poses, luxury aesthetic",
+      "Sports Action": "high-speed sports photography, frozen motion, dramatic angles, 1/4000s shutter speed, intense action",
+      "Macro Close-Up": "extreme macro photography, incredible detail, shallow DOF, microscopic textures revealed",
+      "Aerial Photography": "aerial view photography, patterns from above, geographic perspective, satellite imagery style",
+      "Black and White": "dramatic black and white photography, high contrast, Ansel Adams quality, timeless monochrome",
+      "Polaroid Vintage": "instant Polaroid photo, white border, slightly faded colors, nostalgic vintage feel, soft vignette",
+      "Tilt-Shift Miniature": "tilt-shift photography, miniature effect, selective focus, toy-like perspective, vibrant colors",
+      "Long Exposure": "long exposure photography, light trails, silky smooth water, motion blur, nighttime cityscapes",
+      "Dark Fantasy": "dark fantasy art, moody atmosphere, magical creatures, epic scale, Lord of the Rings aesthetic",
+      "Gothic Horror": "gothic horror, dark cathedral, candlelight, fog, eerie atmosphere, Tim Burton style",
+      "Dystopian": "dystopian world, bleak industrial landscape, oppressive atmosphere, muted colors, totalitarian",
+      "Post-Apocalyptic": "post-apocalyptic wasteland, ruined buildings, overgrown nature, survival aesthetic, The Last of Us",
+      "Sci-Fi Futuristic": "sleek sci-fi future, holographic displays, chrome surfaces, space-age technology, clean lines",
+      "Cyberpunk 2077": "cyberpunk aesthetic, body augmentation, neon signs, dense urban sprawl, night city",
+      "Vaporwave": "vaporwave aesthetic, pink/purple/teal gradients, Roman busts, palm trees, glitch effects, 90s internet",
+      "Synthwave": "synthwave retro-futurism, neon grid, sunset gradient, chrome text, DeLorean aesthetic, 80s nostalgia",
+      "Holographic": "holographic projection, transparent displays, iridescent light, futuristic AR/VR, prismatic colors",
+      "National Geographic": "National Geographic quality, stunning nature photography, wildlife, breathtaking landscapes",
+      "Luxury Lifestyle": "luxury lifestyle photography, high-end brands, marble and gold, champagne, premium aesthetic",
+      "Minimalist Clean": "minimalist design, clean white space, simple composition, modern, uncluttered, zen aesthetic",
+      "Vintage Sepia": "vintage sepia tone, antique photograph, aged paper texture, historical look, early 1900s",
+    };
+
+    const styleDesc = STYLE_MAP[visualStyle] || STYLE_MAP["Cinematic Documentary"];
+    const aestheticRules = `CRITICAL AESTHETIC: You must write visual_prompts in the style of: ${styleDesc}. Every scene's visual_prompt MUST reflect this aesthetic consistently.`;
 
     // STEP 1: Generate a detailed visual reference sheet for all subjects
     console.log("Generating visual reference sheet...");

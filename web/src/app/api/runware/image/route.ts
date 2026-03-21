@@ -63,32 +63,41 @@ export async function POST(req: NextRequest) {
       prompt,
       width = 1280,
       height = 768,
-      model = "flux",
+      model,
     } = await req.json();
 
     if (!prompt) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
     }
 
-    const suffix = ", ultra-realistic, photorealistic, 8k UHD, hyperdetailed, accurate likeness, professional photography, cinematic lighting, in English";
-    const maxPromptLen = 900; // conservative limit to avoid Cloudflare issues
+    // Quality boosters for photorealism + full body accuracy
+    const suffix = ", ultra-realistic, photorealistic, 8k UHD, hyperdetailed, accurate likeness, exact resemblance, full body visible, correct anatomy, correct proportions, professional DSLR photography, cinematic lighting, sharp focus, in English";
+    const maxPromptLen = 900;
     const negativeEncoded = encodeURIComponent(NEGATIVE_PROMPT);
 
-    // Try up to 3 times: full prompt → shortened → simplified
-    const attempts = [
-      sanitizePrompt(prompt, maxPromptLen) + suffix,
-      sanitizePrompt(prompt, 500) + suffix,
-      sanitizePrompt(prompt.split(",").slice(0, 3).join(","), 300) + ", cinematic, photorealistic, 8k",
-    ];
+    // Models ranked by quality — try best first, fallback on failure
+    const MODELS_TO_TRY = model ? [model] : ["nanobanana-pro", "flux", "zimage"];
+
+    // Build retry attempts: each model × prompt variations
+    type Attempt = { prompt: string; model: string };
+    const attempts: Attempt[] = [];
+    for (const m of MODELS_TO_TRY) {
+      attempts.push({ prompt: sanitizePrompt(prompt, maxPromptLen) + suffix, model: m });
+    }
+    // Last resort: simplified prompt with flux
+    attempts.push({
+      prompt: sanitizePrompt(prompt.split(",").slice(0, 4).join(","), 400) + ", cinematic, photorealistic, 8k, full body, correct anatomy",
+      model: "flux",
+    });
 
     for (let i = 0; i < attempts.length; i++) {
-      const currentPrompt = attempts[i];
-      console.log(`Pollinations Image (attempt ${i + 1}):`, currentPrompt.substring(0, 100) + "...");
+      const { prompt: currentPrompt, model: currentModel } = attempts[i];
+      console.log(`Pollinations Image (attempt ${i + 1}/${attempts.length}, model=${currentModel}):`, currentPrompt.substring(0, 100) + "...");
 
       const encodedPrompt = encodeURIComponent(currentPrompt);
       const seed = Math.floor(Math.random() * 1000000);
 
-      let imageURL = `https://gen.pollinations.ai/image/${encodedPrompt}?model=${model}&width=${width}&height=${height}&seed=${seed}&nologo=true&negative=${negativeEncoded}`;
+      let imageURL = `https://gen.pollinations.ai/image/${encodedPrompt}?model=${currentModel}&width=${width}&height=${height}&seed=${seed}&nologo=true&negative=${negativeEncoded}`;
       if (POLLINATIONS_API_KEY) {
         imageURL += `&key=${POLLINATIONS_API_KEY}`;
       }

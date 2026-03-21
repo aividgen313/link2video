@@ -15,6 +15,8 @@ export default function StoryboardPreview() {
   const abortRefs = useRef<Record<number, AbortController>>({});
   const isMountedRef = useRef(true);
   const startedRef = useRef(false);
+  const [editingScene, setEditingScene] = useState<number | null>(null);
+  const [editPrompt, setEditPrompt] = useState("");
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -90,12 +92,11 @@ export default function StoryboardPreview() {
   };
 
   const regenerateScene = (sceneId: number, prompt: string) => {
-    // Cancel any in-flight request
     abortRefs.current[sceneId]?.abort();
-    // Remove from storyboard cache
     const updated = { ...storyboardImages };
     delete updated[sceneId];
     setStoryboardImages(updated);
+    setEditingScene(null);
     generateImage(sceneId, prompt);
   };
 
@@ -168,6 +169,7 @@ export default function StoryboardPreview() {
           const isLoading = !st || st.status === "loading" || st.status === "queued";
           const isError = st?.status === "error";
           const isDone = st?.status === "done";
+          const isEditing = editingScene === scene.id;
 
           return (
             <div key={scene.id} className="glass-card rounded-2xl overflow-hidden group">
@@ -217,20 +219,64 @@ export default function StoryboardPreview() {
                 <p className="text-xs text-on-surface/80 leading-relaxed line-clamp-2 italic">
                   &ldquo;{scene.narration}&rdquo;
                 </p>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[10px] text-outline line-clamp-1 flex-1">
-                    {scene.visual_prompt}
-                  </p>
-                  <button
-                    onClick={() => regenerateScene(scene.id, scene.visual_prompt)}
-                    disabled={!isDone && !isError}
-                    className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg glass text-xs font-medium text-outline hover:text-primary transition-all disabled:opacity-40"
-                    title="Regenerate this scene"
-                  >
-                    <span className="material-symbols-outlined text-sm">refresh</span>
-                    Redo
-                  </button>
-                </div>
+
+                {/* Editable Prompt Area */}
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={editPrompt}
+                      onChange={(e) => setEditPrompt(e.target.value)}
+                      className="w-full bg-surface-container-lowest/50 border border-outline-variant/20 rounded-xl p-2.5 text-xs text-on-surface placeholder:text-outline/50 focus:ring-2 focus:ring-primary/40 focus:outline-none resize-none"
+                      rows={3}
+                      placeholder="Describe what you want to see..."
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => regenerateScene(scene.id, editPrompt)}
+                        disabled={!editPrompt.trim()}
+                        className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/15 text-xs font-medium text-primary hover:bg-primary/25 transition-all disabled:opacity-40"
+                      >
+                        <span className="material-symbols-outlined text-sm">refresh</span>
+                        Generate
+                      </button>
+                      <button
+                        onClick={() => setEditingScene(null)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg glass text-xs font-medium text-outline hover:text-on-surface transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-outline line-clamp-2 cursor-pointer hover:text-on-surface/60 transition-colors"
+                       onClick={() => { setEditingScene(scene.id); setEditPrompt(scene.visual_prompt); }}
+                       title="Click to edit prompt"
+                    >
+                      {scene.visual_prompt}
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => regenerateScene(scene.id, scene.visual_prompt)}
+                        disabled={!isDone && !isError}
+                        className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg glass text-xs font-medium text-outline hover:text-primary transition-all disabled:opacity-40"
+                        title="Regenerate with same prompt"
+                      >
+                        <span className="material-symbols-outlined text-sm">refresh</span>
+                        Redo
+                      </button>
+                      <button
+                        onClick={() => { setEditingScene(scene.id); setEditPrompt(scene.visual_prompt); }}
+                        disabled={!isDone && !isError}
+                        className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg glass text-xs font-medium text-outline hover:text-primary transition-all disabled:opacity-40"
+                        title="Edit prompt and regenerate"
+                      >
+                        <span className="material-symbols-outlined text-sm">edit</span>
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           );
