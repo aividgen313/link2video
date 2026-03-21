@@ -1,18 +1,25 @@
 /**
- * Text generation via Pollinations.ai new unified API
- * Endpoint: https://gen.pollinations.ai/v1/chat/completions (OpenAI-compatible)
- * Fallback: Groq → OpenRouter
+ * Text generation — tries xAI Grok first, then Pollinations, Groq, OpenRouter
  */
 
 const POLLINATIONS_API_URL = "https://gen.pollinations.ai/v1/chat/completions";
-
-// Models in priority order — claude is best for scripts, openai is fast/reliable
 const POLLINATIONS_MODELS = ["openai", "claude", "mistral", "deepseek", "gemini"];
 
 export async function generateGeminiText(prompt: string, _model?: string): Promise<string> {
   const errors: string[] = [];
 
-  // Primary: New Pollinations unified API with multiple model fallbacks
+  // Primary: xAI Grok (best quality, paid)
+  const xaiKey = process.env.XAI_API_KEY || "";
+  if (xaiKey) {
+    try {
+      return await generateViaGrok(prompt, xaiKey);
+    } catch (err: any) {
+      errors.push(`Grok: ${err.message}`);
+      console.warn("xAI Grok text failed, trying Pollinations:", err.message);
+    }
+  }
+
+  // Fallback 1: Pollinations unified API
   try {
     return await generateViaPollinationsWithRetry(prompt);
   } catch (err: any) {
@@ -20,7 +27,7 @@ export async function generateGeminiText(prompt: string, _model?: string): Promi
     console.warn("Pollinations failed, trying fallbacks:", err.message);
   }
 
-  // Fallback 1: Groq
+  // Fallback 2: Groq
   const groqKey = process.env.GROQ_API_KEY || "";
   if (groqKey) {
     try {
@@ -31,7 +38,7 @@ export async function generateGeminiText(prompt: string, _model?: string): Promi
     }
   }
 
-  // Fallback 2: OpenRouter free models
+  // Fallback 3: OpenRouter free models
   try {
     return await generateViaOpenRouter(prompt);
   } catch (err: any) {
@@ -40,6 +47,35 @@ export async function generateGeminiText(prompt: string, _model?: string): Promi
   }
 
   throw new Error(`All text generation providers failed: ${errors.join(" | ")}`);
+}
+
+async function generateViaGrok(prompt: string, apiKey: string): Promise<string> {
+  console.log("Generating text via xAI Grok...");
+  const response = await fetch("https://api.x.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "grok-4-1-fast-non-reasoning",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 8192,
+    }),
+    signal: AbortSignal.timeout(90000),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text().catch(() => "");
+    throw new Error(`xAI API error ${response.status}: ${response.statusText} ${errBody.substring(0, 200)}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("xAI Grok returned empty response");
+  console.log(`xAI Grok text success (${text.length} chars)`);
+  return text;
 }
 
 async function generateViaGroq(prompt: string, apiKey: string): Promise<string> {
@@ -109,22 +145,15 @@ async function generateViaPollinationsWithRetry(prompt: string): Promise<string>
       const msg = err.message || "";
       console.warn(`Model ${model} failed: ${msg}`);
 
-      // 404 = model not found, skip immediately
       if (msg.includes("404")) continue;
-
-      // 429 = rate limited, wait then try next model
       if (msg.includes("429")) {
         await new Promise(r => setTimeout(r, 3000));
         continue;
       }
-
-      // 502/503 = server error, wait longer then try next
       if (msg.includes("502") || msg.includes("503") || msg.includes("504")) {
         await new Promise(r => setTimeout(r, 5000));
         continue;
       }
-
-      // Other errors, try next model immediately
       continue;
     }
   }
@@ -160,7 +189,6 @@ async function callPollinationsChat(prompt: string, model: string): Promise<stri
 
   const data = await response.json();
 
-  // Standard OpenAI-compatible response format
   const content = data.choices?.[0]?.message?.content;
   if (!content || content.trim().length === 0) {
     throw new Error("Pollinations returned empty content");

@@ -45,6 +45,8 @@ const NEGATIVE_PROMPT = [
  */
 function sanitizePrompt(prompt: string, maxLen: number): string {
   let clean = prompt
+    // Strip metadata labels that shouldn't appear in images
+    .replace(/\b(Name|Height|Weight|Age|Role|Gender|Race|Build|Frame|Occupation|Character|Profile|Description):\s*/gi, "")
     .replace(/#[0-9A-Fa-f]{3,8}/g, "") // hex color codes
     .replace(/https?:\/\/\S+/g, "") // URLs
     .replace(/(\d+)'(\d+)"/g, "$1 foot $2") // height measurements 5'9" → 5 foot 9

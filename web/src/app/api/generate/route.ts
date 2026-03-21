@@ -122,10 +122,38 @@ Return ONLY raw JSON (no markdown fences):
       extractedText = topic;
     } else if (url) {
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; Link2Video/1.0)" },
+          signal: AbortSignal.timeout(15000),
+        });
         const html = await response.text();
         const $ = cheerio.load(html);
-        extractedText = $("body").text().slice(0, 5000);
+
+        // Remove scripts, styles, nav, footer, ads
+        $("script, style, nav, footer, header, .sidebar, .ad, .advertisement, #comments, .mw-jump-link, .mw-editsection").remove();
+
+        // For Wikipedia, extract the main content area
+        let mainContent = "";
+        const wikiBody = $("#mw-content-text .mw-parser-output").first();
+        if (wikiBody.length) {
+          // Get all paragraphs from the wiki article
+          mainContent = wikiBody.find("p, h2, h3, li").map((_i: number, el: any) => $(el).text().trim()).get().join("\n");
+        } else {
+          // Generic: try article/main tags first, then body
+          const article = $("article, main, [role='main'], .content, .post-content, .entry-content").first();
+          if (article.length) {
+            mainContent = article.text();
+          } else {
+            mainContent = $("body").text();
+          }
+        }
+
+        // Clean up whitespace
+        mainContent = mainContent.replace(/\s+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+
+        // Use up to 12000 chars to get the FULL story
+        extractedText = mainContent.slice(0, 12000);
+        console.log(`URL content extracted: ${extractedText.length} chars from ${url}`);
       } catch (e) {
         console.error("Failed to fetch URL, falling back to URL text only");
         extractedText = `Topic: ${url}`;
@@ -346,6 +374,8 @@ VISUAL PROMPT RULES:
 - Include camera_angle (e.g. "close-up", "wide shot", "tracking shot"), lighting (e.g. "golden hour", "harsh fluorescent"), and mood (e.g. "tense", "hopeful")
 - Maintain visual consistency for recurring characters and locations
 - Be specific about character appearances in EVERY scene they appear
+- visual_prompt must be a PURE CINEMATIC DESCRIPTION — NEVER include metadata like "Name:", "Height:", "Age:", "Role:", character stats, or text overlays
+- Write visual_prompt like a movie shot description, NOT a character profile sheet
 
 ${aestheticRules}
 
@@ -425,6 +455,8 @@ VISUAL PROMPT RULES:
 - Include mood (energetic, melancholic, triumphant, mysterious, etc.)
 - Music videos use MORE dynamic camera work than documentaries — be creative!
 - Include choreography or movement descriptions where appropriate
+- visual_prompt must be a PURE CINEMATIC DESCRIPTION — NEVER include metadata like "Name:", "Height:", "Age:", character stats, or text overlays
+- Write visual_prompt like a music video director's shot description, NOT a character sheet
 
 ${aestheticRules}
 
@@ -516,10 +548,19 @@ CRITICAL — PHOTOREALISTIC ACCURACY:
 - Every person mentioned MUST be described with their EXACT physical appearance: specific skin tone, facial features, hairstyle, body type, clothing, and signature look
 - Every brand/logo MUST include exact colors, font style, logo shape, and design details
 - Every location MUST include specific architectural details, signage, and atmosphere
-- Names and text shown in the image MUST be spelled correctly
 - Do NOT use generic descriptions like "a man" or "a basketball player" — describe the EXACT person with unmistakable identifying features
 - The viewer should be able to identify every person and brand INSTANTLY from the image alone
-- Include the person's name in the prompt (e.g. "Michael Jordan, bald head, dark brown skin, athletic build, wearing Bulls #23 jersey")
+- Include the person's name naturally in the prompt (e.g. "Michael Jordan, bald head, dark brown skin, athletic build, wearing Bulls #23 jersey")
+
+CRITICAL — VISUAL PROMPTS MUST BE PURE IMAGE DESCRIPTIONS:
+- visual_prompt must ONLY describe what the camera sees — like a cinematographer's shot description
+- NEVER include metadata, labels, stats, character sheets, or text overlays in visual_prompt
+- NEVER include things like "Name: John", "Height: 6'2"", "Age: 35", "Role: protagonist" in visual_prompt
+- NEVER include the word "prompt" or any meta-instructions in visual_prompt
+- DO NOT list character attributes as bullet points or key-value pairs in visual_prompt
+- The visual_prompt should read like a movie scene description, NOT a character profile
+- WRONG: "John Smith, male, age 30, height 6 foot 2, muscular build, role: protagonist, wearing blue suit"
+- RIGHT: "A tall muscular man in a tailored navy blue suit walks through a rain-soaked city street at night, neon signs reflecting off wet pavement, medium tracking shot, moody blue lighting"
 ${visualReferenceSheet ? `
 VISUAL REFERENCE SHEET — USE THESE EXACT DESCRIPTIONS IN EVERY VISUAL PROMPT:
 ${visualReferenceSheet}

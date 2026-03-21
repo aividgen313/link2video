@@ -93,20 +93,20 @@ export const QUALITY_TIERS = {
   },
   medium: {
     label: "Medium",
-    description: "Claude Script + ElevenLabs TTS + Grok Images",
+    description: "Grok Text + Grok Images + Grok Video + ElevenLabs TTS",
     creditsPerScene: 0.008,
     usdPerScene: 0.008,
     color: "text-primary",
     bgColor: "bg-primary/10",
     borderColor: "border-primary/20",
-    useAIVideo: false,
+    useAIVideo: true,
     usePollsTTS: true,
     imageModel: "grok-imagine",
-    textModel: "claude",
+    textModel: "grok",
   },
   pro: {
     label: "Pro",
-    description: "Claude Script + Grok Video + Grok Images + ElevenLabs TTS",
+    description: "Grok Text + Grok Images + Grok Video + ElevenLabs TTS",
     creditsPerScene: 0.025,
     usdPerScene: 0.025,
     color: "text-tertiary",
@@ -115,7 +115,7 @@ export const QUALITY_TIERS = {
     useAIVideo: true,
     usePollsTTS: true,
     imageModel: "grok-imagine",
-    textModel: "claude",
+    textModel: "grok",
   },
 };
 
