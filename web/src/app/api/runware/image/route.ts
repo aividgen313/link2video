@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       prompt,
       width = 1280,
       height = 768,
-      model = "flux-realism",
+      model = "flux",
     } = await req.json();
 
     if (!prompt) {
@@ -20,7 +20,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Enhance prompt with photorealism and likeness boosters
-    const enhancedPrompt = `${prompt}, ultra-realistic, photorealistic, 8k UHD, hyperdetailed, accurate likeness, exact resemblance, professional photography, cinematic lighting`;
+    const suffix = ", ultra-realistic, photorealistic, 8k UHD, hyperdetailed, accurate likeness, exact resemblance, professional photography, cinematic lighting";
+    // Pollinations URL-based API has a ~1500 char path limit — truncate prompt to fit
+    const maxPromptLen = 1400 - suffix.length;
+    const trimmedPrompt = prompt.length > maxPromptLen ? prompt.substring(0, maxPromptLen) : prompt;
+    const enhancedPrompt = trimmedPrompt + suffix;
 
     console.log("Pollinations Image:", enhancedPrompt.substring(0, 100) + "...");
 
@@ -40,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
-      console.error(`Pollinations image error: ${response.status}`, errorText.substring(0, 200));
+      console.error(`Pollinations image error: ${response.status}`, errorText.substring(0, 300));
       throw new Error(`Pollinations returned ${response.status}: ${response.statusText}`);
     }
 
