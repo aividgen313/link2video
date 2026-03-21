@@ -32,8 +32,8 @@ Return ONLY the JSON array. No explanations, no markdown, no code blocks.
 
     // Clean up response text: strip <think> tags, markdown fences, and extract JSON
     let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-    // Strip markdown code fences (```json ... ``` or ``` ... ```)
-    cleanText = cleanText.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+    // Strip ALL markdown code fences anywhere in the text
+    cleanText = cleanText.replace(/```(?:json)?\s*\r?\n?/gi, '').trim();
     const jsonMatch = cleanText.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
     let jsonStr = jsonMatch ? jsonMatch[0] : cleanText;
 

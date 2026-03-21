@@ -323,26 +323,62 @@ CRITICAL JSON RULES:
 
     // Clean up response text: strip <think> tags, markdown fences, and extract JSON
     let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-    // Strip markdown code fences (```json ... ``` or ``` ... ```)
-    cleanText = cleanText.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+    // Strip ALL markdown code fences anywhere in the text
+    cleanText = cleanText.replace(/```(?:json)?\s*\r?\n?/gi, '').trim();
+    // Extract the outermost JSON object or array
     const jsonMatch = cleanText.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
     let jsonStr = jsonMatch ? jsonMatch[0] : cleanText;
 
+    /**
+     * Repair common JSON issues from AI output:
+     * 1. Height measurements like 5'9" where " breaks the JSON string
+     * 2. Truncated/incomplete JSON (close open structures)
+     */
+    function repairJson(str: string): string {
+      // Fix height measurements: 5'9" → 5 foot 9, 6'2" → 6 foot 2
+      let repaired = str.replace(/(\d+)'(\d+)"/g, '$1 foot $2');
+      // Fix 5'9\" patterns too
+      repaired = repaired.replace(/(\d+)'(\d+)\\"/g, '$1 foot $2');
+      return repaired;
+    }
+
+    function tryCompleteJson(str: string): string {
+      // If JSON appears truncated, try to close open structures
+      let s = str.trim();
+      // Count unclosed braces/brackets
+      let braces = 0, brackets = 0, inString = false, escape = false;
+      for (const ch of s) {
+        if (escape) { escape = false; continue; }
+        if (ch === '\\') { escape = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{') braces++;
+        else if (ch === '}') braces--;
+        else if (ch === '[') brackets++;
+        else if (ch === ']') brackets--;
+      }
+      // If we're inside a string, close it
+      if (inString) s += '"';
+      // Close any open structures
+      for (let i = 0; i < brackets; i++) s += ']';
+      for (let i = 0; i < braces; i++) s += '}';
+      return s;
+    }
+
     let scriptData;
     try {
-      scriptData = JSON.parse(jsonStr);
+      scriptData = JSON.parse(repairJson(jsonStr));
       console.log("Successfully parsed script with", scriptData.scenes?.length || 0, "scenes");
     } catch (e) {
-      // Try to repair common JSON issues (unescaped quotes in strings like 5'9")
+      // Try completing truncated JSON
       try {
-        // Fix unescaped double quotes inside string values (e.g. height measurements 5'9")
-        const repaired = jsonStr.replace(/(?<=:\s*"[^"]*?)(\d+)'(\d+)"(?=[^"]*?")/g, "$1'$2\\'");
-        scriptData = JSON.parse(repaired);
-        console.log("Parsed script after repair with", scriptData.scenes?.length || 0, "scenes");
+        const completed = tryCompleteJson(repairJson(jsonStr));
+        scriptData = JSON.parse(completed);
+        console.log("Parsed script after completion with", scriptData.scenes?.length || 0, "scenes");
       } catch (e2) {
         // Last resort: try to eval-parse with relaxed JSON
         try {
-          scriptData = (new Function('return ' + jsonStr))();
+          scriptData = (new Function('return ' + repairJson(jsonStr)))();
           console.log("Parsed script via eval with", scriptData.scenes?.length || 0, "scenes");
         } catch (e3) {
           console.error("JSON Parse failed for response:", responseText.substring(0, 1000));

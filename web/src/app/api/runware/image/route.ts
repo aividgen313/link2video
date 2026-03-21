@@ -46,7 +46,9 @@ function sanitizePrompt(prompt: string, maxLen: number): string {
   let clean = prompt
     .replace(/#[0-9A-Fa-f]{3,8}/g, "") // hex color codes
     .replace(/https?:\/\/\S+/g, "") // URLs
-    .replace(/[<>{}|\\^`[\]]/g, "") // special chars
+    .replace(/(\d+)'(\d+)"/g, "$1 foot $2") // height measurements 5'9" → 5 foot 9
+    .replace(/(\d+)'/g, "$1 foot") // 5' → 5 foot
+    .replace(/[<>{}|\\^`[\]"']/g, "") // special chars + quotes
     .replace(/\s+/g, " ") // collapse whitespace
     .trim();
   if (clean.length > maxLen) clean = clean.substring(0, maxLen);
@@ -75,18 +77,24 @@ export async function POST(req: NextRequest) {
     const maxPromptLen = 900;
     const negativeEncoded = encodeURIComponent(NEGATIVE_PROMPT);
 
-    // Models ranked by quality — try best first, fallback on failure
-    const MODELS_TO_TRY = model ? [model] : ["nanobanana-pro", "flux", "zimage"];
+    // Models ranked by quality — grok-imagine first, then fallbacks
+    const MODELS_TO_TRY = model ? [model] : ["grok-imagine", "flux", "nanobanana-pro"];
 
-    // Build retry attempts: each model × prompt variations
+    // Build retry attempts: each model with progressively simpler prompts
     type Attempt = { prompt: string; model: string };
     const attempts: Attempt[] = [];
+    // Full prompt with each model
     for (const m of MODELS_TO_TRY) {
       attempts.push({ prompt: sanitizePrompt(prompt, maxPromptLen) + suffix, model: m });
     }
-    // Last resort: simplified prompt with flux
+    // Shorter prompt (first 6 comma segments) with flux
     attempts.push({
-      prompt: sanitizePrompt(prompt.split(",").slice(0, 4).join(","), 400) + ", cinematic, photorealistic, 8k, full body, correct anatomy",
+      prompt: sanitizePrompt(prompt.split(",").slice(0, 6).join(","), 600) + ", cinematic, photorealistic, 8k",
+      model: "flux",
+    });
+    // Ultra-simple prompt (first 3 comma segments) with flux — last resort
+    attempts.push({
+      prompt: sanitizePrompt(prompt.split(",").slice(0, 3).join(","), 300) + ", photorealistic",
       model: "flux",
     });
 

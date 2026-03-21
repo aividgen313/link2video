@@ -63,50 +63,71 @@ export async function POST(req: NextRequest) {
     }
 
     // MODE 2: AI Video Generation via Pollinations (requires credits)
+    // Try multiple video models for reliability
     console.log("Video (AI mode):", prompt?.substring(0, 60) + "...");
 
-    const encodedPrompt = encodeURIComponent(prompt);
     const seed = Math.floor(Math.random() * 1000000);
     const clampedDuration = Math.min(Math.max(duration, 2), 10);
+    const VIDEO_MODELS = ["wan", "seedance", "klein"];
 
-    let videoURL = `https://gen.pollinations.ai/image/${encodedPrompt}?model=wan&duration=${clampedDuration}&aspectRatio=16:9&seed=${seed}&nologo=true`;
-    if (POLLINATIONS_API_KEY) videoURL += `&key=${POLLINATIONS_API_KEY}`;
+    for (let i = 0; i < VIDEO_MODELS.length; i++) {
+      const videoModel = VIDEO_MODELS[i];
+      const encodedPrompt = encodeURIComponent(prompt);
 
-    console.log("Fetching AI video from Pollinations (may take 30-180s)...");
-    const response = await fetch(videoURL, {
-      signal: AbortSignal.timeout(240000),
-    });
+      let videoURL = `https://gen.pollinations.ai/image/${encodedPrompt}?model=${videoModel}&duration=${clampedDuration}&aspectRatio=16:9&seed=${seed}&nologo=true`;
+      if (POLLINATIONS_API_KEY) videoURL += `&key=${POLLINATIONS_API_KEY}`;
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      console.error(`Pollinations video error: ${response.status}`, errorText.substring(0, 300));
+      console.log(`Fetching AI video (attempt ${i + 1}/${VIDEO_MODELS.length}, model=${videoModel})...`);
+      try {
+        const response = await fetch(videoURL, {
+          signal: AbortSignal.timeout(240000),
+        });
 
-      if (response.status === 402) {
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => "");
+          console.warn(`Video model ${videoModel} failed: ${response.status}`, errorText.substring(0, 200));
+
+          if (response.status === 402) {
+            return NextResponse.json({
+              error: "Insufficient Pollinations credits for AI video. Buy credits at enter.pollinations.ai or switch to Ken Burns mode (free).",
+              isCreditsError: true,
+              retryable: false,
+            }, { status: 402 });
+          }
+          if (i < VIDEO_MODELS.length - 1) continue;
+          throw new Error(`Video generation failed: ${response.status}`);
+        }
+
+        const contentType = response.headers.get("content-type") || "";
+        console.log(`AI Video response (${videoModel}): ${response.status}, type: ${contentType}`);
+
+        const videoBuffer = Buffer.from(await response.arrayBuffer());
+        if (videoBuffer.length < 1000) {
+          console.warn(`Video model ${videoModel} returned empty file, trying next...`);
+          if (i < VIDEO_MODELS.length - 1) continue;
+          throw new Error("Video generation returned empty file");
+        }
+
+        const base64Video = videoBuffer.toString("base64");
+
         return NextResponse.json({
-          error: "Insufficient Pollinations credits for AI video. Buy credits at enter.pollinations.ai or switch to Ken Burns mode (free).",
-          isCreditsError: true,
-          retryable: false,
-        }, { status: 402 });
+          success: true,
+          videoUrl: `data:video/mp4;base64,${base64Video}`,
+          videoUUID: uuidv4(),
+          useKenBurns: false,
+          cost: 0,
+          duration: clampedDuration,
+        });
+      } catch (err: any) {
+        if (err.name === "AbortError" || err.message?.includes("timeout")) {
+          console.warn(`Video model ${videoModel} timed out`);
+          if (i < VIDEO_MODELS.length - 1) continue;
+        }
+        if (i === VIDEO_MODELS.length - 1) throw err;
       }
-      throw new Error(`Video generation failed: ${response.status}`);
     }
 
-    const contentType = response.headers.get("content-type") || "";
-    console.log(`AI Video response: ${response.status}, type: ${contentType}`);
-
-    const videoBuffer = Buffer.from(await response.arrayBuffer());
-    if (videoBuffer.length < 1000) throw new Error("Video generation returned empty file");
-
-    const base64Video = videoBuffer.toString("base64");
-
-    return NextResponse.json({
-      success: true,
-      videoUrl: `data:video/mp4;base64,${base64Video}`,
-      videoUUID: uuidv4(),
-      useKenBurns: false,
-      cost: 0,
-      duration: clampedDuration,
-    });
+    throw new Error("All video models failed");
   } catch (error) {
     console.error("Video generation error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
