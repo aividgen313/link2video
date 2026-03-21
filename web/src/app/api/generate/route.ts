@@ -202,6 +202,7 @@ UNIVERSAL WRITING RULES:
 - Every 10-20 seconds must introduce new information, a question, or a twist
 - NEVER use filler words or generic phrasing
 - Use psychological triggers: curiosity, suspense, surprise, empathy, aspiration
+- ALWAYS write in English unless the topic specifically involves other languages
 
 VISUAL PROMPT RULES — EXTREME LIKENESS REQUIRED:
 - Each scene's visual_prompt must describe EXACTLY what should appear on screen
