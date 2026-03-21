@@ -10,17 +10,20 @@ export async function POST(req: NextRequest) {
     }
 
     const prompt = `
-You are an expert Youtube video producer helping a creator brainstorm angles.
+You are an elite viral content strategist who has produced Netflix documentaries and YouTube videos with 100M+ views.
 Topic: ${topic}
 
-Generate 4 unique and compelling story angles for a video on this topic.
+Generate 4 unique story angles that would make viewers STOP SCROLLING and watch the entire video. Each angle should have a clear emotional hook, mystery, or controversy that creates instant curiosity.
+
+Think like a showrunner: What angle would make THIS topic go viral? What would make someone share this with everyone they know?
+
 Format your response as a JSON array of objects, each with these keys:
-- "title": A compelling angle title
-- "description": 1-2 sentence description of the angle
-- "type": The content type (e.g. "Documentary", "Explainer", "Narrative", "Opinion", "Investigative")
+- "title": A compelling, clickable angle title that creates curiosity (NOT generic — make it feel like a Netflix episode title)
+- "description": 2-3 sentences explaining the narrative approach, the emotional hook, and why viewers would stay until the end
+- "type": The content type (e.g. "True Crime Documentary", "Investigative Expose", "Emotional Narrative", "Mind-Blowing Explainer", "Conspiracy Deep Dive")
 - "duration": Estimated video duration (e.g. "3-5 min", "1-2 min", "5-10 min")
 
-Return ONLY the JSON array. No explanations.
+Return ONLY the JSON array. No explanations, no markdown, no code blocks.
 `;
 
     console.log("Generating angles via Groq...");

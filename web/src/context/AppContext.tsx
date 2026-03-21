@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode } from "react";
 
 export type Scene = {
   id: number;
@@ -18,6 +18,69 @@ export type ScriptData = {
   scenes: Scene[];
 };
 
+export type QualityTier = "basic" | "medium" | "pro";
+
+export type VideoDimension = {
+  id: string;
+  label: string;
+  width: number;
+  height: number;
+  aspectRatio: string;
+};
+
+export const VIDEO_DIMENSIONS: VideoDimension[] = [
+  { id: "16:9", label: "YouTube / Widescreen (16:9)", width: 1280, height: 720, aspectRatio: "16/9" },
+  { id: "9:16", label: "TikTok / Instagram Story (9:16)", width: 720, height: 1280, aspectRatio: "9/16" },
+  { id: "1:1", label: "Instagram Square (1:1)", width: 720, height: 720, aspectRatio: "1/1" },
+  { id: "4:5", label: "Instagram Portrait (4:5)", width: 576, height: 720, aspectRatio: "4/5" },
+  { id: "21:9", label: "Cinematic Ultrawide (21:9)", width: 1280, height: 549, aspectRatio: "21/9" },
+];
+
+export const VOICES = [
+  { id: "adam", name: "Adam", gender: "Male", description: "Deep & Authoritative" },
+  { id: "josh", name: "Josh", gender: "Male", description: "Calm & Warm" },
+  { id: "arnold", name: "Arnold", gender: "Male", description: "Crisp & Clear" },
+  { id: "sam", name: "Sam", gender: "Male", description: "Raspy & Mature" },
+  { id: "rachel", name: "Rachel", gender: "Female", description: "Calm & Professional" },
+  { id: "domi", name: "Domi", gender: "Female", description: "Strong & Confident" },
+  { id: "bella", name: "Bella", gender: "Female", description: "Warm & Friendly" },
+  { id: "elli", name: "Elli", gender: "Female", description: "Young & Energetic" },
+];
+
+// Credit costs per scene (in Pollinations credits)
+export const QUALITY_TIERS = {
+  basic: {
+    label: "Basic",
+    description: "Free — Edge TTS + AI Images (Ken Burns)",
+    creditsPerScene: 0.002,
+    color: "text-emerald-400",
+    bgColor: "bg-emerald-400/10",
+    borderColor: "border-emerald-400/20",
+    useAIVideo: false,
+    usePollsTTS: false, // Uses Edge TTS (free)
+  },
+  medium: {
+    label: "Medium",
+    description: "ElevenLabs TTS + HD Images",
+    creditsPerScene: 0.004,
+    color: "text-primary",
+    bgColor: "bg-primary/10",
+    borderColor: "border-primary/20",
+    useAIVideo: false,
+    usePollsTTS: true,
+  },
+  pro: {
+    label: "Pro",
+    description: "AI Video Generation (Wan model)",
+    creditsPerScene: 0.016,
+    color: "text-tertiary",
+    bgColor: "bg-tertiary/10",
+    borderColor: "border-tertiary/20",
+    useAIVideo: true,
+    usePollsTTS: true,
+  },
+};
+
 interface AppContextType {
   url: string;
   setUrl: (url: string) => void;
@@ -29,18 +92,24 @@ interface AppContextType {
   setIsGenerating: (val: boolean) => void;
   finalVideoUrl: string | null;
   setFinalVideoUrl: (url: string | null) => void;
-  globalVideoModel: string;
-  setGlobalVideoModel: (model: string) => void;
-  globalImageModel: string;
-  setGlobalImageModel: (model: string) => void;
-  globalAudioModel: string;
-  setGlobalAudioModel: (model: string) => void;
-  globalScriptModel: string;
-  setGlobalScriptModel: (model: string) => void;
-  qualityTier: string;
-  setQualityTier: (tier: string) => void;
+  qualityTier: QualityTier;
+  setQualityTier: (tier: QualityTier) => void;
   globalVisualStyle: string;
   setGlobalVisualStyle: (style: string) => void;
+  videoDimension: VideoDimension;
+  setVideoDimension: (dim: VideoDimension) => void;
+  selectedVoice: string;
+  setSelectedVoice: (voice: string) => void;
+  musicEnabled: boolean;
+  setMusicEnabled: (enabled: boolean) => void;
+  creditsUsed: number;
+  setCreditsUsed: (credits: number) => void;
+  // Legacy (kept for script page compatibility)
+  globalVideoModel: string;
+  globalImageModel: string;
+  globalAudioModel: string;
+  globalScriptModel: string;
+  setGlobalScriptModel: (model: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -51,38 +120,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [scriptData, setScriptData] = useState<ScriptData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
-  
-  // Quality Tier State
-  const [qualityTier, setQualityTier] = useState("Medium");
-  
-  // Default Global Models
-  const [globalVideoModel, setGlobalVideoModel] = useState("klingai:kling-video@3-standard");
-  const [globalImageModel, setGlobalImageModel] = useState("runware:101@1");
-  const [globalAudioModel, setGlobalAudioModel] = useState("elevenlabs:1@1");
-  // Changed to Gemini to avoid Runware credit usage
-  const [globalScriptModel, setGlobalScriptModel] = useState("gemini-2.0-flash-lite");
+  const [qualityTier, setQualityTier] = useState<QualityTier>("basic");
   const [globalVisualStyle, setGlobalVisualStyle] = useState("Cinematic Documentary");
+  const [videoDimension, setVideoDimension] = useState<VideoDimension>(VIDEO_DIMENSIONS[0]);
+  const [selectedVoice, setSelectedVoice] = useState("adam");
+  const [musicEnabled, setMusicEnabled] = useState(false);
+  const [creditsUsed, setCreditsUsed] = useState(0);
+  const [globalScriptModel] = useState("groq");
 
-  // Sync Quality Tier to Models
-  useEffect(() => {
-    switch (qualityTier) {
-      case "Premium":
-        setGlobalVideoModel("klingai:kling-video@3-pro");
-        setGlobalImageModel("alibaba:qwen-image-2-0");
-        break;
-      case "Medium":
-        setGlobalVideoModel("klingai:kling-video@3-standard");
-        setGlobalImageModel("runware:101@1");
-        break;
-      case "Basic":
-        setGlobalVideoModel("lightricks:ltx-2.3-fast");
-        setGlobalImageModel("bytedance:seedream-5-0-lite");
-        break;
-      case "Custom":
-      default:
-        break; // Leave models as they are
-    }
-  }, [qualityTier]);
+  // Derived model values based on quality tier
+  const globalVideoModel = qualityTier === "pro" ? "pollinations:wan" : "kenburns";
+  const globalImageModel = "pollinations:flux";
+  const globalAudioModel = qualityTier === "basic" ? "edge-tts" : "pollinations:elevenlabs";
 
   return (
     <AppContext.Provider value={{
@@ -91,12 +140,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       scriptData, setScriptData,
       isGenerating, setIsGenerating,
       finalVideoUrl, setFinalVideoUrl,
-      globalVideoModel, setGlobalVideoModel,
-      globalImageModel, setGlobalImageModel,
-      globalAudioModel, setGlobalAudioModel,
       qualityTier, setQualityTier,
-      globalScriptModel, setGlobalScriptModel,
-      globalVisualStyle, setGlobalVisualStyle
+      globalVisualStyle, setGlobalVisualStyle,
+      videoDimension, setVideoDimension,
+      selectedVoice, setSelectedVoice,
+      musicEnabled, setMusicEnabled,
+      creditsUsed, setCreditsUsed,
+      globalVideoModel,
+      globalImageModel,
+      globalAudioModel,
+      globalScriptModel,
+      setGlobalScriptModel: () => {},
     }}>
       {children}
     </AppContext.Provider>

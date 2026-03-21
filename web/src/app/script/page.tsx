@@ -1,30 +1,26 @@
 "use client";
 import Link from "next/link";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAppContext, Scene } from "@/context/AppContext";
-import { calculateModelCost } from "@/lib/pricing";
+import { useAppContext, Scene, QUALITY_TIERS } from "@/context/AppContext";
 
 export default function ScriptBuilder() {
   const router = useRouter();
-  const { 
-    url, 
-    angle, 
-    scriptData, 
+  const {
+    url,
+    angle,
+    scriptData,
     setScriptData,
-    globalVideoModel, setGlobalVideoModel,
-    globalImageModel, setGlobalImageModel,
-    globalAudioModel, setGlobalAudioModel,
     qualityTier, setQualityTier,
-    globalScriptModel, setGlobalScriptModel,
-    globalVisualStyle
+    globalVisualStyle,
+    selectedVoice,
+    musicEnabled, setMusicEnabled,
   } = useAppContext();
   const [isLoading, setIsLoading] = useState(!scriptData);
   const [hasMounted, setHasMounted] = useState(false);
   const [activeScene, setActiveScene] = useState<Scene | null>(null);
   const [scenePreviewUrl, setScenePreviewUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
-  const [enhancedTip, setEnhancedTip] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 
@@ -32,35 +28,10 @@ export default function ScriptBuilder() {
     setHasMounted(true);
   }, []);
 
-  const estimatedTotalCost = useMemo(() => {
-    if (!scriptData || !scriptData.scenes) return 0;
-    let totalCost = 0;
-    let totalDurationSeconds = 0;
-
-    scriptData.scenes.forEach(scene => {
-      const activeVideoModel = scene.video_model_override || globalVideoModel;
-      const activeImageModel = scene.image_model_override || globalImageModel;
-      
-      const videoCost = calculateModelCost(activeVideoModel, "video", scene.duration_estimate_seconds);
-      const imageCost = calculateModelCost(activeImageModel, "image");
-      
-      totalCost += videoCost + imageCost;
-      totalDurationSeconds += scene.duration_estimate_seconds;
-    });
-
-    const audioCost = calculateModelCost(globalAudioModel, "audio", totalDurationSeconds);
-    totalCost += audioCost;
-
-    return totalCost;
-  }, [scriptData, globalVideoModel, globalImageModel, globalAudioModel]);
-
-  // Cost Per Minute Estimator (Assuming ~5s scenes = 12 images per minute)
-  const costPerMinute = useMemo(() => {
-    const videoCost = calculateModelCost(globalVideoModel, "video", 60);
-    const audioCost = calculateModelCost(globalAudioModel, "audio", 60);
-    const imageCost = calculateModelCost(globalImageModel, "image") * 12;
-    return videoCost + audioCost + imageCost;
-  }, [globalVideoModel, globalImageModel, globalAudioModel]);
+  const tier = QUALITY_TIERS[qualityTier];
+  const estimatedTotalCost = scriptData
+    ? (tier.creditsPerScene * scriptData.scenes.length).toFixed(4)
+    : "0.00";
 
   useEffect(() => {
     if (scriptData) {
@@ -72,18 +43,14 @@ export default function ScriptBuilder() {
     const fetchScript = async () => {
       try {
         setIsLoading(true);
-        const isRunware = globalScriptModel.startsWith("runware:");
-        const provider = isRunware ? "runware" : "gemini";
-        const model = isRunware ? globalScriptModel.replace("runware:", "") : globalScriptModel;
-
         const res = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             url: url || "https://example.com/mock",
             angle,
-            provider,
-            model,
+            provider: "gemini",
+            model: "groq",
             visualStyle: globalVisualStyle
           })
         });
@@ -122,7 +89,6 @@ export default function ScriptBuilder() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: activeScene.visual_prompt,
-          model: activeScene.image_model_override || globalImageModel,
           width: 1280,
           height: 768,
           numberResults: 1,
@@ -139,35 +105,9 @@ export default function ScriptBuilder() {
     }
   };
 
-  const handleEnhancePrompt = async () => {
-    if (!activeScene?.visual_prompt) return;
-    try {
-      const res = await fetch("/api/runware/enhance-prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: activeScene.visual_prompt,
-          promptMaxLength: 128,
-          promptVersions: 1,
-        }),
-      });
-      const data = await res.json();
-      if (data.success && data.enhancedPrompts?.[0]) {
-        setEnhancedTip(data.enhancedPrompts[0].text);
-      }
-    } catch (err) {
-      console.error("Prompt enhance error:", err);
-    }
-  };
-
-  // When active scene changes, reset preview and fetch enhanced prompt
+  // When active scene changes, reset preview
   useEffect(() => {
     setScenePreviewUrl(null);
-    setEnhancedTip(null);
-    if (activeScene?.visual_prompt) {
-      handleEnhancePrompt();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeScene?.id]);
 
   if (!hasMounted) return null;
@@ -192,109 +132,44 @@ export default function ScriptBuilder() {
             <h2 className="font-headline text-4xl font-extrabold tracking-tight text-on-surface">Generated Story Script</h2>
           </div>
           
-          {/* Global Model Settings */}
-          <div className="flex gap-3 glass p-2 rounded-2xl items-center shadow-sm overflow-x-auto w-full xl:w-auto">
-            
-            {/* Master Quality Tier Controller */}
-            <div className="flex flex-col border-r border-outline-variant/20 pr-3 shrink-0">
-              <div className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-primary text-sm" data-icon="diamond">diamond</span>
-                <div className="relative group">
-                  <select 
-                    value={qualityTier}
-                    onChange={(e) => setQualityTier(e.target.value)}
-                    className="bg-transparent text-primary border-none rounded-xl py-1 pl-2 pr-6 font-label text-xs uppercase font-bold tracking-widest appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+          {/* Quality + Settings bar */}
+          <div className="flex flex-wrap gap-3 items-center">
+            {/* Quality Tier Pills */}
+            <div className="flex items-center gap-1 glass p-1 rounded-xl">
+              {(["basic", "medium", "pro"] as const).map((t) => {
+                const info = QUALITY_TIERS[t];
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setQualityTier(t)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${qualityTier === t ? `${info.bgColor} ${info.color} border ${info.borderColor}` : "text-outline hover:text-on-surface"}`}
                   >
-                    <option value="Basic">Basic Quality</option>
-                    <option value="Medium">Medium Quality</option>
-                    <option value="Premium">Premium Quality</option>
-                    <option value="Custom">Custom Mix</option>
-                  </select>
-                  <span className="material-symbols-outlined absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none text-primary text-sm" data-icon="expand_more">expand_more</span>
-                </div>
-              </div>
-              <span className="text-[9px] font-body text-outline font-medium px-2 ml-4">
-                Rate: ~${costPerMinute.toFixed(2)} / min
-              </span>
+                    {info.label}
+                  </button>
+                );
+              })}
             </div>
 
-            <span className="text-[10px] font-label font-bold uppercase tracking-widest text-outline px-2 whitespace-nowrap">Model Defaults:</span>
-            
-            <div className="relative group shrink-0">
-              <select 
-                value={globalVideoModel}
-                onChange={(e) => {
-                  setGlobalVideoModel(e.target.value);
-                  setQualityTier("Custom");
-                }}
-                className="bg-surface-container-highest border-none rounded-xl py-2 pl-3 pr-8 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer min-w-[140px]"
-              >
-                <option value="klingai:kling-video@3-standard">Kling 3.0 Standard</option>
-                <option value="klingai:5@3">Kling 1.5</option>
-                <option value="klingai:kling-video@3-pro">Kling 3.0 Pro</option>
-                <option value="lightricks:ltx-2.3">LTX 2.3</option>
-                <option value="lightricks:ltx-2.3-fast">LTX 2.3 Fast</option>
-              </select>
-              <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="videocam">videocam</span>
-            </div>
-
-            <div className="relative group shrink-0">
-              <select 
-                value={globalImageModel}
-                onChange={(e) => {
-                  setGlobalImageModel(e.target.value);
-                  setQualityTier("Custom");
-                }}
-                className="bg-surface-container-highest border-none rounded-xl py-2 pl-3 pr-8 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer min-w-[140px]"
-              >
-                <option value="runware:101@1">FLUX.1 Dev</option>
-                <option value="alibaba:qwen-image-2-0">Qwen Image 2.0</option>
-                <option value="bytedance:seedream-5-0-lite">Seedream 5.0 Lite</option>
-              </select>
-              <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="image">image</span>
-            </div>
-            
-            <div className="relative group shrink-0">
-              <select 
-                value={globalAudioModel}
-                onChange={(e) => {
-                  setGlobalAudioModel(e.target.value);
-                  setQualityTier("Custom");
-                }}
-                className="bg-surface-container-highest border-none rounded-xl py-2 pl-3 pr-8 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer min-w-[140px]"
-              >
-                <option value="elevenlabs:1@1">ElevenLabs</option>
-                <option value="google:tts-1">Google Cloud TTS</option>
-              </select>
-            </div>
-            
-            <div className="relative group shrink-0">
-              <select 
-                value={globalScriptModel}
-                onChange={(e) => setGlobalScriptModel(e.target.value)}
-                className="bg-surface-container-highest border-none rounded-xl py-2 pl-3 pr-8 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer min-w-[140px]"
-              >
-                <option value="runware:minimax:m2.5@0">Runware MiniMax (Fast & Smart)</option>
-                <option value="runware:150@2">Runware LLaVA 7B (Multi-modal)</option>
-                <option value="runware:152@2">Runware Qwen 7B (Powerful)</option>
-                <option value="gemini-2.0-flash-lite">Google Gemini Flash Lite (Free)</option>
-              </select>
-              <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="edit_note">edit_note</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 shrink-0 w-full md:w-auto">
-            {/* Cost Estimator Badge */}
-            <div className="flex flex-col justify-center glass px-4 py-2 rounded-xl">
-              <span className="font-label text-[10px] text-outline uppercase tracking-widest font-bold">Estimated Cost</span>
-              <div className="flex items-center gap-1">
-                <span className="font-headline font-bold text-on-surface">${estimatedTotalCost.toFixed(2)}</span>
-                <span className="text-[10px] text-outline font-body">total</span>
+            {/* Cost Badge */}
+            <div className="flex items-center gap-2 glass px-3 py-2 rounded-xl">
+              <span className="material-symbols-outlined text-primary text-sm">account_balance_wallet</span>
+              <div>
+                <p className="text-[10px] text-outline uppercase font-bold tracking-wider leading-none">Est. Cost</p>
+                <p className="font-headline font-bold text-sm text-on-surface">{qualityTier === "basic" ? "FREE" : `$${estimatedTotalCost}`}</p>
               </div>
             </div>
 
-            <button onClick={handleGenerateVideo} className="px-8 py-3 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-headline font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined" data-icon="movie">movie</span>
+            {/* Music Toggle */}
+            <button
+              onClick={() => setMusicEnabled(!musicEnabled)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold glass transition-all ${musicEnabled ? "text-primary" : "text-outline"}`}
+            >
+              <span className="material-symbols-outlined text-sm">{musicEnabled ? "music_note" : "music_off"}</span>
+              Music {musicEnabled ? "On" : "Off"}
+            </button>
+
+            <button onClick={handleGenerateVideo} className="ml-auto primary-gradient text-white px-6 py-2.5 rounded-xl font-headline font-bold hover:shadow-lg transition-all flex items-center gap-2 shadow-md shadow-primary/20">
+              <span className="material-symbols-outlined text-lg">movie</span>
               Generate Video
             </button>
           </div>
@@ -433,7 +308,7 @@ export default function ScriptBuilder() {
                   <div className="w-full h-full bg-surface-container-highest flex items-center justify-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-10 h-10 border-3 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                      <span className="text-xs text-outline font-body">Generating with Runware FLUX...</span>
+                      <span className="text-xs text-outline font-body">Generating preview...</span>
                     </div>
                   </div>
                 ) : scenePreviewUrl ? (
@@ -470,63 +345,11 @@ export default function ScriptBuilder() {
                 ></textarea>
               </div>
 
-              {/* Advanced Model Overrides */}
-              <div className="space-y-4 pt-4 border-t border-outline-variant/10">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="material-symbols-outlined text-outline text-sm" data-icon="tune">tune</span>
-                  <h4 className="font-label text-xs text-outline uppercase tracking-wider font-bold">Scene Overrides</h4>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="font-label text-[10px] text-outline-variant uppercase tracking-widest">Video Model</label>
-                    <div className="relative group">
-                      <select 
-                        value={activeScene?.video_model_override || ""}
-                        onChange={(e) => {
-                          if (!scriptData || !activeScene) return;
-                          const sceneIndex = scriptData.scenes.findIndex(s => s.id === activeScene.id);
-                          const newScenes = [...scriptData.scenes];
-                          newScenes[sceneIndex] = { ...newScenes[sceneIndex], video_model_override: e.target.value || undefined };
-                          setScriptData({ ...scriptData, scenes: newScenes });
-                          setActiveScene(newScenes[sceneIndex]);
-                        }}
-                        className="w-full bg-surface-container-low border border-outline-variant/10 rounded-lg p-2.5 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
-                      >
-                        <option value="">Global Default</option>
-                        <option value="klingai:kling-video@3-standard">Kling 3.0 Std</option>
-                        <option value="klingai:5@3">Kling 1.5</option>
-                        <option value="klingai:kling-video@3-pro">Kling 3.0 Pro</option>
-                        <option value="lightricks:ltx-2.3">LTX 2.3</option>
-                        <option value="lightricks:ltx-2.3-fast">LTX 2.3 Fast</option>
-                      </select>
-                      <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="expand_more">expand_more</span>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="font-label text-[10px] text-outline-variant uppercase tracking-widest">Image Model</label>
-                    <div className="relative group">
-                      <select 
-                        value={activeScene?.image_model_override || ""}
-                        onChange={(e) => {
-                          if (!scriptData || !activeScene) return;
-                          const sceneIndex = scriptData.scenes.findIndex(s => s.id === activeScene.id);
-                          const newScenes = [...scriptData.scenes];
-                          newScenes[sceneIndex] = { ...newScenes[sceneIndex], image_model_override: e.target.value || undefined };
-                          setScriptData({ ...scriptData, scenes: newScenes });
-                          setActiveScene(newScenes[sceneIndex]);
-                        }}
-                        className="w-full bg-surface-container-low border border-outline-variant/10 rounded-lg p-2.5 font-body text-xs text-on-surface appearance-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
-                      >
-                        <option value="">Global Default</option>
-                        <option value="runware:101@1">FLUX.1 Dev</option>
-                        <option value="alibaba:qwen-image-2-0">Qwen 2.0</option>
-                        <option value="bytedance:seedream-5-0-lite">Seedream</option>
-                      </select>
-                      <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="expand_more">expand_more</span>
-                    </div>
-                  </div>
+              {/* Scene info */}
+              <div className="pt-4 border-t border-outline-variant/10">
+                <div className="flex items-center justify-between text-xs text-outline">
+                  <span className="font-label uppercase tracking-widest">Duration</span>
+                  <span className="font-bold text-on-surface">~{activeScene?.duration_estimate_seconds || 8}s</span>
                 </div>
               </div>
 
@@ -583,15 +406,12 @@ export default function ScriptBuilder() {
                 </button>
               </div>
 
-              {/* AI Assistance Tip - powered by Runware Prompt Enhancer */}
-              <div className="p-4 bg-tertiary/10 rounded-2xl border border-tertiary/20 flex gap-4">
-                <span className="material-symbols-outlined text-tertiary" data-icon="lightbulb">lightbulb</span>
-                <p className="text-xs font-body text-tertiary-fixed leading-relaxed">
-                  <strong className="block mb-1">Runware AI Tip:</strong>
-                  {enhancedTip 
-                    ? <>Try this enhanced prompt: <em className="text-tertiary">&quot;{enhancedTip}&quot;</em></>
-                    : 'Using words like "Anamorphic" or "Volumetric Lighting" will significantly improve the cinematic depth of this scene.'
-                  }
+              {/* AI Tip */}
+              <div className="p-4 bg-tertiary/10 rounded-2xl border border-tertiary/20 flex gap-3">
+                <span className="material-symbols-outlined text-tertiary shrink-0">lightbulb</span>
+                <p className="text-xs font-body text-on-surface leading-relaxed">
+                  <strong className="block mb-1 text-tertiary">Pro Tip</strong>
+                  Add cinematic keywords like <em>&quot;volumetric lighting&quot;</em>, <em>&quot;shallow depth of field&quot;</em>, or <em>&quot;golden hour&quot;</em> to elevate your visual prompts.
                 </p>
               </div>
             </div>

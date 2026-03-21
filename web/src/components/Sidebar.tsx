@@ -1,10 +1,12 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const navItems = [
     { href: "/", icon: "dashboard", label: "Home" },
@@ -14,11 +16,11 @@ export default function Sidebar() {
     { href: "/generate", icon: "movie", label: "Generate" },
   ];
 
-  return (
-    <aside className="w-[72px] bg-surface-container-lowest flex flex-col items-center border-r border-outline-variant/10 py-6 gap-2">
+  const NavContent = () => (
+    <>
       {/* Logo */}
       <button
-        onClick={() => router.push("/")}
+        onClick={() => { router.push("/"); setMobileOpen(false); }}
         className="w-11 h-11 rounded-2xl primary-gradient flex items-center justify-center mb-6 shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
       >
         <span className="material-symbols-outlined text-white text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -34,6 +36,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => setMobileOpen(false)}
               title={item.label}
               className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-200 group relative ${
                 isActive
@@ -68,14 +71,75 @@ export default function Sidebar() {
         >
           <span className="material-symbols-outlined text-xl">settings</span>
         </button>
-        <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-primary/30 mt-2">
-          <img
-            alt="User"
-            className="w-full h-full object-cover"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBQsfKVpfeRfxoCQlU-HMh_xTyCd8PqIuYBnaUg4tOs01Lt7sp1XZ5P2jopCyS8OtFcNjqJUY4Ok9jwONbhSs7X8yhTRGFkAOK-A_B0FiylZSt4DmOpDg-r5qyflA10xjP1fDdtDglyxOSGYmI1NtZhp2uP0j91ssrwnmkSw9vv3-qFas_L3d9hwv-2rCeDkvEJ6i-7Xtpxx98TyaOI3Y5BynkLgxDssWKw5JYCv2UUd0plZaUbbITMkwr6rkwQgCCV9eZy8zpoZEr2"
-          />
+        <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-primary/30 mt-2 flex items-center justify-center bg-primary/10">
+          <span className="material-symbols-outlined text-primary text-lg">person</span>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-[72px] bg-surface-container-lowest flex-col items-center border-r border-outline-variant/10 py-6 gap-2 shrink-0">
+        <NavContent />
+      </aside>
+
+      {/* Mobile Top Bar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-surface/95 backdrop-blur-xl border-b border-outline-variant/10 flex items-center justify-between px-4">
+        <button
+          onClick={() => { router.push("/"); }}
+          className="w-9 h-9 rounded-xl primary-gradient flex items-center justify-center shadow-lg shadow-primary/20"
+        >
+          <span className="material-symbols-outlined text-white text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
+            play_arrow
+          </span>
+        </button>
+        <span className="font-headline font-bold text-on-surface">Link2Video</span>
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all"
+        >
+          <span className="material-symbols-outlined">{mobileOpen ? "close" : "menu"}</span>
+        </button>
+      </div>
+
+      {/* Mobile Drawer Overlay */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-30 bg-black/40 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile Drawer */}
+      <aside className={`md:hidden fixed top-14 left-0 bottom-0 z-30 w-64 bg-surface-container-lowest border-r border-outline-variant/10 py-6 px-4 flex flex-col gap-2 transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <nav className="flex flex-col gap-1">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 ${
+                  isActive
+                    ? "bg-primary/15 text-primary"
+                    : "text-outline hover:text-on-surface hover:bg-surface-variant/50"
+                }`}
+              >
+                <span
+                  className="material-symbols-outlined text-xl"
+                  style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                >
+                  {item.icon}
+                </span>
+                <span className="font-medium text-sm">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </aside>
+    </>
   );
 }

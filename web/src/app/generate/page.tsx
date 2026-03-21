@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
-import { useAppContext, Scene } from "@/context/AppContext";
+import { useAppContext, Scene, QUALITY_TIERS, VIDEO_DIMENSIONS } from "@/context/AppContext";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
 import { useRef } from "react";
@@ -21,7 +21,14 @@ export default function VideoGeneration() {
     scriptData,
     finalVideoUrl,
     setFinalVideoUrl,
+    qualityTier,
+    videoDimension,
+    selectedVoice,
+    musicEnabled,
+    creditsUsed, setCreditsUsed,
   } = useAppContext();
+  const tier = QUALITY_TIERS[qualityTier];
+  const dim = videoDimension || VIDEO_DIMENSIONS[0];
   const [progress, setProgress] = useState(0);
   const [activeSceneIndex, setActiveSceneIndex] = useState(0);
   const [sceneStatuses, setSceneStatuses] = useState<Record<number, SceneStatus>>({});
@@ -82,7 +89,8 @@ export default function VideoGeneration() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: scene.narration,
-          voice: "adam",
+          voice: selectedVoice,
+          useEdgeTTS: qualityTier === "basic", // free mode uses Edge TTS
         }),
       });
       const data = await res.json();
@@ -135,8 +143,8 @@ export default function VideoGeneration() {
       });
       setSceneStatuses(initialStatuses);
 
-      // Start music generation in background (non-blocking)
-      const musicPromise = generateMusic();
+      // Start music generation only if enabled
+      const musicPromise = musicEnabled ? generateMusic() : Promise.resolve(null);
 
       const totalScenes = scriptData.scenes.length;
       let completedScenes = 0;
@@ -195,12 +203,13 @@ export default function VideoGeneration() {
             // Write the image file
             await ffmpeg.writeFile(imgFile, await fetchFile(asset.image));
 
-            // Create video from image with Ken Burns zoom effect
-            // zoompan: zoom in slowly from 1.0 to 1.3 over the duration
+            // Create video from image with Ken Burns zoom effect using selected dimensions
+            const outW = dim.width;
+            const outH = dim.height;
             await ffmpeg.exec([
               '-loop', '1',
               '-i', imgFile,
-              '-vf', `zoompan=z='min(zoom+0.0015,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${sceneDuration * 25}:s=1280x720:fps=25`,
+              '-vf', `scale=${outW * 2}:${outH * 2},zoompan=z='min(zoom+0.0015,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${sceneDuration * 25}:s=${outW}x${outH}:fps=25`,
               '-c:v', 'libx264',
               '-t', String(sceneDuration),
               '-pix_fmt', 'yuv420p',
@@ -262,6 +271,9 @@ export default function VideoGeneration() {
           setFinalVideoUrl(URL.createObjectURL(new Blob([uint8Array], { type: 'video/mp4' })));
           setStitchStatus("");
           setProgress(100);
+          // Track credits used
+          const creditsForThis = tier.creditsPerScene * sceneAssets.length;
+          setCreditsUsed(creditsUsed + creditsForThis);
         }
       } catch (err) {
         console.error("Pipeline error:", err);
@@ -301,9 +313,10 @@ export default function VideoGeneration() {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div className="space-y-2">
               <h2 className="font-headline text-display-lg text-4xl font-extrabold tracking-tight">Video Generation</h2>
-              <div className="flex items-center gap-3 text-outline">
-                <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>crop_16_9</span>
-                <span className="font-label text-xs uppercase tracking-widest">HD Landscape • AI Image + Ken Burns</span>
+              <div className="flex flex-wrap items-center gap-2 text-outline">
+                <span className={`font-label text-xs uppercase tracking-widest px-2 py-0.5 rounded-full ${tier.bgColor} ${tier.color} border ${tier.borderColor}`}>{tier.label}</span>
+                <span className="font-label text-xs uppercase tracking-widest">{dim.label}</span>
+                {musicEnabled && <span className="font-label text-xs text-primary flex items-center gap-1"><span className="material-symbols-outlined text-xs">music_note</span>Music On</span>}
               </div>
             </div>
             <div className="w-full md:w-96 space-y-3">
@@ -411,14 +424,17 @@ export default function VideoGeneration() {
                     Export Prompts
                   </button>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   {musicUrl && (
-                    <span className="text-primary text-xs uppercase font-label tracking-widest px-3 flex items-center gap-1">
+                    <span className="text-primary text-xs uppercase font-label tracking-widest flex items-center gap-1">
                       <span className="material-symbols-outlined text-sm">music_note</span>
-                      Music Ready
+                      Music
                     </span>
                   )}
-                  <span className="text-outline text-xs uppercase font-label tracking-widest px-3">Quality: HD</span>
+                  <div className="text-center">
+                    <p className="text-[10px] text-outline uppercase font-label tracking-widest">Credits Used</p>
+                    <p className="font-bold text-sm text-on-surface">{qualityTier === "basic" ? "FREE" : `$${(tier.creditsPerScene * (scriptData?.scenes.length || 0)).toFixed(4)}`}</p>
+                  </div>
                 </div>
               </div>
             </div>

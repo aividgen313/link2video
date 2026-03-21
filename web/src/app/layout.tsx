@@ -27,17 +27,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
       <body className={`${manrope.variable} ${inter.variable} min-h-screen flex bg-background text-on-surface antialiased transition-colors duration-300`}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <AppProvider>
             <Sidebar />
-            <main className="flex-1 flex flex-col overflow-hidden">
+            <main className="flex-1 flex flex-col overflow-hidden min-w-0">
               <TopNav />
-              <section className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+              <section className="flex-1 overflow-y-auto pt-[72px] md:pt-0 p-4 md:p-8 space-y-6 md:space-y-8 custom-scrollbar">
                 {children}
               </section>
             </main>

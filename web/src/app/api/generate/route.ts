@@ -46,92 +46,101 @@ export async function POST(req: NextRequest) {
     }
 
     const prompt = `
-You are an expert YouTube video scriptwriter and cinematic documentary director specializing in viral storytelling.
+You are an elite documentary storyteller and viral content writer.
+Your job is to create HIGH-RETENTION, EMOTIONALLY ENGAGING, CINEMATIC documentary-style scripts designed to keep viewers watching until the very end.
+The script MUST feel like a Netflix-level documentary or a viral YouTube video with millions of views.
 
 Subject Matter: ${extractedText}
 Angle: ${angle}
 
-CORE STORY RULE (MANDATORY):
-Every script MUST follow this 3-act narrative structure:
+STRUCTURE REQUIREMENTS:
 
-1. BEGINNING (HOOK + SETUP)
-   - Open with a POWERFUL HOOK within the first 5-10 seconds
-   - A shocking statement, question, or moment that creates immediate curiosity or tension
-   - Introduce the subject, context, and central question or mystery
-   - Goal: Make the viewer NEED to keep watching
+1. HOOK (First 5-15 seconds)
+   - Start with a powerful, curiosity-driven hook
+   - This can be shocking, mysterious, emotional, or controversial
+   - DO NOT introduce the topic normally
+   - The viewer should feel: "Wait... what?! I need to keep watching"
 
-2. MIDDLE (BUILD + CONFLICT + ESCALATION)
-   - Gradually reveal deeper layers of the story
-   - Introduce conflict, obstacles, contradictions, and stakes
-   - Build tension and add new information that changes perspective
-   - Include emotional beats and turning points
-   - Important: The story must EVOLVE—not just list facts
+2. SETUP (Context + Stakes)
+   - Introduce the subject clearly
+   - Explain why this story matters
+   - Establish stakes (what's at risk, what's unusual, why it's important)
+   - Make the viewer emotionally invested
 
-3. CLIMAX (PEAK MOMENT)
-   - The most intense, revealing, or emotional moment
-   - Where the truth is exposed, conflict reaches its highest point
-   - Everything comes together
-   - Goal: Deliver a moment that feels impactful and unforgettable
+3. RISING TENSION
+   - Slowly reveal new information
+   - Introduce conflict, mystery, or unanswered questions
+   - Add twists, surprises, or contradictions
+   - Keep increasing curiosity every 10-20 seconds
+   - Each section should make the viewer NEED the next answer
 
-4. ENDING (RESOLUTION + AFTERMATH)
-   - Provide closure or reflection
-   - Show what happened after, the consequences, the bigger meaning
-   - End with a strong final line, thought, or question
-   - Goal: Leave the viewer thinking
+4. CLIMAX (Peak Moment)
+   - Deliver the biggest reveal, turning point, or emotional high
+   - This should feel earned and powerful
+   - This is the moment everything builds toward
 
-WRITING STYLE REQUIREMENTS:
-- Write in cinematic, documentary narration style
-- Use short, punchy sentences for impact
-- Use occasional longer lines for emotional weight
-- Avoid robotic or overly formal language
-- Avoid flat, encyclopedic explanations
-- Tone should feel: real, immersive, slightly dramatic (but not fake)
+5. RESOLUTION (Aftermath)
+   - Explain what happened after the climax
+   - Show consequences, impact, or lessons
+   - Give emotional closure
 
-PACING RULES:
-- Every 10-20 seconds, something new must happen: new information, a twist, or a deeper layer
-- Avoid long stretches of static or repetitive narration
+6. FINAL LINE (Retention Loop)
+   - End with a strong, memorable line
+   - Can be thought-provoking, ironic, or open-ended
+   - Should leave the viewer thinking or wanting more
 
-VISUAL AWARENESS:
-- Write with visual storytelling in mind
-- Each narration line should connect to a visual moment
-- Think like an editor cutting between shots
+STYLE REQUIREMENTS:
+- Write in a cinematic, immersive tone
+- Use vivid, descriptive language
+- Avoid generic phrasing
+- Vary sentence length for rhythm
+- Use short punchy lines during intense moments
+- Use longer descriptive lines for storytelling
 
 ENGAGEMENT RULES:
-- Trigger curiosity early
-- Build emotional investment
-- Maintain tension throughout
-- Deliver a satisfying payoff
+- Every 10-20 seconds, introduce a new piece of information, question, or twist
+- Avoid filler or repetition
+- Maintain emotional tension throughout
+- Use psychological triggers: curiosity, suspense, surprise, empathy
 
-SCRIPT STRUCTURE:
-Generate a compelling short video script with 5-8 scenes following the 3-act structure above.
-
-Each scene must have:
-- narration: Cinematic voiceover text (short, punchy, engaging)
-- visual_prompt: Detailed prompt for AI image/video generation describing the exact visual moment
-- duration_estimate_seconds: Duration based on narration length (typically 6-12 seconds per scene)
+VISUAL PROMPT RULES:
+- Each scene's visual_prompt must describe exactly what should be shown on screen
+- Be specific about: camera movement, mood, lighting, subject, composition
+- Think cinematic B-roll, Ken Burns-style images, or dramatic footage
+- The visual must emotionally match the narration
 
 ${aestheticRules}
 
+SCRIPT OUTPUT:
+Generate 6-10 scenes that follow the structure above (HOOK -> SETUP -> RISING TENSION -> CLIMAX -> RESOLUTION -> FINAL LINE).
+
+Each scene must have:
+- narration: The voiceover text (cinematic, immersive, emotionally engaging)
+- visual_prompt: Detailed AI image generation prompt describing the exact visual moment (camera angle, lighting, mood, subject)
+- duration_estimate_seconds: Duration based on narration length (typically 6-12 seconds per scene)
+
 QUALITY CHECK BEFORE RESPONDING:
-- Does the story have a clear beginning, middle, and end?
-- Is there real tension and progression?
-- Does it feel like something people would actually watch?
-- Does it tell a STORY, not just inform?
+- Does the HOOK make you stop scrolling?
+- Does the story have real emotional stakes?
+- Is there genuine tension and progression?
+- Does it feel like a Netflix documentary, not a Wikipedia article?
+- Would this realistically get millions of views?
+- Does the FINAL LINE leave a lasting impression?
 
 Format your response as a JSON object with:
 {
-  "title": "Compelling video title",
+  "title": "Compelling, clickable video title",
   "angle": "The narrative angle/hook",
   "scenes": [
     {
       "narration": "The voiceover text",
-      "visual_prompt": "Detailed visual description",
+      "visual_prompt": "Detailed visual description with camera movement, mood, lighting",
       "duration_estimate_seconds": 8
     }
   ]
 }
 
-Return ONLY the JSON. No explanations.
+Return ONLY the JSON. No explanations, no markdown, no code blocks.
 `;
 
     console.log("Generating script via Groq...");

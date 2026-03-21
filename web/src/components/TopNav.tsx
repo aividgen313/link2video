@@ -34,7 +34,7 @@ export default function TopNav() {
   ];
 
   return (
-    <header className="h-16 shrink-0 flex items-center justify-between px-8 border-b border-outline-variant/10 bg-surface/80 backdrop-blur-xl sticky top-0 z-10">
+    <header className="h-16 shrink-0 hidden md:flex items-center justify-between px-8 border-b border-outline-variant/10 bg-surface/80 backdrop-blur-xl sticky top-0 z-10">
       <div className="flex items-center gap-6">
         <h2 className="font-headline font-bold text-lg tracking-tight text-on-surface">
           {pageTitle}
