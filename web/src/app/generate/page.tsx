@@ -5,6 +5,8 @@ import { useAppContext, Scene, QUALITY_TIERS, VIDEO_DIMENSIONS } from "@/context
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
 import { useRef } from "react";
+import { saveToHistory } from "@/lib/videoHistory";
+import SocialCopyPanel from "@/components/SocialCopyPanel";
 
 type SceneStatus = {
   phase: "queued" | "image" | "video" | "complete" | "error";
@@ -25,7 +27,10 @@ export default function VideoGeneration() {
     videoDimension,
     selectedVoice,
     musicEnabled,
+    captionsEnabled,
     creditsUsed, setCreditsUsed,
+    storyboardImages,
+    url,
   } = useAppContext();
   const tier = QUALITY_TIERS[qualityTier];
   const dim = videoDimension || VIDEO_DIMENSIONS[0];
@@ -53,9 +58,15 @@ export default function VideoGeneration() {
     }));
   }, []);
 
-  // Generate image for a scene via Pollinations
+  // Generate image for a scene — uses storyboard cache if available
   const generateSceneImage = useCallback(async (scene: Scene): Promise<{ imageURL: string; imageUUID: string } | null> => {
     try {
+      // Use cached storyboard image if available
+      if (storyboardImages[scene.id]) {
+        updateSceneStatus(scene.id, { phase: "image", progress: 50, imageURL: storyboardImages[scene.id], imageUUID: `cached-${scene.id}` });
+        return { imageURL: storyboardImages[scene.id], imageUUID: `cached-${scene.id}` };
+      }
+
       updateSceneStatus(scene.id, { phase: "image", progress: 20 });
       const res = await fetch("/api/runware/image", {
         method: "POST",
@@ -167,7 +178,7 @@ export default function VideoGeneration() {
         completedScenes++;
         setProgress(Math.round(10 + (completedScenes / totalScenes) * 60));
 
-        return { image: imageResult.imageURL, audio: audioUrl, duration: scene.duration_estimate_seconds };
+        return { image: imageResult.imageURL, audio: audioUrl, duration: scene.duration_estimate_seconds, narration: scene.narration };
       });
 
       try {
@@ -266,14 +277,70 @@ export default function VideoGeneration() {
             await ffmpeg.exec(['-i', 'master.mp4', '-c', 'copy', 'output.mp4']);
           }
 
-          const fileData = await ffmpeg.readFile('output.mp4');
-          const uint8Array = new Uint8Array(fileData as unknown as ArrayBuffer);
-          setFinalVideoUrl(URL.createObjectURL(new Blob([uint8Array], { type: 'video/mp4' })));
+          // Burn-in captions if enabled
+          if (captionsEnabled) {
+            try {
+              setStitchStatus("Burning in captions...");
+              // Build timed drawtext filter
+              let t = 0;
+              const drawtextFilters = sceneAssets.map((asset) => {
+                const dur = Math.max(asset.duration || 8, 4);
+                const safeText = (asset.narration || "")
+                  .replace(/\\/g, "\\\\")
+                  .replace(/'/g, "\\'")
+                  .replace(/:/g, "\\:")
+                  .replace(/\[/g, "\\[")
+                  .replace(/\]/g, "\\]")
+                  .replace(/\n/g, " ")
+                  .slice(0, 120); // cap length
+                const filter = `drawtext=text='${safeText}':enable='between(t,${t.toFixed(2)},${(t + dur).toFixed(2)})':fontcolor=white:fontsize=22:borderw=2:bordercolor=black@0.8:x=(w-text_w)/2:y=h-70:line_spacing=4`;
+                t += dur;
+                return filter;
+              }).join(",");
+
+              await ffmpeg.exec([
+                '-i', 'output.mp4',
+                '-vf', drawtextFilters,
+                '-c:a', 'copy',
+                'captioned.mp4'
+              ]);
+              const captionData = await ffmpeg.readFile('captioned.mp4');
+              const captionArr = new Uint8Array(captionData as unknown as ArrayBuffer);
+              setFinalVideoUrl(URL.createObjectURL(new Blob([captionArr], { type: 'video/mp4' })));
+            } catch (captionErr) {
+              console.warn("Caption burn-in failed, using uncaptioned video:", captionErr);
+              const fileData = await ffmpeg.readFile('output.mp4');
+              const uint8Array = new Uint8Array(fileData as unknown as ArrayBuffer);
+              setFinalVideoUrl(URL.createObjectURL(new Blob([uint8Array], { type: 'video/mp4' })));
+            }
+          } else {
+            const fileData = await ffmpeg.readFile('output.mp4');
+            const uint8Array = new Uint8Array(fileData as unknown as ArrayBuffer);
+            setFinalVideoUrl(URL.createObjectURL(new Blob([uint8Array], { type: 'video/mp4' })));
+          }
+
           setStitchStatus("");
           setProgress(100);
-          // Track credits used
+
+          // Track credits
           const creditsForThis = tier.creditsPerScene * sceneAssets.length;
           setCreditsUsed(creditsUsed + creditsForThis);
+
+          // Save to history
+          const firstSceneImg = sceneAssets[0]?.image;
+          const totalSecs = sceneAssets.reduce((sum, a) => sum + (a.duration || 8), 0);
+          saveToHistory({
+            id: Date.now().toString(),
+            title: scriptData?.title || "Untitled Video",
+            topic: url || "",
+            angle: scriptData?.angle || "",
+            thumbnailUrl: firstSceneImg,
+            quality: qualityTier,
+            dimensionId: dim.id,
+            dimensionLabel: dim.label,
+            totalSeconds: totalSecs,
+            createdAt: new Date().toISOString(),
+          });
         }
       } catch (err) {
         console.error("Pipeline error:", err);
@@ -532,6 +599,11 @@ export default function VideoGeneration() {
                 })}
 
               </div>
+
+              {/* Social Copy Panel — shows after video is done */}
+              {finalVideoUrl && scriptData && (
+                <SocialCopyPanel scriptData={scriptData} dimension={dim.id} />
+              )}
 
               <div className="mt-4 p-4 glass-card rounded-xl border-t-2 border-primary/20">
                 <div className="flex items-center gap-3">

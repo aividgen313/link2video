@@ -20,6 +20,7 @@ export default function TopNav() {
       case "/assets": return "Assets";
       case "/story": return "Story Angles";
       case "/script": return "Script Editor";
+      case "/storyboard": return "Storyboard Preview";
       case "/generate": return "Video Generation";
       default: return "Dashboard";
     }
@@ -30,6 +31,7 @@ export default function TopNav() {
     { label: "All Videos", href: "/assets" },
     { label: "Story", href: "/story" },
     { label: "Script", href: "/script" },
+    { label: "Storyboard", href: "/storyboard" },
     { label: "Generate", href: "/generate" },
   ];
 

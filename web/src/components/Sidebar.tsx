@@ -13,6 +13,7 @@ export default function Sidebar() {
     { href: "/assets", icon: "folder_open", label: "Assets" },
     { href: "/story", icon: "auto_awesome_motion", label: "Stories" },
     { href: "/script", icon: "edit_note", label: "Script" },
+    { href: "/storyboard", icon: "view_comfy", label: "Storyboard" },
     { href: "/generate", icon: "movie", label: "Generate" },
   ];
 

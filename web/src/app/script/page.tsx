@@ -76,7 +76,7 @@ export default function ScriptBuilder() {
   }, [url, angle, scriptData, setScriptData]);
 
   const handleGenerateVideo = () => {
-    router.push("/generate");
+    router.push("/storyboard");
   };
 
   const handleRegenerateSceneImage = async () => {

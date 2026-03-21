@@ -1,7 +1,26 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppContext, VOICES, VIDEO_DIMENSIONS, QUALITY_TIERS, QualityTier } from "@/context/AppContext";
+import { getHistory, deleteFromHistory, type VideoHistoryItem } from "@/lib/videoHistory";
+
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+  return date.toLocaleDateString();
+}
+
+const TOPIC_TEMPLATES = [
+  { label: "True Crime", icon: "policy", topic: "A shocking true crime case with an unexpected twist that changed everything" },
+  { label: "Nature Doc", icon: "forest", topic: "The secret lives of the world's most mysterious deep ocean creatures" },
+  { label: "Tech Explainer", icon: "memory", topic: "How artificial intelligence is silently reshaping every aspect of modern life" },
+  { label: "History Mystery", icon: "history_edu", topic: "The fall of the Roman Empire and its eerie parallels to today's world" },
+  { label: "Untold Story", icon: "star", topic: "The dark untold story behind a famous celebrity's rise and sudden downfall" },
+  { label: "Science Shock", icon: "science", topic: "Scientists just discovered something that completely changes what we know about the universe" },
+];
 
 const VISUAL_STYLES = [
   { value: "Cinematic Documentary", label: "🎥 Cinematic Documentary" },
@@ -20,10 +39,21 @@ export default function Home() {
     videoDimension, setVideoDimension,
     selectedVoice, setSelectedVoice,
     musicEnabled, setMusicEnabled,
+    captionsEnabled, setCaptionsEnabled,
     creditsUsed,
   } = useAppContext();
 
   const [inputValue, setInputValue] = useState(url || "");
+  const [hasMounted, setHasMounted] = useState(false);
+  const [recentVideos, setRecentVideos] = useState<VideoHistoryItem[]>([]);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (hasMounted) setRecentVideos(getHistory());
+  }, [hasMounted]);
 
   const handleGenerate = () => {
     if (!inputValue.trim()) return;
@@ -35,11 +65,6 @@ export default function Home() {
   const sceneCount = 7; // Approx scenes for cost preview
   const estimatedCredits = (tier.creditsPerScene * sceneCount).toFixed(3);
 
-  const recentVideos = [
-    { title: "The Hidden Mysteries of the Amazon Rainforest", time: "2 hours ago", orientation: "Vertical", duration: "3:45", src: "https://lh3.googleusercontent.com/aida-public/AB6AXuABpDAM-i-_JA37ynsh_gJVK4I2ywLtKKFGp_BcnKvGn4x7mIfKOGRjRtj-auhtQ0TyIJd7pv8iEzZFCz901grvAitOpon3tX2H_VCNoKcAbb13rUxVQjtCaHGxansGDHqOvQuB5QDvz55ul84jGNPNjK059Ko6n1wL8Z8Pr57a4v_05-L2Z5PhBLeUePHkAP4zVyJB_5g-i47GwbVpzcUmls7ZSnwHwYEnX15dPsnMSdxfVzarjcm7GfKOFvnOlWLOTVxRnWS9s7FC" },
-    { title: "How Quantum Computing is Changing the World", time: "Yesterday", orientation: "Horizontal", duration: "12:20", src: "https://lh3.googleusercontent.com/aida-public/AB6AXuCD7uKMJsZEv3x_xyZNclEG3gTKw62_n0zDPGTq7JIIMbw-CdayYSUXOK7G_mQXzJp39l842bPfzp6xaXh9YxOhoZ6Em3pWGWkNKfYWhLLOjFD6PJ7WLWYIw-4Igc5h5No9t7Z40klaMue1zwUfQY4ni2FTKaPweUkvCIPRveiV1jyaHmtryRy_DPAjEuF0JSqNUtwUCvr-VrtWEUxbGdZFrXir4reksVWIATAo2hpfzrZlb5XgrRGe5ssgvPRbUV8x88_ByGZ160yK" },
-    { title: "The Fall of Rome: A 60-Second Deep Dive", time: "3 days ago", orientation: "Vertical", duration: "0:58", src: "https://lh3.googleusercontent.com/aida-public/AB6AXuAnt1Wo8ixYmZIcJlFfW_-LcAgJ9_QiChY8jDLOXpJwI2wkz6Cf8uIuPj1lN227E9Pz5p3CRdSF8PYgLB6RFhNFfRZXD30e7Fnh95-I4b1FZzMBwCw7EJaGVxtcYTCfCUrCuAIndHVTJClwQdgjuu-bGPNjAtvMC2uSx3iaMzWuR4pqRQIim2sEZUJvEMViHutLR3IXmkPdQ_4AtiaU6ZfBzj8nBfaLZCtBUFtmZ8Z_RQ6BjTfqJSi8ACLAs3-qPGFpugwAmAf74rDs" },
-  ];
 
   return (
     <>
@@ -67,6 +92,23 @@ export default function Home() {
                 <button className="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors">
                   <span className="material-symbols-outlined">link</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Quick Templates */}
+            <div className="space-y-2">
+              <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Quick Start</label>
+              <div className="flex flex-wrap gap-2">
+                {TOPIC_TEMPLATES.map((t) => (
+                  <button
+                    key={t.label}
+                    onClick={() => setInputValue(t.topic)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass border border-outline-variant/10 text-xs font-medium text-outline hover:text-primary hover:border-primary/20 transition-all"
+                  >
+                    <span className="material-symbols-outlined text-sm">{t.icon}</span>
+                    {t.label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -127,7 +169,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Voiceover + Music */}
+            {/* Voiceover + Music + Captions */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">
@@ -148,19 +190,27 @@ export default function Home() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Background Music</label>
-                <button
-                  onClick={() => setMusicEnabled(!musicEnabled)}
-                  className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-all text-sm font-medium ${musicEnabled ? "bg-primary/10 border-primary/20 text-primary" : "bg-surface-container-lowest/50 border-outline-variant/10 text-outline"}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-lg">{musicEnabled ? "music_note" : "music_off"}</span>
-                    <span>{musicEnabled ? "Music On" : "Music Off"}</span>
-                  </div>
-                  <div className={`w-10 h-5 rounded-full relative transition-colors ${musicEnabled ? "bg-primary" : "bg-outline-variant/30"}`}>
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${musicEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
-                  </div>
-                </button>
+                <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Extras</label>
+                <div className="space-y-2">
+                  {[
+                    { enabled: musicEnabled, toggle: () => setMusicEnabled(!musicEnabled), onIcon: "music_note", offIcon: "music_off", label: "Background Music" },
+                    { enabled: captionsEnabled, toggle: () => setCaptionsEnabled(!captionsEnabled), onIcon: "closed_caption", offIcon: "closed_caption_disabled", label: "Burn-in Captions" },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={item.toggle}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition-all text-sm font-medium ${item.enabled ? "bg-primary/10 border-primary/20 text-primary" : "bg-surface-container-lowest/50 border-outline-variant/10 text-outline"}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-base">{item.enabled ? item.onIcon : item.offIcon}</span>
+                        <span className="text-xs">{item.label}</span>
+                      </div>
+                      <div className={`w-8 h-4 rounded-full relative transition-colors shrink-0 ${item.enabled ? "bg-primary" : "bg-outline-variant/30"}`}>
+                        <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${item.enabled ? "translate-x-4" : "translate-x-0.5"}`} />
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -191,46 +241,78 @@ export default function Home() {
       </div>
 
       {/* Recent Videos */}
-      <div className="max-w-5xl mx-auto w-full">
-        <div className="flex items-center justify-between mb-6 px-1">
-          <h3 className="font-headline text-xl md:text-2xl font-bold tracking-tight">Recent Videos</h3>
-          <button className="text-primary font-medium flex items-center gap-1 hover:underline transition-colors text-sm">
-            View All
-            <span className="material-symbols-outlined text-sm">arrow_forward</span>
-          </button>
-        </div>
+      {hasMounted && (
+        <div className="max-w-5xl mx-auto w-full">
+          <div className="flex items-center justify-between mb-6 px-1">
+            <h3 className="font-headline text-xl md:text-2xl font-bold tracking-tight">
+              Recent Videos
+              {recentVideos.length > 0 && (
+                <span className="ml-2 text-sm font-normal text-outline">({recentVideos.length})</span>
+              )}
+            </h3>
+          </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {recentVideos.map((v, i) => (
-            <div key={i} className="group glass-card glass-card-hover rounded-[1.5rem] overflow-hidden flex flex-col transition-all hover:translate-y-[-3px] hover:shadow-xl hover:shadow-primary/5">
-              <div className="h-40 md:h-48 relative overflow-hidden">
-                <img alt={v.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src={v.src} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                  <span className="bg-primary/20 backdrop-blur-md text-primary px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">{v.orientation}</span>
-                  <span className="bg-black/40 backdrop-blur-md text-white px-2 py-0.5 rounded text-[10px] font-bold">{v.duration}</span>
-                </div>
-              </div>
-              <div className="p-4 md:p-5 space-y-3 flex-1 flex flex-col justify-between">
-                <div>
-                  <h4 className="font-headline font-bold text-base leading-tight mb-1">{v.title}</h4>
-                  <p className="text-xs text-outline">Modified {v.time}</p>
-                </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <button className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-3 rounded-xl bg-surface-variant/50 hover:bg-surface-variant transition-colors">
-                    <span className="material-symbols-outlined text-base">edit</span>
-                    Edit
-                  </button>
-                  <button className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-3 rounded-xl border border-outline-variant/30 hover:bg-surface-variant/30 transition-colors">
-                    <span className="material-symbols-outlined text-base">refresh</span>
-                    Redo
-                  </button>
-                </div>
-              </div>
+          {recentVideos.length === 0 ? (
+            <div className="glass rounded-2xl p-12 flex flex-col items-center justify-center text-center border border-dashed border-outline-variant/20">
+              <span className="material-symbols-outlined text-4xl text-outline mb-3">movie</span>
+              <h4 className="font-headline font-bold text-lg mb-1">No videos yet</h4>
+              <p className="text-sm text-outline">Generate your first video above and it&apos;ll appear here.</p>
             </div>
-          ))}
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {recentVideos.map((v) => {
+                const date = new Date(v.createdAt);
+                const timeAgo = formatTimeAgo(date);
+                const mins = Math.floor(v.totalSeconds / 60);
+                const secs = v.totalSeconds % 60;
+                const durationLabel = `${mins}:${String(secs).padStart(2, "0")}`;
+
+                return (
+                  <div key={v.id} className="group glass-card glass-card-hover rounded-[1.5rem] overflow-hidden flex flex-col transition-all hover:translate-y-[-3px] hover:shadow-xl hover:shadow-primary/5">
+                    <div className="h-40 md:h-48 relative overflow-hidden bg-surface-container-high">
+                      {v.thumbnailUrl ? (
+                        <img alt={v.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src={v.thumbnailUrl} />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <span className="material-symbols-outlined text-4xl text-outline/30">movie</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                      <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                        <span className="bg-primary/20 backdrop-blur-md text-primary px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">{v.dimensionId}</span>
+                        <span className="bg-black/40 backdrop-blur-md text-white px-2 py-0.5 rounded text-[10px] font-bold">{durationLabel}</span>
+                      </div>
+                      <button
+                        onClick={() => { deleteFromHistory(v.id); setRecentVideos(getHistory()); }}
+                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-error/60"
+                        title="Remove from history"
+                      >
+                        <span className="material-symbols-outlined text-sm">close</span>
+                      </button>
+                    </div>
+                    <div className="p-4 md:p-5 space-y-3 flex-1 flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-headline font-bold text-base leading-tight mb-1 line-clamp-2">{v.title}</h4>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${QUALITY_TIERS[v.quality].bgColor} ${QUALITY_TIERS[v.quality].color}`}>{QUALITY_TIERS[v.quality].label}</span>
+                          <p className="text-xs text-outline">{timeAgo}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setUrl(v.topic); router.push("/story"); }}
+                        className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-3 rounded-xl bg-primary/10 text-primary hover:bg-primary/15 transition-colors border border-primary/20"
+                      >
+                        <span className="material-symbols-outlined text-base">refresh</span>
+                        Regenerate
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </>
   );
 }

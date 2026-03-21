@@ -102,8 +102,12 @@ interface AppContextType {
   setSelectedVoice: (voice: string) => void;
   musicEnabled: boolean;
   setMusicEnabled: (enabled: boolean) => void;
+  captionsEnabled: boolean;
+  setCaptionsEnabled: (enabled: boolean) => void;
   creditsUsed: number;
   setCreditsUsed: (credits: number) => void;
+  storyboardImages: Record<number, string>;
+  setStoryboardImages: (imgs: Record<number, string>) => void;
   // Legacy (kept for script page compatibility)
   globalVideoModel: string;
   globalImageModel: string;
@@ -125,7 +129,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [videoDimension, setVideoDimension] = useState<VideoDimension>(VIDEO_DIMENSIONS[0]);
   const [selectedVoice, setSelectedVoice] = useState("adam");
   const [musicEnabled, setMusicEnabled] = useState(false);
+  const [captionsEnabled, setCaptionsEnabled] = useState(false);
   const [creditsUsed, setCreditsUsed] = useState(0);
+  const [storyboardImages, setStoryboardImages] = useState<Record<number, string>>({});
   const [globalScriptModel] = useState("groq");
 
   // Derived model values based on quality tier
@@ -145,7 +151,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       videoDimension, setVideoDimension,
       selectedVoice, setSelectedVoice,
       musicEnabled, setMusicEnabled,
+      captionsEnabled, setCaptionsEnabled,
       creditsUsed, setCreditsUsed,
+      storyboardImages, setStoryboardImages,
       globalVideoModel,
       globalImageModel,
       globalAudioModel,
