@@ -30,18 +30,26 @@ Return ONLY the JSON array. No explanations, no markdown, no code blocks.
     const responseText = await generateGeminiText(prompt);
     console.log("Raw angles response (first 300 chars):", responseText.substring(0, 300));
 
-    // Clean up response text: strip <think> tags and extract JSON
-    const cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    // Clean up response text: strip <think> tags, markdown fences, and extract JSON
+    let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    // Strip markdown code fences (```json ... ``` or ``` ... ```)
+    cleanText = cleanText.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
     const jsonMatch = cleanText.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-    const jsonStr = jsonMatch ? jsonMatch[0] : cleanText;
+    let jsonStr = jsonMatch ? jsonMatch[0] : cleanText;
 
     let anglesData;
     try {
       anglesData = JSON.parse(jsonStr);
       console.log("Successfully parsed angles data");
     } catch (e) {
-      console.error("JSON Parse failed for response:", responseText);
-      throw new Error("Failed to parse AI response as JSON.");
+      // Last resort: try to eval-parse with relaxed JSON
+      try {
+        anglesData = (new Function('return ' + jsonStr))();
+        console.log("Parsed angles via eval fallback");
+      } catch (e2) {
+        console.error("JSON Parse failed for response:", responseText.substring(0, 500));
+        throw new Error("Failed to parse AI response as JSON.");
+      }
     }
 
     const angles = Array.isArray(anglesData) ? anglesData : (anglesData.angles || []);

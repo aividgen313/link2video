@@ -256,7 +256,11 @@ Format your response as a JSON object with:
   ]
 }
 
-Return ONLY the JSON. No explanations, no markdown, no code blocks.
+CRITICAL JSON RULES:
+- Return ONLY raw JSON. No markdown, no code blocks, no backticks, no explanations.
+- All strings must be valid JSON — escape double quotes with backslash (\\").
+- For heights, use feet-inches format without quote marks (e.g. "6 foot 6" not "6'6\\"").
+- Do NOT wrap the response in \`\`\`json or \`\`\` code blocks.
 `;
 
     // STEP 3: Generate the script
@@ -264,18 +268,34 @@ Return ONLY the JSON. No explanations, no markdown, no code blocks.
     const responseText = await generateGeminiText(prompt);
     console.log("Raw AI response (first 500 chars):", responseText.substring(0, 500));
 
-    // Clean up response text: strip <think> tags and extract JSON
-    const cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    // Clean up response text: strip <think> tags, markdown fences, and extract JSON
+    let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    // Strip markdown code fences (```json ... ``` or ``` ... ```)
+    cleanText = cleanText.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
     const jsonMatch = cleanText.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-    const jsonStr = jsonMatch ? jsonMatch[0] : cleanText;
+    let jsonStr = jsonMatch ? jsonMatch[0] : cleanText;
 
     let scriptData;
     try {
       scriptData = JSON.parse(jsonStr);
       console.log("Successfully parsed script with", scriptData.scenes?.length || 0, "scenes");
     } catch (e) {
-      console.error("JSON Parse failed for response:", responseText);
-      throw new Error("Failed to parse AI response as JSON.");
+      // Try to repair common JSON issues (unescaped quotes in strings like 5'9")
+      try {
+        // Fix unescaped double quotes inside string values (e.g. height measurements 5'9")
+        const repaired = jsonStr.replace(/(?<=:\s*"[^"]*?)(\d+)'(\d+)"(?=[^"]*?")/g, "$1'$2\\'");
+        scriptData = JSON.parse(repaired);
+        console.log("Parsed script after repair with", scriptData.scenes?.length || 0, "scenes");
+      } catch (e2) {
+        // Last resort: try to eval-parse with relaxed JSON
+        try {
+          scriptData = (new Function('return ' + jsonStr))();
+          console.log("Parsed script via eval with", scriptData.scenes?.length || 0, "scenes");
+        } catch (e3) {
+          console.error("JSON Parse failed for response:", responseText.substring(0, 1000));
+          throw new Error("Failed to parse AI response as JSON.");
+        }
+      }
     }
 
     if (!scriptData.scenes || !Array.isArray(scriptData.scenes)) {
