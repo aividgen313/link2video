@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAppContext } from "@/context/AppContext";
 
@@ -60,7 +60,13 @@ export default function StoryAngleGenerator() {
 
   useEffect(() => {
     setHasMounted(true);
-    if (url && angles.length === 0) {
+  }, []);
+
+  // Separate effect for fetching — use ref to prevent double-call in strict mode
+  const fetchedRef = useRef(false);
+  useEffect(() => {
+    if (url && angles.length === 0 && !fetchedRef.current) {
+      fetchedRef.current = true;
       fetchAngles();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -135,7 +141,7 @@ export default function StoryAngleGenerator() {
                 // Card 1: Main Feature
                 return (
                   <div key={index} className="col-span-12 lg:col-span-8 group cursor-pointer" onClick={() => setSelectedAngle(angle.title)}>
-                    <div className={"bg-surface-container-high rounded-xl p-8 h-full flex flex-col justify-between transition-all " + (isSelected ? "ring-2 ring-primary bg-surface-container-highest" : "hover:bg-surface-container-highest border border-transparent hover:border-primary/20")}>
+                    <div className={"glass-card rounded-xl p-8 h-full flex flex-col justify-between transition-all " + (isSelected ? "ring-2 ring-primary bg-primary/10" : "hover:bg-primary/5 border border-transparent hover:border-primary/20")}>
                       <div>
                         <div className="flex justify-between items-start mb-6">
                           <span className="font-label text-xs font-bold text-primary tracking-widest uppercase bg-primary/10 px-3 py-1 rounded-full">Recommended</span>
@@ -154,7 +160,7 @@ export default function StoryAngleGenerator() {
                           </div>
                         </div>
                       </div>
-                      <button className={`font-headline font-bold py-3 px-8 rounded-xl self-start transition-all ${isSelected ? "cinematic-gradient text-on-primary-container" : "bg-surface-variant text-on-surface hover:bg-surface-container-highest"}`}>
+                      <button className={`font-headline font-bold py-3 px-8 rounded-xl self-start transition-all ${isSelected ? "primary-gradient text-white shadow-lg shadow-primary/30" : "bg-surface-variant/50 text-on-surface hover:bg-surface-variant"}`}>
                         {isSelected ? "Selected" : "Select Angle"}
                       </button>
                     </div>
@@ -167,7 +173,7 @@ export default function StoryAngleGenerator() {
                 const badgeColor = index === 1 ? "text-tertiary border-tertiary/30" : "text-outline-variant border-outline-variant/30";
                 return (
                   <div key={index} className="col-span-12 lg:col-span-4 group cursor-pointer" onClick={() => setSelectedAngle(angle.title)}>
-                    <div className={"bg-surface-container-high rounded-xl p-8 h-full flex flex-col transition-all " + (isSelected ? "ring-2 ring-primary bg-surface-container-highest" : "hover:bg-surface-container-highest border border-transparent hover:border-primary/20")}>
+                    <div className={"glass-card rounded-xl p-8 h-full flex flex-col transition-all " + (isSelected ? "ring-2 ring-primary bg-primary/10" : "hover:bg-primary/5 border border-transparent hover:border-primary/20")}>
                       <div className="mb-4">
                         <span className={`font-label text-[10px] font-bold tracking-widest uppercase border px-2 py-0.5 rounded ${badgeColor}`}>{angle.type}</span>
                       </div>
@@ -188,7 +194,7 @@ export default function StoryAngleGenerator() {
                 // Card 4: High Density
                 return (
                   <div key={index} className="col-span-12 lg:col-span-8 group cursor-pointer" onClick={() => setSelectedAngle(angle.title)}>
-                    <div className={"bg-surface-container-high rounded-xl p-8 h-full flex items-center gap-8 transition-all relative overflow-hidden " + (isSelected ? "ring-2 ring-primary bg-surface-container-highest" : "hover:bg-surface-container-highest border border-transparent hover:border-primary/20")}>
+                    <div className={"glass-card rounded-xl p-8 h-full flex items-center gap-8 transition-all relative overflow-hidden " + (isSelected ? "ring-2 ring-primary bg-primary/10" : "hover:bg-primary/5 border border-transparent hover:border-primary/20")}>
                       <div className="flex-1 relative z-10">
                         <div className="mb-3">
                           <span className="font-label text-xs font-bold text-outline uppercase tracking-widest">{angle.type} ({angle.duration})</span>
@@ -224,7 +230,7 @@ export default function StoryAngleGenerator() {
               <span className={`material-symbols-outlined text-xl ${isLoading ? "animate-spin" : ""}`}>refresh</span>
               Regenerate Angles
             </button>
-            <button onClick={handleGenerateScript} disabled={isLoading || angles.length === 0} className="cinematic-gradient bg-primary text-on-primary-container font-headline font-bold py-4 px-12 rounded-xl flex items-center gap-3 shadow-2xl shadow-primary-container/30 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:hover:scale-100">
+            <button onClick={handleGenerateScript} disabled={isLoading || angles.length === 0} className="primary-gradient text-white font-headline font-bold py-4 px-12 rounded-xl flex items-center gap-3 shadow-2xl shadow-primary/30 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:hover:scale-100">
               Generate Script
               <span className="material-symbols-outlined text-xl">keyboard_double_arrow_right</span>
             </button>

@@ -60,7 +60,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [globalImageModel, setGlobalImageModel] = useState("runware:101@1");
   const [globalAudioModel, setGlobalAudioModel] = useState("elevenlabs:1@1");
   // Changed to Gemini to avoid Runware credit usage
-  const [globalScriptModel, setGlobalScriptModel] = useState("gemini-2.0-flash-exp");
+  const [globalScriptModel, setGlobalScriptModel] = useState("gemini-2.0-flash-lite");
   const [globalVisualStyle, setGlobalVisualStyle] = useState("Cinematic Documentary");
 
   // Sync Quality Tier to Models

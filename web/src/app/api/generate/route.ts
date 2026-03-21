@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
-import { generateRunwareText } from "@/lib/runware";
 import { generateGeminiText } from "@/lib/gemini";
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, url, angle, provider = "runware", model: modelOverride, visualStyle = "Cinematic Documentary" } = await req.json();
+    const { topic, url, angle, visualStyle = "Cinematic Documentary" } = await req.json();
 
     if (!topic && !url) {
       return NextResponse.json({ error: "URL or Topic is required" }, { status: 400 });
@@ -19,7 +18,7 @@ export async function POST(req: NextRequest) {
         const response = await fetch(url);
         const html = await response.text();
         const $ = cheerio.load(html);
-        extractedText = $("body").text().slice(0, 5000); // Limit context
+        extractedText = $("body").text().slice(0, 5000);
       } catch (e) {
         console.error("Failed to fetch URL, falling back to URL text only");
         extractedText = `Topic: ${url}`;
@@ -135,25 +134,8 @@ Format your response as a JSON object with:
 Return ONLY the JSON. No explanations.
 `;
 
-    console.log("Generating script with provider:", provider, "model:", modelOverride);
-
-    let responseText: string;
-
-    // Use Gemini for free text generation to avoid Runware credit usage
-    if (provider === "gemini" || !provider || provider === "runware") {
-      try {
-        responseText = await generateGeminiText(prompt, modelOverride || "gemini-2.0-flash-exp");
-        console.log("Used FREE Gemini API");
-      } catch (geminiError) {
-        console.error("Gemini failed, not falling back to Runware to prevent credit usage:", geminiError);
-        throw geminiError;
-      }
-    } else {
-      const runwareModel = modelOverride || "minimax:m2.5@0";
-      const finalModel = runwareModel.replace("runware:", "");
-      responseText = await generateRunwareText(prompt, finalModel);
-    }
-
+    console.log("Generating script via Groq...");
+    const responseText = await generateGeminiText(prompt);
     console.log("Raw AI response (first 500 chars):", responseText.substring(0, 500));
 
     // Clean up response text: strip <think> tags and extract JSON
@@ -167,29 +149,24 @@ Return ONLY the JSON. No explanations.
       console.log("Successfully parsed script with", scriptData.scenes?.length || 0, "scenes");
     } catch (e) {
       console.error("JSON Parse failed for response:", responseText);
-      console.error("Parse error:", e);
-      throw new Error("Failed to parse AI response as JSON. Response may not be in correct format.");
+      throw new Error("Failed to parse AI response as JSON.");
     }
 
-    // Validate the response has required fields
     if (!scriptData.scenes || !Array.isArray(scriptData.scenes)) {
-      console.error("Invalid script data structure:", scriptData);
       throw new Error("AI response missing required 'scenes' array");
     }
+
+    // Ensure every scene has an id and scene_number (AI doesn't generate these)
+    scriptData.scenes = scriptData.scenes.map((scene: any, index: number) => ({
+      ...scene,
+      id: scene.id ?? index + 1,
+      scene_number: scene.scene_number ?? index + 1,
+      duration_estimate_seconds: scene.duration_estimate_seconds || 8,
+    }));
 
     return NextResponse.json(scriptData);
   } catch (error: any) {
     console.error("Script generation error:", error);
-
-    // Check if it's a credit error
-    if (error.message?.includes('INSUFFICIENT_CREDITS')) {
-      return NextResponse.json({
-        error: "Runware Credits Exhausted",
-        message: "Your Runware account has run out of credits. Please add credits at https://runware.ai to continue using AI features.",
-        isCreditsError: true
-      }, { status: 402 }); // 402 Payment Required
-    }
-
     return NextResponse.json({ error: error.message || "Failed to generate script" }, { status: 500 });
   }
 }

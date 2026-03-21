@@ -25,6 +25,7 @@ export default function ScriptBuilder() {
   const [scenePreviewUrl, setScenePreviewUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [enhancedTip, setEnhancedTip] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -78,8 +79,8 @@ export default function ScriptBuilder() {
         const res = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            url: url || "https://example.com/mock", 
+          body: JSON.stringify({
+            url: url || "https://example.com/mock",
             angle,
             provider,
             model,
@@ -87,12 +88,18 @@ export default function ScriptBuilder() {
           })
         });
         const data = await res.json();
-        setScriptData(data);
-        if (data.scenes && data.scenes.length > 0) {
-          setActiveScene(data.scenes[0]);
+        if (data.error) {
+          setErrorMessage(data.error + (data.message ? `: ${data.message}` : ""));
+        } else {
+          setScriptData(data);
+          setErrorMessage(null);
+          if (data.scenes && data.scenes.length > 0) {
+            setActiveScene(data.scenes[0]);
+          }
         }
       } catch (e) {
         console.error(e);
+        setErrorMessage("Failed to generate script. Check your internet connection and try again.");
       } finally {
         setIsLoading(false);
       }
@@ -186,7 +193,7 @@ export default function ScriptBuilder() {
           </div>
           
           {/* Global Model Settings */}
-          <div className="flex gap-3 bg-surface-container-low p-2 rounded-2xl items-center border border-outline-variant/10 shadow-sm overflow-x-auto w-full xl:w-auto">
+          <div className="flex gap-3 glass p-2 rounded-2xl items-center shadow-sm overflow-x-auto w-full xl:w-auto">
             
             {/* Master Quality Tier Controller */}
             <div className="flex flex-col border-r border-outline-variant/20 pr-3 shrink-0">
@@ -270,7 +277,7 @@ export default function ScriptBuilder() {
                 <option value="runware:minimax:m2.5@0">Runware MiniMax (Fast & Smart)</option>
                 <option value="runware:150@2">Runware LLaVA 7B (Multi-modal)</option>
                 <option value="runware:152@2">Runware Qwen 7B (Powerful)</option>
-                <option value="google:gemini@3.1-pro">Google Gemini 3.1 Pro</option>
+                <option value="gemini-2.0-flash-lite">Google Gemini Flash Lite (Free)</option>
               </select>
               <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm" data-icon="edit_note">edit_note</span>
             </div>
@@ -278,7 +285,7 @@ export default function ScriptBuilder() {
 
           <div className="flex flex-col sm:flex-row gap-4 shrink-0 w-full md:w-auto">
             {/* Cost Estimator Badge */}
-            <div className="flex flex-col justify-center bg-surface-container-highest px-4 py-2 rounded-xl border border-outline-variant/10">
+            <div className="flex flex-col justify-center glass px-4 py-2 rounded-xl">
               <span className="font-label text-[10px] text-outline uppercase tracking-widest font-bold">Estimated Cost</span>
               <div className="flex items-center gap-1">
                 <span className="font-headline font-bold text-on-surface">${estimatedTotalCost.toFixed(2)}</span>
@@ -298,6 +305,23 @@ export default function ScriptBuilder() {
           
           {/* Left Side: Script Scenes */}
           <div className="col-span-12 lg:col-span-7 space-y-6">
+            {errorMessage && !isLoading && (
+              <div className="bg-error-container border-2 border-error rounded-2xl p-8 mb-6">
+                <div className="flex items-start gap-4">
+                  <span className="material-symbols-outlined text-error text-3xl">error</span>
+                  <div>
+                    <h3 className="font-headline font-bold text-xl text-on-error-container mb-2">Script Generation Failed</h3>
+                    <p className="text-on-error-container/80 mb-4">{errorMessage}</p>
+                    <button
+                      onClick={() => { setErrorMessage(null); setScriptData(null); }}
+                      className="px-4 py-2 bg-error text-on-error rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
+                      <span className="material-symbols-outlined text-sm">refresh</span>
+                      Retry
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {isLoading ? (
               <div className="flex justify-center py-20">
                 <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
@@ -306,7 +330,7 @@ export default function ScriptBuilder() {
               <div 
                 key={scene.id} 
                 onClick={() => setActiveScene(scene)}
-                className={`group relative bg-surface-container-high rounded-2xl p-6 border transition-all cursor-pointer ${activeScene?.id === scene.id ? 'border-primary ring-2 ring-primary/20' : 'border-transparent hover:border-outline-variant'}`}
+                className={`group relative glass-card rounded-2xl p-6 border transition-all cursor-pointer ${activeScene?.id === scene.id ? 'border-primary ring-2 ring-primary/20' : 'border-transparent hover:border-outline-variant'}`}
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
@@ -391,7 +415,7 @@ export default function ScriptBuilder() {
 
           {/* Right Side: Visual Prompt Builder */}
           <div className="col-span-12 lg:col-span-5">
-            <div className="sticky top-8 bg-surface-container-high rounded-3xl p-8 border border-outline-variant/10 shadow-2xl space-y-8">
+            <div className="sticky top-8 glass-card rounded-3xl p-8 shadow-2xl space-y-8">
               
               <div className="flex items-center justify-between">
                 <h3 className="font-headline font-bold text-xl flex items-center gap-2">

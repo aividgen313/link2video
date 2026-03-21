@@ -28,7 +28,7 @@ export default function AssetLibrary() {
               <h2 className="text-on-surface font-headline font-extrabold text-5xl mb-4 tracking-tight">Media Assets</h2>
               <p className="text-on-surface-variant font-body max-w-md">Manage and organize your cinematic production files. Drag and drop to upload new footage.</p>
             </div>
-            <button className="primary-gradient text-on-primary-container px-8 py-4 rounded-xl font-headline font-bold flex items-center gap-3 shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all">
+            <button className="primary-gradient text-white px-8 py-4 rounded-xl font-headline font-bold flex items-center gap-3 shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all">
               <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>cloud_upload</span>
               Upload New Asset
             </button>
@@ -54,7 +54,7 @@ export default function AssetLibrary() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             
             {/* Video Asset Card */}
-            <div className="group relative bg-surface-container-high rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
+            <div className="group relative glass-card glass-card-hover rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
               <div className="aspect-video relative overflow-hidden">
                 <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Cinematic landscape drone shot thumbnail" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDQ0no70lpuO-eG65LHEr2a_WscivvY9rIjd8vQJvJ0JxY7gEskFyTfD7dMmBe2p5mHMWNcyQbepHrvfesBxmgW4ei_ywXorCfXfbkhUtQ-87qg0Xh9YKpoSC9DRapgG9GEt98wLXETFMe_Z610ECLxSVzEFk65kLnOeoJaqulZCZjUUFcjcFwzddedUZodhwXLfxdFf8qT0e81EOY7yxfehdrOOlprAc7ArsaieDF1GLpxFU6Nv-OQEBOC2w8RZcBH_qwFZYDFqA0"/>
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all"></div>
@@ -75,7 +75,7 @@ export default function AssetLibrary() {
             </div>
 
             {/* Audio Asset Card */}
-            <div className="group relative bg-surface-container-high rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
+            <div className="group relative glass-card glass-card-hover rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
               <div className="aspect-video bg-surface-container-highest flex items-center justify-center relative">
                 <div className="flex items-end gap-1 h-12">
                   <div className="w-1.5 h-6 bg-primary/40 rounded-full"></div>
@@ -96,7 +96,7 @@ export default function AssetLibrary() {
             </div>
 
             {/* Image Asset Card */}
-            <div className="group relative bg-surface-container-high rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
+            <div className="group relative glass-card glass-card-hover rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
               <div className="aspect-video relative overflow-hidden">
                 <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Abstract colorful neon gradient background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNynxcWSXgLv9KR3idQuDmF2q58VofDrgWzSBdhaca9CNKv-kOScXGaBUBZm7gRQRvGfCr86brms9I5hNaa-FdhO44pH9CSkELlhPUX7inVJ9TiHOCPU8WE9_uPE94HgmSSC8B0-9AhAFqYxVpwYhkKEe-5M_jwZVjsKikOYgq60-LF9fqpRxndLtjk2uhuPTAayyKIHIzFSucTpUvzAr7GdUN52dCGMh3I16zEkaKyffgx-d5scMMwh1iNDFzuhpnTBNR2eoCiO_N"/>
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all"></div>
@@ -114,7 +114,7 @@ export default function AssetLibrary() {
             </div>
 
             {/* Video Asset Card */}
-            <div className="group relative bg-surface-container-high rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
+            <div className="group relative glass-card glass-card-hover rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
               <div className="aspect-video relative overflow-hidden">
                 <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Cinematic movie theatre interior" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDd8tjawWjA4XdY4AlW_Mlr7sEldk58sxY1ZqJ8Z0XQAClWw89C1Hx0ppLAQH8_kDwQwB4e0WtunJLpUwRBxSwBD3B5KZozsohggUMg3te1C3YzT2yr-WcPg_cJw-dk-XM3LOIl2PlybFhRKbwAy2lLyWNAcuLJV-fWiJbOGrJCktTKrxcmrSjlGm063UflvTWW0XWvJ_H3385ATEmzybGPsu-A7buIx4gYzWe0Ti-Lxx6PtW61OuKEOzIFLTHhJhLYPOsZe016PHYr"/>
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all"></div>
@@ -130,7 +130,7 @@ export default function AssetLibrary() {
             </div>
 
             {/* Image Asset Card */}
-            <div className="group relative bg-surface-container-high rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
+            <div className="group relative glass-card glass-card-hover rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
               <div className="aspect-video relative overflow-hidden">
                 <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Dark abstract architectural stairs" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB__3EiCg2mqBqAkI6W3hpdWf8lIoO6k3z95PthiN5ZN9hpb9Vlo7917ifN3YgCpGkI8BsRTaUadkmOQpOk79z9KUUTEJ6GyMuzgvNM3ZKtyc1uCxZ0XMwVFKijG2sV27aUB-H6qUcYMZBqNDoO0Svo5QOyYgrGFmzcQVkpEegwymQJz8tke26Kq0trs0iAQAIYMIajuPZQNir0SP0r5impGsLuMmh41edYR1INqgBtqtrSNsParvPdfOftosxpjYsZJ8oH65Cvqjdr"/>
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all"></div>
@@ -145,7 +145,7 @@ export default function AssetLibrary() {
             </div>
 
             {/* Audio Asset Card */}
-            <div className="group relative bg-surface-container-high rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
+            <div className="group relative glass-card glass-card-hover rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
               <div className="aspect-video bg-surface-container-highest flex items-center justify-center relative">
                 <span className="material-symbols-outlined text-outline text-4xl opacity-40">mic</span>
                 <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -161,7 +161,7 @@ export default function AssetLibrary() {
           </div>
 
           {/* Empty State / Footer Area */}
-          <div className="mt-8 py-16 flex flex-col items-center justify-center border-2 border-dashed border-outline-variant/10 rounded-3xl bg-surface-container-low/30 mb-8">
+          <div className="mt-8 py-16 flex flex-col items-center justify-center border-2 border-dashed border-primary/10 rounded-3xl glass mb-8">
             <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center text-outline mb-6">
               <span className="material-symbols-outlined text-3xl">add_photo_alternate</span>
             </div>

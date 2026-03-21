@@ -17,13 +17,10 @@ type SceneStatus = {
 };
 
 export default function VideoGeneration() {
-  const { 
-    scriptData, 
-    finalVideoUrl, 
+  const {
+    scriptData,
+    finalVideoUrl,
     setFinalVideoUrl,
-    globalVideoModel,
-    globalImageModel,
-    globalAudioModel
   } = useAppContext();
   const [progress, setProgress] = useState(0);
   const [activeSceneIndex, setActiveSceneIndex] = useState(0);
@@ -33,7 +30,6 @@ export default function VideoGeneration() {
   const [stitchStatus, setStitchStatus] = useState<string>("");
   const [hasMounted, setHasMounted] = useState(false);
   const ffmpegRef = useRef<FFmpeg | null>(null);
-
 
   useEffect(() => {
     setHasMounted(true);
@@ -50,7 +46,7 @@ export default function VideoGeneration() {
     }));
   }, []);
 
-  // Generate image for a scene
+  // Generate image for a scene via Pollinations
   const generateSceneImage = useCallback(async (scene: Scene): Promise<{ imageURL: string; imageUUID: string } | null> => {
     try {
       updateSceneStatus(scene.id, { phase: "image", progress: 20 });
@@ -59,21 +55,15 @@ export default function VideoGeneration() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: scene.visual_prompt,
-          model: scene.image_model_override || globalImageModel,
           width: 1280,
           height: 768,
-          numberResults: 1,
         }),
       });
-
-      if (res.status === 429) {
-        throw new Error("API Quota exceeded. Please try again in 1 minute.");
-      }
 
       const data = await res.json();
       if (data.success && data.images?.[0]) {
         const img = data.images[0];
-        updateSceneStatus(scene.id, { phase: "image", progress: 40, imageURL: img.imageURL, imageUUID: img.imageUUID });
+        updateSceneStatus(scene.id, { phase: "image", progress: 50, imageURL: img.imageURL, imageUUID: img.imageUUID });
         return { imageURL: img.imageURL, imageUUID: img.imageUUID };
       }
       throw new Error(data.error || "Image generation failed");
@@ -84,48 +74,7 @@ export default function VideoGeneration() {
     }
   }, [updateSceneStatus]);
 
-  // Generate video for a scene
-  const generateSceneVideo = useCallback(async (scene: Scene, imageUUID?: string): Promise<string | null> => {
-    try {
-      updateSceneStatus(scene.id, { phase: "video", progress: 60 });
-      const res = await fetch("/api/video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: scene.visual_prompt,
-          model: scene.video_model_override || globalVideoModel,
-          duration: Math.min(scene.duration_estimate_seconds, 10),
-          width: 1280,
-          height: 768,
-          imageUUID,
-        }),
-      });
-      const data = await res.json();
-      if (data.success && data.videoUrl) {
-        updateSceneStatus(scene.id, { phase: "complete", progress: 100, videoURL: data.videoUrl });
-        return data.videoUrl;
-      } else if (data.success && data.status === "processing") {
-        // Async processing — mark as complete for now
-        updateSceneStatus(scene.id, { phase: "complete", progress: 100 });
-        return null;
-      }
-      // Check for API errors specifically
-      if (data.errors) {
-        console.error("Video Error:", data.errors);
-        updateSceneStatus(scene.id, { phase: "error", error: data.errors[0]?.message || "Video Generation failed" });
-        setStitchStatus(`API Error: ${data.errors[0]?.message || "Video Generation failed"}`);
-        return null; // Signal failure to the main pipeline
-      }
-      throw new Error(data.error || "Video generation failed");
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Video generation failed";
-      updateSceneStatus(scene.id, { phase: "error", error: errorMsg });
-      setStitchStatus(`Error: ${errorMsg}`);
-      return null;
-    }
-  }, [globalVideoModel, updateSceneStatus]);
-
-  // Generate Voiceover (TTS) for a scene
+  // Generate TTS voiceover for a scene via Pollinations
   const generateSceneAudio = useCallback(async (scene: Scene): Promise<string | null> => {
     try {
       const res = await fetch("/api/tts", {
@@ -133,8 +82,7 @@ export default function VideoGeneration() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: scene.narration,
-          voiceProvider: globalAudioModel,
-          duration: scene.duration_estimate_seconds
+          voice: "adam",
         }),
       });
       const data = await res.json();
@@ -147,26 +95,28 @@ export default function VideoGeneration() {
       console.error("TTS generation error:", err);
       return null;
     }
-  }, [globalAudioModel, updateSceneStatus]);
+  }, [updateSceneStatus]);
 
-  // Generate background music
-  const generateMusic = useCallback(async () => {
+  // Generate background music via Pollinations
+  const generateMusic = useCallback(async (): Promise<string | null> => {
     try {
       const res = await fetch("/api/music", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: `cinematic background music for a video about: ${scriptData?.title || "a documentary"}`,
-          model: globalAudioModel,
-          duration: 30,
+          prompt: `cinematic background music for a documentary video about: ${scriptData?.title || "a documentary"}`,
+          duration: 60,
         }),
       });
       const data = await res.json();
       if (data.success && data.audioUrl) {
         setMusicUrl(data.audioUrl);
+        return data.audioUrl;
       }
+      return null;
     } catch (err) {
       console.error("Music generation error:", err);
+      return null;
     }
   }, [scriptData?.title]);
 
@@ -176,6 +126,7 @@ export default function VideoGeneration() {
 
     const runPipeline = async () => {
       setIsGenerating(true);
+      setProgress(5);
 
       // Initial statuses
       const initialStatuses: Record<number, SceneStatus> = {};
@@ -184,37 +135,45 @@ export default function VideoGeneration() {
       });
       setSceneStatuses(initialStatuses);
 
-      // Track all pending promises
+      // Start music generation in background (non-blocking)
       const musicPromise = generateMusic();
-      
-      // Wave 1: Parallel Images + TTS
+
+      const totalScenes = scriptData.scenes.length;
+      let completedScenes = 0;
+
+      // Generate images + TTS for all scenes in parallel
       const sceneResults = scriptData.scenes.map(async (scene, index) => {
-        // Start TTS immediately
+        setActiveSceneIndex(index);
+
+        // Start TTS and image generation simultaneously
         const audioPromise = generateSceneAudio(scene);
-        
-        // Start Image generation
         const imageResult = await generateSceneImage(scene);
         if (!imageResult) throw new Error(`Scene ${index + 1} image failed`);
 
-        // Wave 2: Trigger Video as soon as Image is ready
-        const videoUrl = await generateSceneVideo(scene, imageResult.imageUUID);
-        if (!videoUrl) throw new Error(`Scene ${index + 1} video failed`);
+        // Mark scene as complete once image is ready
+        // (video will be created from image via FFmpeg Ken Burns effect)
+        updateSceneStatus(scene.id, { phase: "complete", progress: 100 });
 
         const audioUrl = await audioPromise;
-        return { video: videoUrl, audio: audioUrl };
+
+        completedScenes++;
+        setProgress(Math.round(10 + (completedScenes / totalScenes) * 60));
+
+        return { image: imageResult.imageURL, audio: audioUrl, duration: scene.duration_estimate_seconds };
       });
 
       try {
-        setStitchStatus("Generating all assets in parallel...");
+        setStitchStatus("Generating images & voiceovers...");
         const sceneAssets = await Promise.all(sceneResults);
-        await musicPromise;
+        const resolvedMusicUrl = await musicPromise;
 
-        // Step 4: Stitching
+        setProgress(75);
+
         if (sceneAssets.length > 0) {
           setStitchStatus("Loading FFmpeg engine...");
           const ffmpeg = ffmpegRef.current;
-          if (!ffmpeg) throw new Error("FFmpeg not initialized properly");
-          
+          if (!ffmpeg) throw new Error("FFmpeg not initialized");
+
           if (!ffmpeg.loaded) {
             await ffmpeg.load({
               coreURL: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js",
@@ -222,33 +181,75 @@ export default function VideoGeneration() {
             });
           }
 
-          setStitchStatus("Stitching scenes...");
+          setProgress(80);
+          setStitchStatus("Creating video from scenes...");
           const concatList: string[] = [];
 
           for (let index = 0; index < sceneAssets.length; index++) {
             const asset = sceneAssets[index];
+            const imgFile = `img${index}.jpg`;
             const vidFile = `vid${index}.mp4`;
             const mergedFile = `scene${index}.mp4`;
+            const sceneDuration = Math.max(asset.duration || 8, 4);
 
-            await ffmpeg.writeFile(vidFile, await fetchFile(asset.video));
-            
+            // Write the image file
+            await ffmpeg.writeFile(imgFile, await fetchFile(asset.image));
+
+            // Create video from image with Ken Burns zoom effect
+            // zoompan: zoom in slowly from 1.0 to 1.3 over the duration
+            await ffmpeg.exec([
+              '-loop', '1',
+              '-i', imgFile,
+              '-vf', `zoompan=z='min(zoom+0.0015,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${sceneDuration * 25}:s=1280x720:fps=25`,
+              '-c:v', 'libx264',
+              '-t', String(sceneDuration),
+              '-pix_fmt', 'yuv420p',
+              '-r', '25',
+              vidFile,
+            ]);
+
+            // Merge with TTS audio if available
             if (asset.audio) {
               const audFile = `tts${index}.mp3`;
               await ffmpeg.writeFile(audFile, await fetchFile(asset.audio));
-              await ffmpeg.exec(['-i', vidFile, '-i', audFile, '-c:v', 'copy', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0', '-shortest', mergedFile]);
+              await ffmpeg.exec([
+                '-i', vidFile, '-i', audFile,
+                '-c:v', 'copy', '-c:a', 'aac',
+                '-map', '0:v:0', '-map', '1:a:0',
+                '-shortest',
+                mergedFile,
+              ]);
             } else {
-              await ffmpeg.exec(['-i', vidFile, '-c', 'copy', mergedFile]);
+              // Add silent audio track so concat works
+              await ffmpeg.exec([
+                '-i', vidFile,
+                '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo',
+                '-c:v', 'copy', '-c:a', 'aac',
+                '-t', String(sceneDuration),
+                '-shortest',
+                mergedFile,
+              ]);
             }
+
             concatList.push(`file '${mergedFile}'`);
+            setProgress(80 + Math.round((index + 1) / sceneAssets.length * 10));
+            setStitchStatus(`Rendering scene ${index + 1}/${sceneAssets.length}...`);
           }
+
+          setProgress(92);
+          setStitchStatus("Joining all scenes...");
 
           await ffmpeg.writeFile('concat.txt', concatList.join('\n'));
           await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'concat.txt', '-c', 'copy', 'master.mp4']);
 
-          if (musicUrl) {
-            await ffmpeg.writeFile('music.mp3', await fetchFile(musicUrl));
+          setProgress(95);
+
+          // Mix background music if available
+          if (resolvedMusicUrl) {
+            setStitchStatus("Mixing background music...");
+            await ffmpeg.writeFile('music.mp3', await fetchFile(resolvedMusicUrl));
             await ffmpeg.exec([
-              '-i', 'master.mp4', '-i', 'music.mp3', 
+              '-i', 'master.mp4', '-i', 'music.mp3',
               '-filter_complex', '[1:a]volume=0.15[bgm]; [0:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[a]',
               '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', 'output.mp4'
             ]);
@@ -260,18 +261,19 @@ export default function VideoGeneration() {
           const uint8Array = new Uint8Array(fileData as unknown as ArrayBuffer);
           setFinalVideoUrl(URL.createObjectURL(new Blob([uint8Array], { type: 'video/mp4' })));
           setStitchStatus("");
+          setProgress(100);
         }
       } catch (err) {
         console.error("Pipeline error:", err);
         setStitchStatus("Error: " + (err as Error).message);
       } finally {
-        setProgress(100);
         setIsGenerating(false);
       }
     };
 
     runPipeline();
-  }, [scriptData, isGenerating, finalVideoUrl, generateMusic, generateSceneAudio, generateSceneImage, generateSceneVideo, updateSceneStatus]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scriptData, finalVideoUrl]);
 
   if (!hasMounted) return null;
 
@@ -301,14 +303,14 @@ export default function VideoGeneration() {
               <h2 className="font-headline text-display-lg text-4xl font-extrabold tracking-tight">Video Generation</h2>
               <div className="flex items-center gap-3 text-outline">
                 <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>crop_16_9</span>
-                <span className="font-label text-xs uppercase tracking-widest">HD Landscape • Multi-Model Orchestration</span>
+                <span className="font-label text-xs uppercase tracking-widest">HD Landscape • AI Image + Ken Burns</span>
               </div>
             </div>
             <div className="w-full md:w-96 space-y-3">
               <div className="flex justify-between items-end">
                 <div className="flex items-center gap-2">
                   <span className="font-body text-sm font-semibold text-primary">Rendering Progress</span>
-                  <span className="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-tighter">Runware</span>
+                  <span className="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-tighter">Free</span>
                 </div>
                 <span className="font-headline text-2xl font-bold">{progress}%</span>
               </div>
@@ -318,7 +320,7 @@ export default function VideoGeneration() {
             </div>
           </div>
 
-          {/* Bento Layout for Generation Details */}
+          {/* Bento Layout */}
           <div className="grid grid-cols-12 gap-6 pb-20">
             {/* Main Preview Player */}
             <div className="col-span-12 lg:col-span-8 space-y-6">
@@ -327,10 +329,9 @@ export default function VideoGeneration() {
                   <video src={finalVideoUrl} controls autoPlay className="w-full h-full object-cover" />
                 ) : (
                   <>
-                    {/* Show the latest generated scene image as preview */}
                     {(() => {
-                      const activeStatus = scriptData?.scenes[activeSceneIndex] 
-                        ? sceneStatuses[scriptData.scenes[activeSceneIndex].id] 
+                      const activeStatus = scriptData?.scenes[activeSceneIndex]
+                        ? sceneStatuses[scriptData.scenes[activeSceneIndex].id]
                         : undefined;
                       if (activeStatus?.imageURL) {
                         return <img alt="Scene Preview" className="w-full h-full object-cover" src={activeStatus.imageURL} />;
@@ -341,15 +342,13 @@ export default function VideoGeneration() {
                         </div>
                       );
                     })()}
-                    
-                    {/* Overlay Controls */}
+
                     <div className="absolute inset-0 flex flex-col justify-between p-6 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                       <div className="flex justify-end">
                         <span className="bg-primary/20 backdrop-blur-md text-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-primary/30">Generating</span>
                       </div>
                     </div>
 
-                    {/* Loading Overlay for active generation */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <div className="flex flex-col items-center gap-4 text-center">
                         <div className="relative">
@@ -357,18 +356,14 @@ export default function VideoGeneration() {
                           <span className="material-symbols-outlined absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary">auto_fix_high</span>
                         </div>
                         <p className="font-body text-sm font-medium text-on-surface drop-shadow-md">
-                          {stitchStatus ? (
-                            stitchStatus
-                          ) : (
-                            (() => {
-                              const activeStatus = scriptData?.scenes[activeSceneIndex]
-                                ? sceneStatuses[scriptData.scenes[activeSceneIndex].id]
-                                : undefined;
-                              if (activeStatus?.phase === "image") return `Generating image for scene ${activeSceneIndex + 1}...`;
-                              if (activeStatus?.phase === "video") return `Creating video for scene ${activeSceneIndex + 1}...`;
-                              return `Processing scene ${activeSceneIndex + 1}...`;
-                            })()
-                          )}
+                          {stitchStatus || (() => {
+                            const activeStatus = scriptData?.scenes[activeSceneIndex]
+                              ? sceneStatuses[scriptData.scenes[activeSceneIndex].id]
+                              : undefined;
+                            if (activeStatus?.phase === "image") return `Generating image for scene ${activeSceneIndex + 1}...`;
+                            if (activeStatus?.phase === "video") return `Creating video for scene ${activeSceneIndex + 1}...`;
+                            return `Processing scene ${activeSceneIndex + 1}...`;
+                          })()}
                         </p>
                       </div>
                     </div>
@@ -377,7 +372,7 @@ export default function VideoGeneration() {
               </div>
 
               {/* Action Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-4 p-6 bg-surface-container-high/50 backdrop-blur-2xl rounded-xl border border-outline-variant/10">
+              <div className="flex flex-wrap items-center justify-between gap-4 p-6 glass-card rounded-xl">
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => {
@@ -386,8 +381,6 @@ export default function VideoGeneration() {
                         a.href = finalVideoUrl;
                         a.download = `${scriptData?.title || 'video'}.mp4`;
                         a.click();
-                      } else {
-                        alert('Video is still being generated. Please wait until the video is complete.');
                       }
                     }}
                     disabled={!finalVideoUrl}
@@ -434,19 +427,19 @@ export default function VideoGeneration() {
             <div className="col-span-12 lg:col-span-4 space-y-4 h-[calc(100vh-280px)] flex flex-col">
               <div className="flex items-center justify-between px-2">
                 <h3 className="font-headline text-lg font-bold">Generated Scenes</h3>
-                <span className="text-tertiary bg-tertiary/10 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tighter">Runware AI</span>
+                <span className="text-tertiary bg-tertiary/10 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tighter">Pollinations AI</span>
               </div>
               <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
-                
+
                 {scriptData?.scenes.map((scene, i) => {
                   const status = sceneStatuses[scene.id];
                   const isComplete = status?.phase === "complete";
                   const isActive = (status?.phase === "image" || status?.phase === "video");
                   const isError = status?.phase === "error";
-                  
+
                   if (isComplete) {
                     return (
-                      <div key={scene.id} className="p-4 rounded-xl bg-surface-container-high border border-outline-variant/10 flex items-start gap-4 hover:border-primary/30 transition-all cursor-pointer">
+                      <div key={scene.id} className="p-4 rounded-xl glass-card flex items-start gap-4 hover:border-primary/30 transition-all cursor-pointer">
                         <div className="w-20 h-14 rounded-lg overflow-hidden bg-surface-container-lowest relative flex-shrink-0">
                           {status?.imageURL ? (
                             <img src={status.imageURL} alt={`Scene ${i+1}`} className="w-full h-full object-cover" />
@@ -460,7 +453,7 @@ export default function VideoGeneration() {
                           <div className="flex justify-between items-start">
                             <div className="flex items-center gap-1 min-w-0">
                               <h4 className="font-body text-sm font-semibold truncate">{String(i + 1).padStart(2, '0')}. Scene</h4>
-                              <span className="text-[9px] font-medium text-primary/70 bg-primary/5 px-1 rounded flex-shrink-0">✓</span>
+                              <span className="text-[9px] font-medium text-primary/70 bg-primary/5 px-1 rounded flex-shrink-0">done</span>
                             </div>
                             <span className="text-[10px] font-bold text-outline ml-2">{scene.duration_estimate_seconds}s</span>
                           </div>
@@ -482,12 +475,9 @@ export default function VideoGeneration() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start mb-1">
-                            <div className="flex items-center gap-1 min-w-0">
-                              <h4 className="font-body text-sm font-semibold text-primary truncate">
-                                {String(i + 1).padStart(2, '0')}. {status?.phase === "image" ? "Generating Image" : "Creating Video"}
-                              </h4>
-                              <span className="text-[9px] font-medium text-primary/70 bg-primary/10 px-1 rounded border border-primary/20 flex-shrink-0">Runware</span>
-                            </div>
+                            <h4 className="font-body text-sm font-semibold text-primary truncate">
+                              {String(i + 1).padStart(2, '0')}. Generating Image...
+                            </h4>
                           </div>
                           <div className="w-full h-1 bg-surface-container-high rounded-full mt-2 overflow-hidden">
                             <div className="h-full bg-gradient-to-r from-primary to-primary-container transition-all duration-500" style={{ width: `${status?.progress || 0}%` }}></div>
@@ -515,12 +505,10 @@ export default function VideoGeneration() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-1 min-w-0">
-                              <h4 className="font-body text-sm font-semibold truncate text-outline">{String(i + 1).padStart(2, '0')}. Queued</h4>
-                            </div>
+                            <h4 className="font-body text-sm font-semibold truncate text-outline">{String(i + 1).padStart(2, '0')}. Queued</h4>
                             <span className="text-[10px] font-bold text-outline ml-2">{scene.duration_estimate_seconds}s</span>
                           </div>
-                          <p className="text-xs text-outline/50 line-clamp-1 mt-1">Waiting for Runware...</p>
+                          <p className="text-xs text-outline/50 line-clamp-1 mt-1">Waiting...</p>
                         </div>
                       </div>
                     );
@@ -528,16 +516,15 @@ export default function VideoGeneration() {
                 })}
 
               </div>
-              
-              {/* Secondary Sidebar Action */}
-              <div className="mt-4 p-4 bg-surface-container-high rounded-xl border-t-2 border-primary/20">
+
+              <div className="mt-4 p-4 glass-card rounded-xl border-t-2 border-primary/20">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary/10 rounded-lg">
                     <span className="material-symbols-outlined text-primary">auto_awesome</span>
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs font-bold text-on-surface">Powered by Runware</p>
-                    <p className="text-[10px] text-outline">Dynamic Multi-Model Orchestration Pipeline</p>
+                    <p className="text-xs font-bold text-on-surface">Powered by Pollinations AI</p>
+                    <p className="text-[10px] text-outline">Free Image + TTS + Ken Burns Video Pipeline</p>
                   </div>
                 </div>
               </div>

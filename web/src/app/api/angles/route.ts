@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateRunwareText } from "@/lib/runware";
 import { generateGeminiText } from "@/lib/gemini";
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, provider = "runware", model: modelOverride } = await req.json();
+    const { topic } = await req.json();
 
     if (!topic) {
       return NextResponse.json({ error: "Topic is required" }, { status: 400 });
@@ -15,29 +14,17 @@ You are an expert Youtube video producer helping a creator brainstorm angles.
 Topic: ${topic}
 
 Generate 4 unique and compelling story angles for a video on this topic.
-Format your response as a JSON array of objects, each with 'title' and 'description' keys.
-Return ONLY the JSON.
+Format your response as a JSON array of objects, each with these keys:
+- "title": A compelling angle title
+- "description": 1-2 sentence description of the angle
+- "type": The content type (e.g. "Documentary", "Explainer", "Narrative", "Opinion", "Investigative")
+- "duration": Estimated video duration (e.g. "3-5 min", "1-2 min", "5-10 min")
+
+Return ONLY the JSON array. No explanations.
 `;
 
-    console.log("Generating angles with provider:", provider, "model:", modelOverride);
-
-    let responseText: string;
-
-    // Use Gemini for free text generation, Runware only if explicitly requested
-    if (provider === "gemini" || !provider || provider === "runware") {
-      try {
-        responseText = await generateGeminiText(prompt, modelOverride || "gemini-2.0-flash-exp");
-        console.log("Used FREE Gemini API");
-      } catch (geminiError) {
-        console.error("Gemini failed, not falling back to Runware to prevent credit usage:", geminiError);
-        throw geminiError;
-      }
-    } else {
-      const runwareModel = modelOverride || "minimax:m2.5@0";
-      const finalModel = runwareModel.replace("runware:", "");
-      responseText = await generateRunwareText(prompt, finalModel);
-    }
-
+    console.log("Generating angles via Groq...");
+    const responseText = await generateGeminiText(prompt);
     console.log("Raw angles response (first 300 chars):", responseText.substring(0, 300));
 
     // Clean up response text: strip <think> tags and extract JSON
@@ -51,32 +38,19 @@ Return ONLY the JSON.
       console.log("Successfully parsed angles data");
     } catch (e) {
       console.error("JSON Parse failed for response:", responseText);
-      console.error("Parse error:", e);
-      throw new Error("Failed to parse AI response as JSON. Response may not be in correct format.");
+      throw new Error("Failed to parse AI response as JSON.");
     }
 
     const angles = Array.isArray(anglesData) ? anglesData : (anglesData.angles || []);
 
     if (!angles || angles.length === 0) {
-      console.error("No angles found in response:", anglesData);
       throw new Error("AI response contained no angles");
     }
 
     console.log("Generated", angles.length, "angles");
-
     return NextResponse.json({ angles });
   } catch (error: any) {
     console.error("Angle generation error:", error);
-
-    // Check if it's a credit error
-    if (error.message?.includes('INSUFFICIENT_CREDITS')) {
-      return NextResponse.json({
-        error: "Runware Credits Exhausted",
-        message: "Your Runware account has run out of credits. Please add credits at https://runware.ai to continue using AI features.",
-        isCreditsError: true
-      }, { status: 402 }); // 402 Payment Required
-    }
-
     return NextResponse.json({ error: error.message || "Failed to generate angles" }, { status: 500 });
   }
 }

@@ -1,186 +1,123 @@
 import { NextRequest, NextResponse } from "next/server";
-import { RUNWARE_API_KEY } from "@/lib/runware";
 import { v4 as uuidv4 } from "uuid";
 
+// Allow up to 5 minutes for video generation
+export const maxDuration = 300;
+
+const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || "";
+
+/**
+ * Video generation — supports two modes:
+ * 1. "kenburns" (FREE) — Returns the image, client creates video with FFmpeg zoom/pan
+ * 2. "ai" (paid credits) — Pollinations AI video via wan model
+ */
 export async function POST(req: NextRequest) {
   try {
     const {
       prompt,
       duration = 5,
-      width = 1280,
-      height = 720,
-      model = "klingai:kling-video@3-standard",
-      imageUUID,
-      fps = 24,
-      CFGScale = 7.5,
+      mode = "kenburns", // "kenburns" or "ai"
+      imageDataUrl,
     } = await req.json();
 
-    if (!prompt) {
-      return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+    if (!prompt && !imageDataUrl) {
+      return NextResponse.json({ error: "Prompt or image is required" }, { status: 400 });
     }
 
-    console.log("Runware Video Inference:", prompt.substring(0, 80) + "...");
+    // MODE 1: Ken Burns — just pass back the image for client-side FFmpeg processing
+    if (mode === "kenburns") {
+      console.log("Video (Ken Burns mode):", prompt?.substring(0, 60) + "...");
 
-    // Build the request payload
-    const taskPayload: Record<string, unknown> = {
-      taskType: "videoInference",
-      taskUUID: uuidv4(),
-      positivePrompt: prompt,
-      model,
-      duration,
-      width,
-      height,
-      fps,
-      CFGScale,
-      numberResults: 1,
-      outputType: "URL",
-      outputFormat: "MP4",
-      includeCost: true,
-    };
-
-    // If an imageUUID is provided, use it as the first frame for image-to-video
-    if (imageUUID) {
-      taskPayload.frameImages = [
-        {
-          inputImage: imageUUID,
-          frame: "first",
-        },
-      ];
-    }
-
-    const response = await fetch("https://api.runware.ai/v1", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RUNWARE_API_KEY}`,
-      },
-      body: JSON.stringify([taskPayload]),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error(`Runware API HTTP error: ${response.status} ${response.statusText}`);
-      console.error("Runware API error details:", JSON.stringify(data, null, 2));
-
-      // Return detailed error information
-      return NextResponse.json(
-        {
-          error: `API request failed with status ${response.status}`,
-          details: data.errors || data,
-          errors: data.errors
-        },
-        { status: response.status }
-      );
-    }
-
-    if (data.errors) {
-      console.error("Runware video error:", data.errors);
-
-      // Check for unsupported parameter errors
-      const hasUnsupportedParam = data.errors.some((e: any) =>
-        e.code === "unsupportedParameter"
-      );
-
-      if (hasUnsupportedParam) {
-        const paramName = data.errors[0]?.parameter;
-        console.error(`Unsupported parameter detected: ${paramName}`);
-        return NextResponse.json(
-          {
-            error: `Invalid parameter '${paramName}' for this video model. Please check API documentation.`,
-            details: data.errors[0]?.message,
-            documentation: data.errors[0]?.documentation
-          },
-          { status: 400 }
-        );
-      }
-
-      // Fallback for credit errors to ensure the app flow still completes for demo purposes
-      const isCreditError = data.errors.some((e: any) =>
-        e.message?.toLowerCase().includes("credit") ||
-        e.message?.toLowerCase().includes("invoice") ||
-        e.code === "insufficientCredits"
-      );
-
-      if (isCreditError) {
-        console.warn("Runware out of credits. Falling back to mock video to allow flow completion.");
+      if (imageDataUrl) {
         return NextResponse.json({
           success: true,
-          videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+          videoUrl: imageDataUrl,
           videoUUID: uuidv4(),
-          seed: Math.floor(Math.random() * 1000000),
+          useKenBurns: true,
           cost: 0,
-          duration,
-          isMockData: true,
+          duration: Math.min(Math.max(duration, 2), 15),
         });
       }
 
-      return NextResponse.json(
-        {
-          error: data.errors[0]?.message || "Video generation failed",
-          errorCode: data.errors[0]?.code,
-          details: data.errors
-        },
-        { status: 500 }
-      );
-    }
+      // Generate an image first if none provided
+      const encodedPrompt = encodeURIComponent(prompt);
+      const seed = Math.floor(Math.random() * 1000000);
+      let imageURL = `https://gen.pollinations.ai/image/${encodedPrompt}?model=flux&width=1280&height=768&seed=${seed}&nologo=true`;
+      if (POLLINATIONS_API_KEY) imageURL += `&key=${POLLINATIONS_API_KEY}`;
 
-    // Video generation may be async — check if we got a result or need to poll
-    const result = data.data?.[0];
+      const imgRes = await fetch(imageURL, { signal: AbortSignal.timeout(60000) });
+      if (!imgRes.ok) throw new Error(`Image generation failed: ${imgRes.status}`);
 
-    if (result?.videoURL) {
+      const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
+      const mimeType = (imgRes.headers.get("content-type") || "").includes("png") ? "image/png" : "image/jpeg";
+      const dataUrl = `data:${mimeType};base64,${imgBuffer.toString("base64")}`;
+
       return NextResponse.json({
         success: true,
-        videoUrl: result.videoURL,
-        videoUUID: result.videoUUID,
-        seed: result.seed,
-        cost: result.cost,
-        duration,
+        videoUrl: dataUrl,
+        videoUUID: uuidv4(),
+        useKenBurns: true,
+        cost: 0,
+        duration: Math.min(Math.max(duration, 2), 15),
       });
     }
 
-    // If async, return the task info for polling
+    // MODE 2: AI Video Generation via Pollinations (requires credits)
+    console.log("Video (AI mode):", prompt?.substring(0, 60) + "...");
+
+    const encodedPrompt = encodeURIComponent(prompt);
+    const seed = Math.floor(Math.random() * 1000000);
+    const clampedDuration = Math.min(Math.max(duration, 2), 10);
+
+    let videoURL = `https://gen.pollinations.ai/image/${encodedPrompt}?model=wan&duration=${clampedDuration}&aspectRatio=16:9&seed=${seed}&nologo=true`;
+    if (POLLINATIONS_API_KEY) videoURL += `&key=${POLLINATIONS_API_KEY}`;
+
+    console.log("Fetching AI video from Pollinations (may take 30-180s)...");
+    const response = await fetch(videoURL, {
+      signal: AbortSignal.timeout(240000),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      console.error(`Pollinations video error: ${response.status}`, errorText.substring(0, 300));
+
+      if (response.status === 402) {
+        return NextResponse.json({
+          error: "Insufficient Pollinations credits for AI video. Buy credits at enter.pollinations.ai or switch to Ken Burns mode (free).",
+          isCreditsError: true,
+          retryable: false,
+        }, { status: 402 });
+      }
+      throw new Error(`Video generation failed: ${response.status}`);
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    console.log(`AI Video response: ${response.status}, type: ${contentType}`);
+
+    const videoBuffer = Buffer.from(await response.arrayBuffer());
+    if (videoBuffer.length < 1000) throw new Error("Video generation returned empty file");
+
+    const base64Video = videoBuffer.toString("base64");
+
     return NextResponse.json({
       success: true,
-      status: "processing",
-      taskUUID: taskPayload.taskUUID,
-      message: "Video is being generated. Poll for results.",
-      duration,
+      videoUrl: `data:video/mp4;base64,${base64Video}`,
+      videoUUID: uuidv4(),
+      useKenBurns: false,
+      cost: 0,
+      duration: clampedDuration,
     });
   } catch (error) {
     console.error("Video generation error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-
-    // Check for network errors
-    if (errorMessage.includes("fetch") || errorMessage.includes("network")) {
+    if (errorMessage.includes("timeout") || errorMessage.includes("abort")) {
       return NextResponse.json(
-        {
-          error: "Network error: Unable to connect to Runware API. Please check your internet connection.",
-          retryable: true
-        },
-        { status: 503 }
-      );
-    }
-
-    // Check for timeout errors
-    if (errorMessage.includes("timeout")) {
-      return NextResponse.json(
-        {
-          error: "Request timeout: The video generation took too long. Please try again.",
-          retryable: true
-        },
+        { error: "Video generation timed out. Try again.", retryable: true },
         { status: 504 }
       );
     }
 
-    return NextResponse.json(
-      {
-        error: "Internal Server Error during video generation",
-        message: errorMessage,
-        retryable: true
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: errorMessage, retryable: true }, { status: 500 });
   }
 }
