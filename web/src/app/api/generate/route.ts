@@ -152,6 +152,39 @@ Structure: HOOK → SETUP → RISING TENSION → CLIMAX → RESOLUTION → FINAL
         break;
     }
 
+    // STEP 1: Generate a detailed visual reference sheet for all subjects
+    console.log("Generating visual reference sheet...");
+    const referencePrompt = `You are a visual reference expert. Given the following subject matter, identify EVERY real person, celebrity, athlete, brand, company, logo, product, location, or historical event mentioned or implied.
+
+Subject: ${extractedText}
+Angle: ${angle || "General"}
+
+For EACH entity, write an extremely detailed physical/visual description that an AI image generator would need to create a photorealistic, accurate depiction. Be HYPER-SPECIFIC:
+
+For PEOPLE: exact skin tone, face shape, hairstyle (specific to their most iconic look), facial hair, eye shape, build, height impression, signature expressions, what they're known for wearing. Reference their most iconic/recognizable appearance.
+
+For BRANDS/LOGOS: exact colors (hex-level precision in words), font style, logo shape, iconic design elements, packaging details, store aesthetics.
+
+For LOCATIONS: architectural style, notable features, lighting conditions, atmosphere.
+
+Format as a simple reference list like:
+PERSON - Michael Jordan: Dark brown skin, bald head (shaved clean), 6'6" tall with an extremely athletic muscular build, intense focused brown eyes, strong jawline, often seen in Chicago Bulls red #23 jersey, or in a fitted black suit. Signature: tongue-out expression while dunking. Gold hoop earring in left ear.
+
+BRAND - Nike: Swoosh logo (curved checkmark shape), black or white on contrasting background...
+
+Return ONLY the reference descriptions. No commentary.`;
+
+    let visualReferenceSheet = "";
+    try {
+      visualReferenceSheet = await generateGeminiText(referencePrompt);
+      // Clean thinking tags from reference sheet
+      visualReferenceSheet = visualReferenceSheet.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+      console.log("Visual reference sheet generated:", visualReferenceSheet.substring(0, 300));
+    } catch (e) {
+      console.warn("Reference sheet generation failed, continuing without it");
+    }
+
+    // STEP 2: Build the script generation prompt with reference sheet injected
     const prompt = `
 You are an elite YouTube scriptwriter and viral content creator.
 You specialize in creating HIGH-RETENTION scripts that keep viewers watching until the very last second.
@@ -170,11 +203,25 @@ UNIVERSAL WRITING RULES:
 - NEVER use filler words or generic phrasing
 - Use psychological triggers: curiosity, suspense, surprise, empathy, aspiration
 
-VISUAL PROMPT RULES:
+VISUAL PROMPT RULES — EXTREME LIKENESS REQUIRED:
 - Each scene's visual_prompt must describe EXACTLY what should appear on screen
 - Be specific about: camera movement, mood, lighting, subject, composition
 - Think cinematic B-roll, Ken Burns-style photography, atmospheric footage
 - The visual must emotionally reinforce the narration
+
+CRITICAL — PHOTOREALISTIC ACCURACY:
+- Every person mentioned MUST be described with their EXACT physical appearance: specific skin tone, facial features, hairstyle, body type, clothing, and signature look
+- Every brand/logo MUST include exact colors, font style, logo shape, and design details
+- Every location MUST include specific architectural details, signage, and atmosphere
+- Names and text shown in the image MUST be spelled correctly
+- Do NOT use generic descriptions like "a man" or "a basketball player" — describe the EXACT person with unmistakable identifying features
+- The viewer should be able to identify every person and brand INSTANTLY from the image alone
+- Include the person's name in the prompt (e.g. "Michael Jordan, bald head, dark brown skin, athletic build, wearing Bulls #23 jersey")
+${visualReferenceSheet ? `
+VISUAL REFERENCE SHEET — USE THESE EXACT DESCRIPTIONS IN EVERY VISUAL PROMPT:
+${visualReferenceSheet}
+
+You MUST use the physical descriptions from the reference sheet above when writing visual_prompts. Copy key details directly into each prompt.` : ""}
 
 ${aestheticRules}
 
@@ -212,6 +259,7 @@ Format your response as a JSON object with:
 Return ONLY the JSON. No explanations, no markdown, no code blocks.
 `;
 
+    // STEP 3: Generate the script
     console.log("Generating script via Groq...");
     const responseText = await generateGeminiText(prompt);
     console.log("Raw AI response (first 500 chars):", responseText.substring(0, 500));

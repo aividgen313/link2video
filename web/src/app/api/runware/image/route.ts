@@ -12,16 +12,19 @@ export async function POST(req: NextRequest) {
       prompt,
       width = 1280,
       height = 768,
-      model = "flux",
+      model = "flux-realism",
     } = await req.json();
 
     if (!prompt) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
     }
 
-    console.log("Pollinations Image:", prompt.substring(0, 80) + "...");
+    // Enhance prompt with photorealism and likeness boosters
+    const enhancedPrompt = `${prompt}, ultra-realistic, photorealistic, 8k UHD, hyperdetailed, accurate likeness, exact resemblance, professional photography, cinematic lighting`;
 
-    const encodedPrompt = encodeURIComponent(prompt);
+    console.log("Pollinations Image:", enhancedPrompt.substring(0, 100) + "...");
+
+    const encodedPrompt = encodeURIComponent(enhancedPrompt);
     const seed = Math.floor(Math.random() * 1000000);
 
     // Build URL with API key
