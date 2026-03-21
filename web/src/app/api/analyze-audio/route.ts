@@ -1,0 +1,97 @@
+import { NextRequest, NextResponse } from "next/server";
+import { generateGeminiText } from "@/lib/gemini";
+
+export async function POST(req: NextRequest) {
+  try {
+    const { lyrics, durationSeconds } = await req.json();
+
+    if (!durationSeconds || durationSeconds <= 0) {
+      return NextResponse.json({ error: "durationSeconds is required" }, { status: 400 });
+    }
+
+    // If lyrics provided, use AI to segment them
+    if (lyrics && lyrics.trim().length > 20) {
+      const prompt = `You are a music structure analyst. Given these song lyrics and a total song duration of ${durationSeconds} seconds, split the lyrics into labeled segments with timestamps.
+
+LYRICS:
+${lyrics.substring(0, 5000)}
+
+RULES:
+- Identify: intro, verse, chorus, bridge, outro sections
+- Assign realistic timestamps that sum to ${durationSeconds} seconds total
+- Each segment gets the matching lyrics text
+- Typical structure: intro (10-20s), verse (20-40s), chorus (20-35s), bridge (15-25s), outro (10-20s)
+- Choruses usually repeat. Verses have different lyrics each time.
+- If lyrics are short, spread them across fewer segments
+- Return ONLY raw JSON, no markdown fences
+
+Return JSON array:
+[
+  { "id": 1, "type": "intro", "startTime": 0, "endTime": 15, "lyrics": "..." },
+  { "id": 2, "type": "verse", "startTime": 15, "endTime": 45, "lyrics": "..." },
+  ...
+]`;
+
+      const responseText = await generateGeminiText(prompt);
+      let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+      cleanText = cleanText.replace(/```(?:json)?\s*\r?\n?/gi, '').trim();
+
+      const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const segments = JSON.parse(jsonMatch[0]);
+        return NextResponse.json({ segments });
+      }
+      throw new Error("Failed to parse AI segment analysis");
+    }
+
+    // No lyrics: generate heuristic segments based on typical song structure
+    const segments = generateHeuristicSegments(durationSeconds);
+    return NextResponse.json({ segments });
+
+  } catch (error: any) {
+    console.error("Audio analysis error:", error);
+    return NextResponse.json({ error: error.message || "Audio analysis failed" }, { status: 500 });
+  }
+}
+
+function generateHeuristicSegments(durationSeconds: number): any[] {
+  // Standard song structure proportions
+  const structure = [
+    { type: "intro", proportion: 0.06 },
+    { type: "verse", proportion: 0.15 },
+    { type: "chorus", proportion: 0.13 },
+    { type: "verse", proportion: 0.15 },
+    { type: "chorus", proportion: 0.13 },
+    { type: "bridge", proportion: 0.10 },
+    { type: "chorus", proportion: 0.15 },
+    { type: "outro", proportion: 0.13 },
+  ];
+
+  // For short songs (< 90s), use simpler structure
+  const simpleStructure = [
+    { type: "intro", proportion: 0.10 },
+    { type: "verse", proportion: 0.25 },
+    { type: "chorus", proportion: 0.30 },
+    { type: "verse", proportion: 0.25 },
+    { type: "outro", proportion: 0.10 },
+  ];
+
+  const parts = durationSeconds < 90 ? simpleStructure : structure;
+  const segments: any[] = [];
+  let currentTime = 0;
+
+  parts.forEach((part, index) => {
+    const duration = Math.round(durationSeconds * part.proportion);
+    const endTime = index === parts.length - 1 ? durationSeconds : currentTime + duration;
+    segments.push({
+      id: index + 1,
+      type: part.type,
+      startTime: Math.round(currentTime),
+      endTime: Math.round(endTime),
+      lyrics: "",
+    });
+    currentTime = endTime;
+  });
+
+  return segments;
+}

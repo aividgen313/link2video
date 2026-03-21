@@ -2,16 +2,123 @@ import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { generateGeminiText } from "@/lib/gemini";
 
+function repairJson(str: string): string {
+  let repaired = str.replace(/(\d+)'(\d+)"/g, '$1 foot $2');
+  repaired = repaired.replace(/(\d+)'(\d+)\\"/g, '$1 foot $2');
+  return repaired;
+}
+
+function tryCompleteJson(str: string): string {
+  let s = str.trim();
+  let braces = 0, brackets = 0, inString = false, escape = false;
+  for (const ch of s) {
+    if (escape) { escape = false; continue; }
+    if (ch === '\\') { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') braces++;
+    else if (ch === '}') braces--;
+    else if (ch === '[') brackets++;
+    else if (ch === ']') brackets--;
+  }
+  if (inString) s += '"';
+  for (let i = 0; i < brackets; i++) s += ']';
+  for (let i = 0; i < braces; i++) s += '}';
+  return s;
+}
+
+function parseAndReturnScript(responseText: string): NextResponse {
+  console.log("Raw AI response (first 500 chars):", responseText.substring(0, 500));
+
+  let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  cleanText = cleanText.replace(/```(?:json)?\s*\r?\n?/gi, '').trim();
+  const jsonMatch = cleanText.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  let jsonStr = jsonMatch ? jsonMatch[0] : cleanText;
+
+  let scriptData;
+  try {
+    scriptData = JSON.parse(repairJson(jsonStr));
+    console.log("Successfully parsed script with", scriptData.scenes?.length || 0, "scenes");
+  } catch (e) {
+    try {
+      const completed = tryCompleteJson(repairJson(jsonStr));
+      scriptData = JSON.parse(completed);
+      console.log("Parsed script after completion with", scriptData.scenes?.length || 0, "scenes");
+    } catch (e2) {
+      try {
+        scriptData = (new Function('return ' + repairJson(jsonStr)))();
+        console.log("Parsed script via eval with", scriptData.scenes?.length || 0, "scenes");
+      } catch (e3) {
+        console.error("JSON Parse failed for response:", responseText.substring(0, 1000));
+        throw new Error("Failed to parse AI response as JSON.");
+      }
+    }
+  }
+
+  if (!scriptData.scenes || !Array.isArray(scriptData.scenes)) {
+    throw new Error("AI response missing required 'scenes' array");
+  }
+
+  scriptData.scenes = scriptData.scenes.map((scene: any, index: number) => ({
+    ...scene,
+    id: scene.id ?? index + 1,
+    scene_number: scene.scene_number ?? index + 1,
+    duration_estimate_seconds: scene.duration_estimate_seconds || 8,
+  }));
+
+  return NextResponse.json(scriptData);
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { topic, url, angle, visualStyle = "Cinematic Documentary", durationMinutes = 3, continueFrom, endStory, existingTitle } = await req.json();
+    const { topic, url, angle, visualStyle = "Cinematic Documentary", durationMinutes = 3, continueFrom, endStory, existingTitle, mode, storyText, characterProfiles, lyrics, musicSegments } = await req.json();
 
-    if (!topic && !url) {
+    // Short Story and Music Video modes don't need topic/url
+    if (!topic && !url && mode !== "short-story" && mode !== "music-video" && mode !== "extract-characters") {
       return NextResponse.json({ error: "URL or Topic is required" }, { status: 400 });
     }
 
+    // ========== EXTRACT CHARACTERS MODE ==========
+    if (mode === "extract-characters" && storyText) {
+      console.log("Extracting characters from story...");
+      const charPrompt = `You are a character analyst. Read this story and extract all characters with detailed visual descriptions for AI image generation.
+
+STORY:
+${storyText.substring(0, 5000)}
+
+For each character, provide:
+- id: a unique ID like "char_001"
+- name: the character's name
+- appearance: extremely detailed physical description (skin tone, hair color/style, eye color, face shape, body build, height, distinguishing features)
+- age: approximate age
+- gender: male/female/other
+- clothing: typical outfit described in detail
+- role: protagonist/antagonist/supporting
+
+Return ONLY raw JSON (no markdown fences):
+{ "characters": [ { "id": "char_001", "name": "...", "appearance": "...", "age": "...", "gender": "...", "clothing": "...", "role": "protagonist" } ] }`;
+
+      const responseText = await generateGeminiText(charPrompt);
+      let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+      cleanText = cleanText.replace(/```(?:json)?\s*\r?\n?/gi, '').trim();
+      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          return NextResponse.json(parsed);
+        } catch {
+          return NextResponse.json({ characters: [] });
+        }
+      }
+      return NextResponse.json({ characters: [] });
+    }
+
     let extractedText = "";
-    if (topic) {
+    if (mode === "short-story" && storyText) {
+      extractedText = storyText.substring(0, 8000);
+    } else if (mode === "music-video" && lyrics) {
+      extractedText = lyrics.substring(0, 5000);
+    } else if (topic) {
       extractedText = topic;
     } else if (url) {
       try {
@@ -204,6 +311,149 @@ Structure: HOOK → SETUP → RISING TENSION → CLIMAX → RESOLUTION → FINAL
     const styleDesc = STYLE_MAP[visualStyle] || STYLE_MAP["Cinematic Documentary"];
     const aestheticRules = `CRITICAL AESTHETIC: You must write visual_prompts in the style of: ${styleDesc}. Every scene's visual_prompt MUST reflect this aesthetic consistently.`;
 
+    // ========== SHORT STORY MODE ==========
+    if (mode === "short-story") {
+      console.log("Generating script from short story...");
+
+      // Build character reference sheet from profiles
+      let characterSheet = "";
+      if (characterProfiles && characterProfiles.length > 0) {
+        characterSheet = `\nCHARACTER REFERENCE SHEET — USE THESE EXACT DESCRIPTIONS IN EVERY VISUAL PROMPT WHERE THE CHARACTER APPEARS:\n`;
+        for (const cp of characterProfiles) {
+          characterSheet += `${cp.role.toUpperCase()} - ${cp.name}: ${cp.appearance}`;
+          if (cp.age) characterSheet += `, age ${cp.age}`;
+          if (cp.clothing) characterSheet += `, wearing ${cp.clothing}`;
+          characterSheet += `\n`;
+        }
+        characterSheet += `\nYou MUST copy key physical details from each character profile into every visual_prompt where that character appears. The viewer should recognize the same character across ALL scenes.\n`;
+      }
+
+      const storyPrompt = `
+You are an elite cinematographer and screenwriter. Convert the following short story into a video script with scenes.
+
+SHORT STORY:
+${extractedText}
+
+INSTRUCTIONS:
+- Parse the story into a series of visual scenes following the narrative arc (beginning, rising action, climax, falling action, resolution)
+- Each scene should be 6-12 seconds of narration
+- The narration should be adapted from the story text — rewrite it as compelling voiceover (not a word-for-word copy)
+- Target approximately ${Math.ceil(durationMinutes * 60 / 8)} scenes for a ${durationMinutes}-minute video
+${characterSheet}
+
+VISUAL PROMPT RULES:
+- Each visual_prompt describes exactly what appears on screen: camera angle, lighting, mood, characters, setting
+- Include camera_angle (e.g. "close-up", "wide shot", "tracking shot"), lighting (e.g. "golden hour", "harsh fluorescent"), and mood (e.g. "tense", "hopeful")
+- Maintain visual consistency for recurring characters and locations
+- Be specific about character appearances in EVERY scene they appear
+
+${aestheticRules}
+
+Format as JSON:
+{
+  "title": "Video title based on the story",
+  "angle": "The narrative perspective",
+  "scenes": [
+    {
+      "narration": "Voiceover text adapted from the story",
+      "visual_prompt": "Detailed visual description with camera angle, lighting, mood, characters",
+      "duration_estimate_seconds": 8,
+      "camera_angle": "medium wide shot",
+      "lighting": "warm afternoon light",
+      "mood": "contemplative",
+      "characters": ["character_name"]
+    }
+  ]
+}
+
+CRITICAL JSON RULES:
+- Return ONLY raw JSON. No markdown, no code blocks, no backticks.
+- All strings must be valid JSON — escape double quotes with backslash.
+- For heights, use "6 foot 2" not "6'2\\"".
+`;
+
+      const responseText = await generateGeminiText(storyPrompt);
+      return parseAndReturnScript(responseText);
+    }
+
+    // ========== MUSIC VIDEO MODE ==========
+    if (mode === "music-video") {
+      console.log("Generating music video script...");
+
+      let segmentInstructions = "";
+      if (musicSegments && musicSegments.length > 0) {
+        segmentInstructions = `\nSONG STRUCTURE (pre-analyzed segments):\n`;
+        for (const seg of musicSegments) {
+          segmentInstructions += `Segment ${seg.id} [${seg.type}] ${seg.startTime}s - ${seg.endTime}s: ${seg.lyrics || "(instrumental)"}\n`;
+        }
+        segmentInstructions += `\nGenerate exactly ONE scene per segment. Each scene's duration_estimate_seconds MUST match the segment duration (endTime - startTime).\n`;
+      }
+
+      // Build character reference from profiles if provided
+      let characterSheet = "";
+      if (characterProfiles && characterProfiles.length > 0) {
+        characterSheet = `\nCHARACTER/ARTIST REFERENCE:\n`;
+        for (const cp of characterProfiles) {
+          characterSheet += `${cp.role.toUpperCase()} - ${cp.name}: ${cp.appearance}`;
+          if (cp.clothing) characterSheet += `, wearing ${cp.clothing}`;
+          characterSheet += `\n`;
+        }
+      }
+
+      const musicPrompt = `
+You are a creative director for music videos. Create a visual script for a music video.
+
+${lyrics ? `SONG LYRICS:\n${extractedText}` : "INSTRUMENTAL TRACK (no lyrics)"}
+${segmentInstructions}
+${characterSheet}
+
+INSTRUCTIONS:
+- Create visually striking, music-video-worthy scenes
+- Match visual energy to the music structure:
+  * Intro: atmospheric, establishing shots, mood setting
+  * Verse: narrative, storytelling, character-focused
+  * Chorus: high energy, dramatic visuals, wide shots, dynamic movement
+  * Bridge: transition, ethereal, different mood/location
+  * Outro: resolution, fade-out, emotional conclusion
+- The "narration" field should contain the lyrics for that segment (these become subtitles, NOT voiceover)
+- If a segment has no lyrics, set narration to a brief description for subtitle display
+- Visual prompts should be cinematic and dynamic — think real music video production
+
+VISUAL PROMPT RULES:
+- Include camera_angle (tracking shot, crane shot, close-up, dolly zoom, etc.)
+- Include lighting (neon, strobe, golden hour, spotlight, etc.)
+- Include mood (energetic, melancholic, triumphant, mysterious, etc.)
+- Music videos use MORE dynamic camera work than documentaries — be creative!
+- Include choreography or movement descriptions where appropriate
+
+${aestheticRules}
+
+Format as JSON:
+{
+  "title": "Music Video Title",
+  "angle": "Visual concept / theme",
+  "scenes": [
+    {
+      "narration": "Lyrics for this segment (shown as subtitles)",
+      "visual_prompt": "Cinematic visual description for this segment",
+      "duration_estimate_seconds": 30,
+      "camera_angle": "tracking shot moving through crowd",
+      "lighting": "neon lights, strobing",
+      "mood": "energetic"
+    }
+  ]
+}
+
+CRITICAL JSON RULES:
+- Return ONLY raw JSON. No markdown, no code blocks, no backticks.
+- All strings must be valid JSON — escape double quotes with backslash.
+`;
+
+      const responseText = await generateGeminiText(musicPrompt);
+      return parseAndReturnScript(responseText);
+    }
+
+    // ========== LINK/TOPIC MODE (original) ==========
     // STEP 1: Generate a detailed visual reference sheet for all subjects
     console.log("Generating visual reference sheet...");
     const referencePrompt = `You are a visual reference expert. Given the following subject matter, identify EVERY real person, celebrity, athlete, brand, company, logo, product, location, or historical event mentioned or implied.
@@ -332,85 +582,7 @@ Generate only 1-2 scenes maximum. Keep the same title: "${existingTitle || "Unti
     const responseText = await generateGeminiText(prompt);
     console.log("Raw AI response (first 500 chars):", responseText.substring(0, 500));
 
-    // Clean up response text: strip <think> tags, markdown fences, and extract JSON
-    let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-    // Strip ALL markdown code fences anywhere in the text
-    cleanText = cleanText.replace(/```(?:json)?\s*\r?\n?/gi, '').trim();
-    // Extract the outermost JSON object or array
-    const jsonMatch = cleanText.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-    let jsonStr = jsonMatch ? jsonMatch[0] : cleanText;
-
-    /**
-     * Repair common JSON issues from AI output:
-     * 1. Height measurements like 5'9" where " breaks the JSON string
-     * 2. Truncated/incomplete JSON (close open structures)
-     */
-    function repairJson(str: string): string {
-      // Fix height measurements: 5'9" → 5 foot 9, 6'2" → 6 foot 2
-      let repaired = str.replace(/(\d+)'(\d+)"/g, '$1 foot $2');
-      // Fix 5'9\" patterns too
-      repaired = repaired.replace(/(\d+)'(\d+)\\"/g, '$1 foot $2');
-      return repaired;
-    }
-
-    function tryCompleteJson(str: string): string {
-      // If JSON appears truncated, try to close open structures
-      let s = str.trim();
-      // Count unclosed braces/brackets
-      let braces = 0, brackets = 0, inString = false, escape = false;
-      for (const ch of s) {
-        if (escape) { escape = false; continue; }
-        if (ch === '\\') { escape = true; continue; }
-        if (ch === '"') { inString = !inString; continue; }
-        if (inString) continue;
-        if (ch === '{') braces++;
-        else if (ch === '}') braces--;
-        else if (ch === '[') brackets++;
-        else if (ch === ']') brackets--;
-      }
-      // If we're inside a string, close it
-      if (inString) s += '"';
-      // Close any open structures
-      for (let i = 0; i < brackets; i++) s += ']';
-      for (let i = 0; i < braces; i++) s += '}';
-      return s;
-    }
-
-    let scriptData;
-    try {
-      scriptData = JSON.parse(repairJson(jsonStr));
-      console.log("Successfully parsed script with", scriptData.scenes?.length || 0, "scenes");
-    } catch (e) {
-      // Try completing truncated JSON
-      try {
-        const completed = tryCompleteJson(repairJson(jsonStr));
-        scriptData = JSON.parse(completed);
-        console.log("Parsed script after completion with", scriptData.scenes?.length || 0, "scenes");
-      } catch (e2) {
-        // Last resort: try to eval-parse with relaxed JSON
-        try {
-          scriptData = (new Function('return ' + repairJson(jsonStr)))();
-          console.log("Parsed script via eval with", scriptData.scenes?.length || 0, "scenes");
-        } catch (e3) {
-          console.error("JSON Parse failed for response:", responseText.substring(0, 1000));
-          throw new Error("Failed to parse AI response as JSON.");
-        }
-      }
-    }
-
-    if (!scriptData.scenes || !Array.isArray(scriptData.scenes)) {
-      throw new Error("AI response missing required 'scenes' array");
-    }
-
-    // Ensure every scene has an id and scene_number (AI doesn't generate these)
-    scriptData.scenes = scriptData.scenes.map((scene: any, index: number) => ({
-      ...scene,
-      id: scene.id ?? index + 1,
-      scene_number: scene.scene_number ?? index + 1,
-      duration_estimate_seconds: scene.duration_estimate_seconds || 8,
-    }));
-
-    return NextResponse.json(scriptData);
+    return parseAndReturnScript(responseText);
   } catch (error: any) {
     console.error("Script generation error:", error);
     return NextResponse.json({ error: error.message || "Failed to generate script" }, { status: 500 });

@@ -46,7 +46,10 @@ export default function VideoGeneration() {
     creditsUsed, setCreditsUsed,
     storyboardImages,
     url,
+    mode,
+    audioFile,
   } = useAppContext();
+  const isMusicVideo = mode === "music-video";
   const tier = QUALITY_TIERS[qualityTier];
   const dim = videoDimension || VIDEO_DIMENSIONS[0];
   const [progress, setProgress] = useState(0);
@@ -185,8 +188,9 @@ export default function VideoGeneration() {
       });
       setSceneStatuses(initialStatuses);
 
-      // Start music generation only if enabled
-      const musicPromise = musicEnabled ? generateMusic() : Promise.resolve(null);
+      // Music Video mode: no background music generation (audio IS the music)
+      // Link/Story mode: generate background music if enabled
+      const musicPromise = (!isMusicVideo && musicEnabled) ? generateMusic() : Promise.resolve(null);
 
       const totalScenes = scriptData.scenes.length;
       let completedScenes = 0;
@@ -195,22 +199,20 @@ export default function VideoGeneration() {
       const sceneResults = scriptData.scenes.map(async (scene, index) => {
         setActiveSceneIndex(index);
 
-        // Start TTS and image generation simultaneously
-        const audioPromise = generateSceneAudio(scene);
+        // Music Video mode: skip TTS (user's audio is the soundtrack)
+        const audioPromise = isMusicVideo ? Promise.resolve(null) : generateSceneAudio(scene);
         const imageResult = await generateSceneImage(scene);
         if (!imageResult) throw new Error(`Scene ${index + 1} image failed`);
 
-        // Wait for TTS to finish and measure actual audio duration
         const audioUrl = await audioPromise;
         let actualDuration = scene.duration_estimate_seconds;
-        if (audioUrl) {
+        if (!isMusicVideo && audioUrl) {
           const audioDur = await getAudioDuration(audioUrl);
-          // Use actual audio duration + 1s buffer so narration never cuts off
           actualDuration = Math.max(audioDur + 1, scene.duration_estimate_seconds);
           console.log(`Scene ${index + 1}: estimated=${scene.duration_estimate_seconds}s, audio=${audioDur.toFixed(1)}s, using=${actualDuration.toFixed(1)}s`);
         }
 
-        // Pro tier: generate Grok Video clip via api.airforce
+        // Pro tier: generate Grok Video clip
         let grokVideoUrl: string | null = null;
         if (tier.useAIVideo) {
           try {
@@ -334,8 +336,19 @@ export default function VideoGeneration() {
 
           setProgress(95);
 
-          // Mix background music if available
-          if (resolvedMusicUrl) {
+          // Music Video mode: overlay user's audio as primary soundtrack
+          if (isMusicVideo && audioFile) {
+            setStitchStatus("Mixing uploaded audio track...");
+            await ffmpeg.writeFile('uploaded_audio.mp3', await fetchFile(audioFile));
+            await ffmpeg.exec([
+              '-i', 'master.mp4', '-i', 'uploaded_audio.mp3',
+              '-map', '0:v', '-map', '1:a',
+              '-c:v', 'copy', '-c:a', 'aac',
+              '-shortest',
+              'output.mp4'
+            ]);
+          } else if (resolvedMusicUrl) {
+            // Standard mode: Mix background music at low volume
             setStitchStatus("Mixing background music...");
             await ffmpeg.writeFile('music.mp3', await fetchFile(resolvedMusicUrl));
             await ffmpeg.exec([

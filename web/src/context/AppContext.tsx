@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
+export type AppMode = "link" | "short-story" | "music-video";
+
 export type Scene = {
   id: number;
   scene_number: number;
@@ -10,12 +12,36 @@ export type Scene = {
   duration_estimate_seconds: number;
   video_model_override?: string;
   image_model_override?: string;
+  camera_angle?: string;
+  lighting?: string;
+  mood?: string;
+  characters?: string[]; // character profile IDs referenced in this scene
 };
 
 export type ScriptData = {
   title: string;
   angle: string;
   scenes: Scene[];
+  characterProfiles?: CharacterProfile[];
+};
+
+export type CharacterProfile = {
+  id: string;
+  name: string;
+  appearance: string; // detailed physical appearance for image gen
+  age?: string;
+  race?: string;
+  gender?: string;
+  clothing?: string;
+  role: string; // protagonist, antagonist, supporting, etc.
+};
+
+export type MusicSegment = {
+  id: number;
+  type: "intro" | "verse" | "chorus" | "bridge" | "outro";
+  startTime: number; // seconds
+  endTime: number;
+  lyrics: string;
 };
 
 export type QualityTier = "basic" | "medium" | "pro";
@@ -94,6 +120,10 @@ export const QUALITY_TIERS = {
 };
 
 interface AppContextType {
+  // Mode
+  mode: AppMode;
+  setMode: (mode: AppMode) => void;
+  // Core
   url: string;
   setUrl: (url: string) => void;
   angle: string;
@@ -122,6 +152,22 @@ interface AppContextType {
   setTargetDurationMinutes: (min: number) => void;
   storyboardImages: Record<number, string>;
   setStoryboardImages: (imgs: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
+  // Short Story Mode
+  storyText: string;
+  setStoryText: (text: string) => void;
+  characterProfiles: CharacterProfile[];
+  setCharacterProfiles: (profiles: CharacterProfile[]) => void;
+  // Music Video Mode
+  audioFile: string | null; // base64 data URL of uploaded audio
+  setAudioFile: (file: string | null) => void;
+  audioFileName: string | null;
+  setAudioFileName: (name: string | null) => void;
+  lyrics: string;
+  setLyrics: (lyrics: string) => void;
+  musicSegments: MusicSegment[];
+  setMusicSegments: (segments: MusicSegment[]) => void;
+  audioDuration: number; // seconds
+  setAudioDuration: (dur: number) => void;
   // Legacy (kept for script page compatibility)
   globalVideoModel: string;
   globalImageModel: string;
@@ -133,6 +179,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const [mode, setMode] = useState<AppMode>("link");
   const [url, setUrl] = useState("");
   const [angle, setAngle] = useState("");
   const [scriptData, setScriptData] = useState<ScriptData | null>(null);
@@ -148,6 +195,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [targetDurationMinutes, setTargetDurationMinutes] = useState(3);
   const [storyboardImages, setStoryboardImages] = useState<Record<number, string>>({});
   const [globalScriptModel] = useState("groq");
+  // Short Story Mode
+  const [storyText, setStoryText] = useState("");
+  const [characterProfiles, setCharacterProfiles] = useState<CharacterProfile[]>([]);
+  // Music Video Mode
+  const [audioFile, setAudioFile] = useState<string | null>(null);
+  const [audioFileName, setAudioFileName] = useState<string | null>(null);
+  const [lyrics, setLyrics] = useState("");
+  const [musicSegments, setMusicSegments] = useState<MusicSegment[]>([]);
+  const [audioDuration, setAudioDuration] = useState(0);
 
   // Derived model values based on quality tier
   const globalVideoModel = qualityTier === "pro" ? "pollinations:wan" : "kenburns";
@@ -156,6 +212,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
+      mode, setMode,
       url, setUrl,
       angle, setAngle,
       scriptData, setScriptData,
@@ -170,6 +227,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       creditsUsed, setCreditsUsed,
       targetDurationMinutes, setTargetDurationMinutes,
       storyboardImages, setStoryboardImages,
+      storyText, setStoryText,
+      characterProfiles, setCharacterProfiles,
+      audioFile, setAudioFile,
+      audioFileName, setAudioFileName,
+      lyrics, setLyrics,
+      musicSegments, setMusicSegments,
+      audioDuration, setAudioDuration,
       globalVideoModel,
       globalImageModel,
       globalAudioModel,

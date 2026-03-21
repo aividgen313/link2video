@@ -1,27 +1,47 @@
 /**
- * Text generation via Pollinations.ai with Claude Sonnet 4.6 (primary)
- * Fallback chain: claude → openai → deepseek → mistral
- * Groq used as secondary fallback if GROQ_API_KEY is set
+ * Text generation via Pollinations.ai with Claude Sonnet (primary)
+ * Fallback chain: Pollinations models → Groq → OpenRouter (free)
+ * Better retry logic with longer delays for 502/503 errors
  */
 export async function generateGeminiText(prompt: string, _model?: string): Promise<string> {
-  // Primary: Pollinations with Claude Sonnet
+  const errors: string[] = [];
+
+  // Primary: Pollinations with multiple models
   try {
     return await generateViaPollinationsWithRetry(prompt);
   } catch (err: any) {
-    console.warn("Pollinations failed, trying Groq fallback:", err.message);
+    errors.push(`Pollinations: ${err.message}`);
+    console.warn("Pollinations failed, trying fallbacks:", err.message);
   }
 
-  // Fallback: Groq if key is available
+  // Fallback 1: Groq if key is available
   const groqKey = process.env.GROQ_API_KEY || "";
   if (groqKey) {
     try {
       return await generateViaGroq(prompt, groqKey);
     } catch (err: any) {
+      errors.push(`Groq: ${err.message}`);
       console.warn("Groq fallback also failed:", err.message);
     }
   }
 
-  throw new Error("All text generation providers failed");
+  // Fallback 2: OpenRouter free models
+  try {
+    return await generateViaOpenRouter(prompt);
+  } catch (err: any) {
+    errors.push(`OpenRouter: ${err.message}`);
+    console.warn("OpenRouter fallback failed:", err.message);
+  }
+
+  // Fallback 3: One more Pollinations attempt with a longer timeout
+  try {
+    console.log("Final attempt: Pollinations with extended timeout...");
+    return await generateViaPollinationsText(prompt, "openai", 120000);
+  } catch (err: any) {
+    errors.push(`Final Pollinations: ${err.message}`);
+  }
+
+  throw new Error(`All text generation providers failed: ${errors.join(" | ")}`);
 }
 
 async function generateViaGroq(prompt: string, apiKey: string): Promise<string> {
@@ -37,10 +57,11 @@ async function generateViaGroq(prompt: string, apiKey: string): Promise<string> 
       temperature: 0.7,
       max_tokens: 8192,
     }),
+    signal: AbortSignal.timeout(90000),
   });
 
   if (!response.ok) {
-    throw new Error(`Groq API error ${response.status}`);
+    throw new Error(`Groq API error ${response.status}: ${response.statusText}`);
   }
 
   const data = await response.json();
@@ -49,8 +70,37 @@ async function generateViaGroq(prompt: string, apiKey: string): Promise<string> 
   return text;
 }
 
+// Free tier via OpenRouter (no key needed for some models)
+async function generateViaOpenRouter(prompt: string): Promise<string> {
+  const openRouterKey = process.env.OPENROUTER_API_KEY || "";
+  // Without a key, OpenRouter provides limited free access
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (openRouterKey) headers["Authorization"] = `Bearer ${openRouterKey}`;
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: "meta-llama/llama-3.3-70b-instruct:free",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 8192,
+    }),
+    signal: AbortSignal.timeout(90000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenRouter API error ${response.status}: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("OpenRouter returned empty response");
+  return text;
+}
+
 // Claude Sonnet first, then fallback models
-const POLLINATIONS_MODELS = ["claude", "openai", "deepseek", "mistral", "openai-large"];
+const POLLINATIONS_MODELS = ["openai", "claude", "mistral", "deepseek", "openai-large"];
 
 async function generateViaPollinationsWithRetry(prompt: string, maxRetries = 5): Promise<string> {
   let lastError: Error = new Error("Unknown error");
@@ -64,17 +114,21 @@ async function generateViaPollinationsWithRetry(prompt: string, maxRetries = 5):
       return text;
     } catch (err: any) {
       lastError = err;
-      const isRetryable = err.message?.includes("502") || err.message?.includes("503") || err.message?.includes("504") || err.message?.includes("429") || err.message?.includes("timeout");
-      if (!isRetryable && attempt === 0) {
-        // If Claude fails with non-retryable error, try next model
-        console.warn(`Model ${model} failed: ${err.message}, trying next model...`);
-        continue;
-      }
-      if (!isRetryable) throw err;
+      const status = err.message || "";
+      const isRetryable = status.includes("502") || status.includes("503") || status.includes("504") || status.includes("429") || status.includes("timeout");
 
-      // Exponential backoff: 2s, 4s, 8s, 16s
-      const delay = Math.min(2000 * Math.pow(2, attempt), 16000);
-      console.warn(`Pollinations ${err.message} — retrying in ${delay}ms...`);
+      if (!isRetryable && !status.includes("404")) {
+        throw err; // Non-retryable, non-404 error — give up
+      }
+
+      if (status.includes("404")) {
+        console.warn(`Model ${model} not found, trying next model...`);
+        continue; // Skip delay, just try next model
+      }
+
+      // Longer delays for 502: 3s, 6s, 12s, 20s, 30s
+      const delay = Math.min(3000 * Math.pow(2, attempt), 30000);
+      console.warn(`Pollinations ${status} — retrying in ${delay}ms...`);
       await new Promise((r) => setTimeout(r, delay));
     }
   }
@@ -82,10 +136,10 @@ async function generateViaPollinationsWithRetry(prompt: string, maxRetries = 5):
   throw lastError;
 }
 
-async function generateViaPollinationsText(prompt: string, model = "claude"): Promise<string> {
+async function generateViaPollinationsText(prompt: string, model = "openai", timeoutMs = 90000): Promise<string> {
   const pollinationsKey = process.env.POLLINATIONS_API_KEY || "";
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 90000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const body: Record<string, unknown> = {
@@ -120,7 +174,7 @@ async function generateViaPollinationsText(prompt: string, model = "claude"): Pr
     return text;
   } catch (err: any) {
     if (err.name === "AbortError") {
-      throw new Error("Pollinations request timeout after 90s");
+      throw new Error(`Pollinations request timeout after ${timeoutMs / 1000}s`);
     }
     throw err;
   } finally {

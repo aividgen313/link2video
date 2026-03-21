@@ -9,6 +9,7 @@ export default function ScriptBuilder() {
   const {
     url,
     angle,
+    mode,
     scriptData,
     setScriptData,
     qualityTier, setQualityTier,
@@ -17,6 +18,12 @@ export default function ScriptBuilder() {
     musicEnabled, setMusicEnabled,
     targetDurationMinutes,
     storyboardImages, setStoryboardImages,
+    storyText,
+    characterProfiles,
+    lyrics,
+    musicSegments,
+    audioFile,
+    audioDuration,
   } = useAppContext();
   const [isLoading, setIsLoading] = useState(!scriptData);
   const [hasMounted, setHasMounted] = useState(false);
@@ -94,17 +101,30 @@ export default function ScriptBuilder() {
     const fetchScript = async () => {
       try {
         setIsLoading(true);
+        // Build mode-aware request body
+        const requestBody: Record<string, any> = {
+          visualStyle: globalVisualStyle,
+          durationMinutes: targetDurationMinutes,
+          mode,
+        };
+        if (mode === "short-story") {
+          requestBody.storyText = storyText;
+          requestBody.characterProfiles = characterProfiles;
+        } else if (mode === "music-video") {
+          requestBody.lyrics = lyrics;
+          requestBody.musicSegments = musicSegments;
+          requestBody.characterProfiles = characterProfiles;
+          if (audioDuration > 0) {
+            requestBody.durationMinutes = audioDuration / 60;
+          }
+        } else {
+          requestBody.url = url || "https://example.com/mock";
+          requestBody.angle = angle;
+        }
         const res = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            url: url || "https://example.com/mock",
-            angle,
-            provider: "gemini",
-            model: "groq",
-            visualStyle: globalVisualStyle,
-            durationMinutes: targetDurationMinutes,
-          })
+          body: JSON.stringify(requestBody)
         });
         const data = await res.json();
         if (data.error) {
@@ -222,9 +242,9 @@ export default function ScriptBuilder() {
   return (
     <>
       <div className="mb-4 flex items-center gap-2">
-        <Link href="/story" className="text-outline text-sm font-label uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1">
+        <Link href={mode === "link" ? "/story" : "/"} className="text-outline text-sm font-label uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1">
           <span className="material-symbols-outlined text-sm">chevron_left</span>
-          Back to Story Angle
+          {mode === "link" ? "Back to Story Angle" : mode === "short-story" ? "Back to Story Input" : "Back to Upload"}
         </Link>
         <span className="text-outline mx-2">|</span>
         <span className="material-symbols-outlined text-outline">chevron_right</span>
@@ -488,30 +508,33 @@ export default function ScriptBuilder() {
                   Target: <span className="font-bold text-on-surface">{targetDurationMinutes} min</span>
                 </span>
               </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleContinueWriting}
-                  disabled={isExtending || isLoading}
-                  className="flex-1 py-3 rounded-2xl font-body font-bold text-sm bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
-                >
-                  {isExtending ? (
-                    <><div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /> Writing...</>
-                  ) : (
-                    <><span className="material-symbols-outlined text-sm">add</span> Continue Writing</>
-                  )}
-                </button>
-                <button
-                  onClick={handleEndStory}
-                  disabled={isExtending || isLoading}
-                  className="flex-1 py-3 rounded-2xl font-body font-bold text-sm bg-tertiary/10 text-tertiary border border-tertiary/20 hover:bg-tertiary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
-                >
-                  {isExtending ? (
-                    <><div className="w-4 h-4 border-2 border-tertiary/30 border-t-tertiary rounded-full animate-spin" /> Writing...</>
-                  ) : (
-                    <><span className="material-symbols-outlined text-sm">flag</span> End Story</>
-                  )}
-                </button>
-              </div>
+              {/* Hide continue/end for music video mode (fixed to audio structure) */}
+              {mode !== "music-video" && (
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleContinueWriting}
+                    disabled={isExtending || isLoading}
+                    className="flex-1 py-3 rounded-2xl font-body font-bold text-sm bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                  >
+                    {isExtending ? (
+                      <><div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /> Writing...</>
+                    ) : (
+                      <><span className="material-symbols-outlined text-sm">add</span> Continue Writing</>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleEndStory}
+                    disabled={isExtending || isLoading}
+                    className="flex-1 py-3 rounded-2xl font-body font-bold text-sm bg-tertiary/10 text-tertiary border border-tertiary/20 hover:bg-tertiary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                  >
+                    {isExtending ? (
+                      <><div className="w-4 h-4 border-2 border-tertiary/30 border-t-tertiary rounded-full animate-spin" /> Writing...</>
+                    ) : (
+                      <><span className="material-symbols-outlined text-sm">flag</span> End Story</>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
