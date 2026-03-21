@@ -14,16 +14,19 @@ function formatTimeAgo(date: Date): string {
 }
 
 const TOPIC_TEMPLATES = [
+  // Viral POV / immersive styles (top-performing YouTube format)
+  { label: "Lottery Winner", icon: "casino", topic: "POV: Your life after winning the $500 million lottery", group: "POV" },
+  { label: "NBA Levels", icon: "sports_basketball", topic: "POV: Your life as every NBA level — from benchwarmer to superstar", group: "POV" },
+  { label: "Wealth Wake Up", icon: "hotel", topic: "Every level of wealth explained by how you wake up in the morning", group: "Levels" },
+  { label: "Athlete Billions", icon: "emoji_events", topic: "How athletes actually become billionaires — the untold blueprint", group: "Finance" },
+  { label: "Quit Your Job", icon: "work_off", topic: "POV: Your life one year after quitting your 9-5 to start a business with $0", group: "POV" },
+  { label: "Income Levels", icon: "leaderboard", topic: "POV: Your life at every income level from dead broke to $1 billion", group: "POV" },
   // Documentary styles
   { label: "True Crime", icon: "policy", topic: "A shocking true crime case with an unexpected twist that changed everything", group: "Documentary" },
   { label: "Nature Doc", icon: "forest", topic: "The secret lives of the world's most mysterious deep ocean creatures", group: "Documentary" },
   { label: "History Mystery", icon: "history_edu", topic: "The fall of the Roman Empire and its eerie parallels to today's world", group: "Documentary" },
   { label: "Untold Story", icon: "star", topic: "The dark untold story behind a famous celebrity's rise and sudden downfall", group: "Documentary" },
   { label: "Science Shock", icon: "science", topic: "Scientists just discovered something that completely changes what we know about the universe", group: "Documentary" },
-  // POV / immersive styles (viral YouTube format)
-  { label: "POV Scenario", icon: "person_play", topic: "POV: Your life one year after quitting your 9-5 to start a business with $0", group: "POV" },
-  { label: "POV Levels", icon: "leaderboard", topic: "POV: Your life at every income level from dead broke to $1 billion", group: "POV" },
-  { label: "Every Level", icon: "trending_up", topic: "Every level of wealth explained by how you spend your morning routine", group: "Levels" },
   // Finance & wealth styles
   { label: "Rich Story", icon: "attach_money", topic: "How a broke kid from nothing built a billion-dollar empire from scratch", group: "Finance" },
   { label: "Finance Q&A", icon: "quiz", topic: "Simply explaining the most confusing money questions everyone secretly has", group: "Finance" },
