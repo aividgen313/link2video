@@ -13,24 +13,56 @@ function formatTimeAgo(date: Date): string {
   return date.toLocaleDateString();
 }
 
-const TOPIC_TEMPLATES = [
-  // Viral POV / immersive styles (top-performing YouTube format)
-  { label: "Lottery Winner", icon: "casino", topic: "POV: Your life after winning the $500 million lottery", group: "POV" },
-  { label: "NBA Levels", icon: "sports_basketball", topic: "POV: Your life as every NBA level — from benchwarmer to superstar", group: "POV" },
-  { label: "Wealth Wake Up", icon: "hotel", topic: "Every level of wealth explained by how you wake up in the morning", group: "Levels" },
-  { label: "Athlete Billions", icon: "emoji_events", topic: "How athletes actually become billionaires — the untold blueprint", group: "Finance" },
-  { label: "Quit Your Job", icon: "work_off", topic: "POV: Your life one year after quitting your 9-5 to start a business with $0", group: "POV" },
-  { label: "Income Levels", icon: "leaderboard", topic: "POV: Your life at every income level from dead broke to $1 billion", group: "POV" },
-  // Documentary styles
-  { label: "True Crime", icon: "policy", topic: "A shocking true crime case with an unexpected twist that changed everything", group: "Documentary" },
-  { label: "Nature Doc", icon: "forest", topic: "The secret lives of the world's most mysterious deep ocean creatures", group: "Documentary" },
-  { label: "History Mystery", icon: "history_edu", topic: "The fall of the Roman Empire and its eerie parallels to today's world", group: "Documentary" },
-  { label: "Untold Story", icon: "star", topic: "The dark untold story behind a famous celebrity's rise and sudden downfall", group: "Documentary" },
-  { label: "Science Shock", icon: "science", topic: "Scientists just discovered something that completely changes what we know about the universe", group: "Documentary" },
-  // Finance & wealth styles
-  { label: "Rich Story", icon: "attach_money", topic: "How a broke kid from nothing built a billion-dollar empire from scratch", group: "Finance" },
-  { label: "Finance Q&A", icon: "quiz", topic: "Simply explaining the most confusing money questions everyone secretly has", group: "Finance" },
-  { label: "Tech Explainer", icon: "memory", topic: "How artificial intelligence is silently reshaping every aspect of modern life", group: "Documentary" },
+// Video STYLE templates — each represents a distinct viral video format
+const STYLE_TEMPLATES = [
+  {
+    label: "POV Scenario",
+    icon: "person_play",
+    description: "2nd person immersive day-in-the-life experience",
+    prefix: "POV: ",
+    placeholder: "Your life after winning the $500 million lottery",
+    example: "POV: Your life after winning the $500 million lottery",
+  },
+  {
+    label: "POV Levels",
+    icon: "leaderboard",
+    description: "2nd person tier-by-tier comparison from bottom to top",
+    prefix: "POV | Your life as every ",
+    placeholder: "NBA level",
+    example: "POV | Your life as every NBA level",
+  },
+  {
+    label: "Every Level",
+    icon: "trending_up",
+    description: "3rd person breakdown comparing each wealth/skill tier",
+    prefix: "Every level of ",
+    placeholder: "wealth explained by how you wake up",
+    example: "Every level of wealth explained by how you wake up",
+  },
+  {
+    label: "Origin Story",
+    icon: "attach_money",
+    description: "Documentary on how someone built extraordinary wealth",
+    prefix: "How ",
+    placeholder: "a broke immigrant built a billion-dollar empire",
+    example: "How a broke immigrant built a billion-dollar empire from nothing",
+  },
+  {
+    label: "Explainer",
+    icon: "school",
+    description: "Simple breakdown of complex topics anyone can understand",
+    prefix: "Simply explaining ",
+    placeholder: "why the stock market actually crashes",
+    example: "Simply explaining why the stock market actually crashes",
+  },
+  {
+    label: "Documentary",
+    icon: "movie",
+    description: "Cinematic deep-dive with dramatic narration and tension",
+    prefix: "",
+    placeholder: "The dark satisfying satisfying truth behind...",
+    example: "The dark satisfying truth behind the world's most expensive coffee",
+  },
 ];
 
 const VISUAL_STYLES = [
@@ -55,6 +87,7 @@ export default function Home() {
   } = useAppContext();
 
   const [inputValue, setInputValue] = useState(url || "");
+  const [activeStyle, setActiveStyle] = useState<string | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
   const [recentVideos, setRecentVideos] = useState<VideoHistoryItem[]>([]);
 
@@ -106,20 +139,29 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Quick Templates */}
+            {/* Video Style Templates */}
             <div className="space-y-2">
-              <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Quick Start</label>
-              <div className="flex flex-wrap gap-2">
-                {TOPIC_TEMPLATES.map((t) => (
-                  <button
-                    key={t.label}
-                    onClick={() => setInputValue(t.topic)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass border border-outline-variant/10 text-xs font-medium text-outline hover:text-primary hover:border-primary/20 transition-all"
-                  >
-                    <span className="material-symbols-outlined text-sm">{t.icon}</span>
-                    {t.label}
-                  </button>
-                ))}
+              <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Video Style</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {STYLE_TEMPLATES.map((s) => {
+                  const isActive = inputValue.startsWith(s.prefix) || inputValue === s.example;
+                  return (
+                    <button
+                      key={s.label}
+                      onClick={() => {
+                        setInputValue(s.example);
+                        setActiveStyle(s.label);
+                      }}
+                      className={`flex flex-col items-start gap-1 p-3 rounded-xl border transition-all text-left ${isActive ? "bg-primary/10 border-primary/30 text-primary" : "glass border-outline-variant/10 text-outline hover:text-primary hover:border-primary/20"}`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-base">{s.icon}</span>
+                        <span className="font-bold text-sm">{s.label}</span>
+                      </div>
+                      <span className="text-[10px] leading-tight opacity-70">{s.description}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
