@@ -100,7 +100,9 @@ async function generateViaOpenRouter(prompt: string): Promise<string> {
 }
 
 // Claude Sonnet first, then fallback models
-const POLLINATIONS_MODELS = ["openai", "claude", "mistral", "deepseek", "openai-large"];
+// Model order: mistral is most reliable (plain text), then deepseek, openai, claude
+// openai sometimes returns reasoning-only wrappers; claude sometimes 404s
+const POLLINATIONS_MODELS = ["mistral", "deepseek", "openai", "openai-large", "claude"];
 
 async function generateViaPollinationsWithRetry(prompt: string, maxRetries = 5): Promise<string> {
   let lastError: Error = new Error("Unknown error");
@@ -114,21 +116,26 @@ async function generateViaPollinationsWithRetry(prompt: string, maxRetries = 5):
       return text;
     } catch (err: any) {
       lastError = err;
-      const status = err.message || "";
-      const isRetryable = status.includes("502") || status.includes("503") || status.includes("504") || status.includes("429") || status.includes("timeout");
+      const msg = err.message || "";
 
-      if (!isRetryable && !status.includes("404")) {
-        throw err; // Non-retryable, non-404 error — give up
+      // These errors should skip to the next model immediately (no delay)
+      const skipToNext = msg.includes("404") || msg.includes("reasoning only") || msg.includes("empty wrapper");
+      if (skipToNext) {
+        console.warn(`Model ${model} failed: ${msg}, trying next model...`);
+        continue;
       }
 
-      if (status.includes("404")) {
-        console.warn(`Model ${model} not found, trying next model...`);
-        continue; // Skip delay, just try next model
+      // These errors are retryable with a delay
+      const isRetryable = msg.includes("502") || msg.includes("503") || msg.includes("504") || msg.includes("429") || msg.includes("timeout");
+      if (!isRetryable) {
+        // Non-retryable error — try next model without delay
+        console.warn(`Model ${model} non-retryable error: ${msg}, trying next...`);
+        continue;
       }
 
-      // Longer delays for 502: 3s, 6s, 12s, 20s, 30s
+      // Longer delays for server errors: 3s, 6s, 12s, 20s, 30s
       const delay = Math.min(3000 * Math.pow(2, attempt), 30000);
-      console.warn(`Pollinations ${status} — retrying in ${delay}ms...`);
+      console.warn(`Pollinations ${msg} — retrying in ${delay}ms...`);
       await new Promise((r) => setTimeout(r, delay));
     }
   }
@@ -165,12 +172,44 @@ async function generateViaPollinationsText(prompt: string, model = "openai", tim
 
     let text = await response.text();
     if (!text?.trim()) throw new Error("Pollinations returned empty response");
-    // Some Pollinations models return a message object instead of plain text
+    // Some Pollinations models return a message wrapper object instead of plain text
+    // e.g. {"role":"assistant","content":"actual response"}
+    // or {"role":"assistant","reasoning_content":"thinking..."} (reasoning-only, no real content)
     try {
       const parsed = JSON.parse(text);
-      if (parsed.content) text = parsed.content;
-      else if (parsed.choices?.[0]?.message?.content) text = parsed.choices[0].message.content;
-    } catch { /* not JSON, use as-is */ }
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) && parsed.role === "assistant") {
+        // It's a message wrapper — extract actual content
+        if (parsed.content && typeof parsed.content === "string" && parsed.content.trim().length > 0) {
+          console.log(`Pollinations wrapper: extracted "content" field (${parsed.content.length} chars)`);
+          text = parsed.content;
+        } else if (parsed.choices?.[0]?.message?.content) {
+          text = parsed.choices[0].message.content;
+        } else if (parsed.reasoning_content && !parsed.content) {
+          // Model only returned reasoning/thinking but no actual content
+          // This means it failed to produce a response — throw to retry with another model
+          console.warn(`Pollinations wrapper: model returned only reasoning_content (${parsed.reasoning_content.length} chars), no actual content`);
+          throw new Error("Model returned reasoning only, no content — retrying");
+        } else {
+          // Unknown wrapper format — find the longest string field
+          const stringFields = Object.entries(parsed)
+            .filter(([k, v]) => typeof v === "string" && k !== "role" && (v as string).length > 20)
+            .sort((a, b) => (b[1] as string).length - (a[1] as string).length);
+          if (stringFields.length > 0) {
+            console.warn(`Pollinations wrapper: using field "${stringFields[0][0]}" (${(stringFields[0][1] as string).length} chars)`);
+            text = stringFields[0][1] as string;
+          } else {
+            throw new Error("Pollinations returned empty wrapper with no content");
+          }
+        }
+      }
+      // If it's a valid JSON object/array (scenes, angles, etc.) but NOT a wrapper, keep original text
+    } catch (parseErr: any) {
+      // If it's our own thrown error (not a JSON parse error), re-throw it
+      if (parseErr.message && !parseErr.message.includes("JSON")) {
+        throw parseErr;
+      }
+      // Not JSON at all — use text as-is (most common case for working models)
+    }
     return text;
   } catch (err: any) {
     if (err.name === "AbortError") {
