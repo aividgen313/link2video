@@ -25,6 +25,89 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Detect narrative style from topic keywords
+    const topicLower = extractedText.toLowerCase();
+    let narrativeStyle = "documentary";
+    if (topicLower.startsWith("pov:") || topicLower.startsWith("pov |") || topicLower.startsWith("pov:")) {
+      if (topicLower.includes("every") || topicLower.includes("level") || topicLower.includes("tier")) {
+        narrativeStyle = "pov_levels";
+      } else {
+        narrativeStyle = "pov_scenario";
+      }
+    } else if (topicLower.includes("every level") || topicLower.includes("every tier") || topicLower.includes("every type")) {
+      narrativeStyle = "every_level";
+    } else if (topicLower.startsWith("simply explaining") || topicLower.startsWith("explain") || topicLower.includes("questions everyone") || topicLower.includes("q&a")) {
+      narrativeStyle = "explainer";
+    } else if ((topicLower.includes("how") && (topicLower.includes("billionaire") || topicLower.includes("millionaire") || topicLower.includes("empire") || topicLower.includes("rich") || topicLower.includes("wealthy") || topicLower.includes("built"))) ||
+               topicLower.includes("broke") && topicLower.includes("billion")) {
+      narrativeStyle = "rich_story";
+    }
+
+    let narrativeInstructions = "";
+    switch (narrativeStyle) {
+      case "pov_scenario":
+        narrativeInstructions = `
+NARRATIVE FORMAT: POV SCENARIO (2nd Person Immersive)
+Write ENTIRELY in 2nd person ("You wake up...", "You check your phone...", "Your heart races...").
+Take the viewer through a vivid, emotional day-in-the-life experience of the scenario.
+Structure: Morning/Beginning → Building excitement/tension → A major moment of change → Emotional peak → Reflection → Powerful final thought.
+Every scene should make the viewer FEEL like they are inside the experience.
+Use specific, sensory details: sounds, sights, feelings, smells. Make it cinematic and visceral.
+Example narration style: "You open your eyes. The room is quiet. But today is different. Your phone buzzes once. Then again. You look down at the screen..."
+`;
+        break;
+      case "pov_levels":
+        narrativeInstructions = `
+NARRATIVE FORMAT: POV LEVELS (2nd Person Tier Comparison)
+Write in 2nd person ("You wake up at..."), but progress through distinct LEVELS/TIERS from lowest to highest.
+Each scene = one tier or level. Show stark contrast between how different levels experience the same situation.
+Start at the lowest level (broke/beginner) and climb to the highest (wealthy/elite).
+Structure: Level 1 (bottom) → Level 2 → Level 3 → Level 4 → Level 5 → Level 6 (top) → Final reflection.
+Make the contrast between each level VIVID and SURPRISING. Specific details = credibility.
+Example: "Level 1: You set 4 alarms. You're exhausted. You eat cereal with no milk... Level 6: Your assistant calls. Your jet is ready."
+`;
+        break;
+      case "every_level":
+        narrativeInstructions = `
+NARRATIVE FORMAT: EVERY LEVEL COMPARISON (3rd Person Tier Breakdown)
+Break the topic into clear WEALTH/SKILL/STATUS LEVELS and show how each level experiences the same concept DIFFERENTLY.
+Write in a confident, authoritative documentary voice.
+Structure: Intro hook → Level 1 (bottom 20%) → Level 2 → Level 3 → Level 4 → Level 5 (top 1%) → Surprising revelation → Final takeaway.
+Each level must have SPECIFIC, REALISTIC details. The contrast should be dramatic and eye-opening.
+Use dollar amounts, time, specific habits, tools, mindsets that change at each level.
+Example: "At $0, your morning alarm is survival. At $100K, it's optimization. At $10M, your morning doesn't start until your team is ready."
+`;
+        break;
+      case "explainer":
+        narrativeInstructions = `
+NARRATIVE FORMAT: SIMPLE EXPLAINER (Demystify Complex Topics)
+Write like the world's best teacher — clear, simple, relatable, and surprising.
+NO jargon. Explain everything with analogies and real-world examples a 12-year-old would understand.
+Structure: Hook question → Why this matters to you → Simple analogy → Deeper truth → Real-world example → Common misconception debunked → Key takeaway.
+Each scene should answer a question the viewer is already silently asking.
+Use "Here's the thing...", "Think of it like this...", "Most people don't realize..." language naturally.
+Make complex topics feel surprisingly simple and make the viewer feel smart for watching.
+`;
+        break;
+      case "rich_story":
+        narrativeInstructions = `
+NARRATIVE FORMAT: WEALTH ORIGIN STORY (Documentary Biography)
+Tell a gripping, specific story of how someone built extraordinary wealth from nothing.
+Write like a Netflix documentary — dramatic, specific, emotionally resonant.
+Structure: Shocking hook (where they ended up) → Humble/difficult beginning → First breakthrough moment → Key insight or turning point → Rapid rise → What most people missed → The bigger lesson.
+Use real-sounding specific details: dollar amounts, years, decisions, sacrifices.
+The viewer should feel the emotional journey — from desperation to triumph.
+Focus on the mindset shifts, the decisions others wouldn't make, and the unconventional path.
+`;
+        break;
+      default: // documentary
+        narrativeInstructions = `
+NARRATIVE FORMAT: CINEMATIC DOCUMENTARY
+Write in a compelling, cinematic documentary voice — authoritative yet emotionally engaging.
+Structure: HOOK → SETUP → RISING TENSION → CLIMAX → RESOLUTION → FINAL LINE.
+`;
+    }
+
     let aestheticRules = "";
     switch (visualStyle) {
       case "Animated Storytime":
@@ -46,73 +129,33 @@ export async function POST(req: NextRequest) {
     }
 
     const prompt = `
-You are an elite documentary storyteller and viral content writer.
-Your job is to create HIGH-RETENTION, EMOTIONALLY ENGAGING, CINEMATIC documentary-style scripts designed to keep viewers watching until the very end.
-The script MUST feel like a Netflix-level documentary or a viral YouTube video with millions of views.
+You are an elite YouTube scriptwriter and viral content creator.
+You specialize in creating HIGH-RETENTION scripts that keep viewers watching until the very last second.
+Every script you write feels like it belongs on a channel with millions of subscribers.
 
 Subject Matter: ${extractedText}
 Angle: ${angle}
 
-STRUCTURE REQUIREMENTS:
+${narrativeInstructions}
 
-1. HOOK (First 5-15 seconds)
-   - Start with a powerful, curiosity-driven hook
-   - This can be shocking, mysterious, emotional, or controversial
-   - DO NOT introduce the topic normally
-   - The viewer should feel: "Wait... what?! I need to keep watching"
-
-2. SETUP (Context + Stakes)
-   - Introduce the subject clearly
-   - Explain why this story matters
-   - Establish stakes (what's at risk, what's unusual, why it's important)
-   - Make the viewer emotionally invested
-
-3. RISING TENSION
-   - Slowly reveal new information
-   - Introduce conflict, mystery, or unanswered questions
-   - Add twists, surprises, or contradictions
-   - Keep increasing curiosity every 10-20 seconds
-   - Each section should make the viewer NEED the next answer
-
-4. CLIMAX (Peak Moment)
-   - Deliver the biggest reveal, turning point, or emotional high
-   - This should feel earned and powerful
-   - This is the moment everything builds toward
-
-5. RESOLUTION (Aftermath)
-   - Explain what happened after the climax
-   - Show consequences, impact, or lessons
-   - Give emotional closure
-
-6. FINAL LINE (Retention Loop)
-   - End with a strong, memorable line
-   - Can be thought-provoking, ironic, or open-ended
-   - Should leave the viewer thinking or wanting more
-
-STYLE REQUIREMENTS:
-- Write in a cinematic, immersive tone
-- Use vivid, descriptive language
-- Avoid generic phrasing
-- Vary sentence length for rhythm
-- Use short punchy lines during intense moments
-- Use longer descriptive lines for storytelling
-
-ENGAGEMENT RULES:
-- Every 10-20 seconds, introduce a new piece of information, question, or twist
-- Avoid filler or repetition
-- Maintain emotional tension throughout
-- Use psychological triggers: curiosity, suspense, surprise, empathy
+UNIVERSAL WRITING RULES:
+- Vary sentence length for rhythm and pacing
+- Use short punchy lines during intense or dramatic moments
+- Use longer sentences for storytelling and atmosphere
+- Every 10-20 seconds must introduce new information, a question, or a twist
+- NEVER use filler words or generic phrasing
+- Use psychological triggers: curiosity, suspense, surprise, empathy, aspiration
 
 VISUAL PROMPT RULES:
-- Each scene's visual_prompt must describe exactly what should be shown on screen
+- Each scene's visual_prompt must describe EXACTLY what should appear on screen
 - Be specific about: camera movement, mood, lighting, subject, composition
-- Think cinematic B-roll, Ken Burns-style images, or dramatic footage
-- The visual must emotionally match the narration
+- Think cinematic B-roll, Ken Burns-style photography, atmospheric footage
+- The visual must emotionally reinforce the narration
 
 ${aestheticRules}
 
 SCRIPT OUTPUT:
-Generate 6-10 scenes that follow the structure above (HOOK -> SETUP -> RISING TENSION -> CLIMAX -> RESOLUTION -> FINAL LINE).
+Generate 6-10 scenes following the narrative format above.
 
 Each scene must have:
 - narration: The voiceover text (cinematic, immersive, emotionally engaging)

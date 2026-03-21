@@ -14,12 +14,20 @@ function formatTimeAgo(date: Date): string {
 }
 
 const TOPIC_TEMPLATES = [
-  { label: "True Crime", icon: "policy", topic: "A shocking true crime case with an unexpected twist that changed everything" },
-  { label: "Nature Doc", icon: "forest", topic: "The secret lives of the world's most mysterious deep ocean creatures" },
-  { label: "Tech Explainer", icon: "memory", topic: "How artificial intelligence is silently reshaping every aspect of modern life" },
-  { label: "History Mystery", icon: "history_edu", topic: "The fall of the Roman Empire and its eerie parallels to today's world" },
-  { label: "Untold Story", icon: "star", topic: "The dark untold story behind a famous celebrity's rise and sudden downfall" },
-  { label: "Science Shock", icon: "science", topic: "Scientists just discovered something that completely changes what we know about the universe" },
+  // Documentary styles
+  { label: "True Crime", icon: "policy", topic: "A shocking true crime case with an unexpected twist that changed everything", group: "Documentary" },
+  { label: "Nature Doc", icon: "forest", topic: "The secret lives of the world's most mysterious deep ocean creatures", group: "Documentary" },
+  { label: "History Mystery", icon: "history_edu", topic: "The fall of the Roman Empire and its eerie parallels to today's world", group: "Documentary" },
+  { label: "Untold Story", icon: "star", topic: "The dark untold story behind a famous celebrity's rise and sudden downfall", group: "Documentary" },
+  { label: "Science Shock", icon: "science", topic: "Scientists just discovered something that completely changes what we know about the universe", group: "Documentary" },
+  // POV / immersive styles (viral YouTube format)
+  { label: "POV Scenario", icon: "person_play", topic: "POV: Your life one year after quitting your 9-5 to start a business with $0", group: "POV" },
+  { label: "POV Levels", icon: "leaderboard", topic: "POV: Your life at every income level from dead broke to $1 billion", group: "POV" },
+  { label: "Every Level", icon: "trending_up", topic: "Every level of wealth explained by how you spend your morning routine", group: "Levels" },
+  // Finance & wealth styles
+  { label: "Rich Story", icon: "attach_money", topic: "How a broke kid from nothing built a billion-dollar empire from scratch", group: "Finance" },
+  { label: "Finance Q&A", icon: "quiz", topic: "Simply explaining the most confusing money questions everyone secretly has", group: "Finance" },
+  { label: "Tech Explainer", icon: "memory", topic: "How artificial intelligence is silently reshaping every aspect of modern life", group: "Documentary" },
 ];
 
 const VISUAL_STYLES = [
