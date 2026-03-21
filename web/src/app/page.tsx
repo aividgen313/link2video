@@ -246,7 +246,16 @@ export default function Home() {
 
   const tier = QUALITY_TIERS[qualityTier];
   const sceneCount = Math.ceil(targetDurationMinutes * 60 / 8);
-  const estimatedUsd = (tier.usdPerScene * sceneCount).toFixed(2);
+  // Calculate accurate cost based on video strategy
+  const videoScenes = tier.videoSceneStrategy === "all" ? sceneCount
+    : tier.videoSceneStrategy === "key_scenes" ? Math.min((tier as any).maxVideoScenes || 3, sceneCount)
+    : 0;
+  const kenBurnsScenes = sceneCount - videoScenes;
+  const imageCost = sceneCount * 0.02; // all scenes need images
+  const videoCost = videoScenes * 0.40; // $0.05/s × 8s
+  const textCost = 0.01; // amortized
+  const totalUsd = qualityTier === "basic" ? 0 : (imageCost + videoCost + textCost);
+  const estimatedUsd = totalUsd.toFixed(2);
 
   const canGenerate = mode === "link" ? inputValue.trim().length > 0
     : mode === "short-story" ? storyText.trim().length > 0
@@ -569,7 +578,10 @@ export default function Home() {
                 {qualityTier === "basic" ? (
                   <span className="font-bold text-emerald-400">FREE</span>
                 ) : (
-                  <>Estimated: <span className="font-bold text-on-surface">~${estimatedUsd}</span> for {sceneCount} scenes ({tier.usdBreakdown})</>
+                  <>
+                    Est: <span className="font-bold text-on-surface">~${estimatedUsd}</span> for {sceneCount} scenes
+                    {videoScenes > 0 && <> ({videoScenes} video + {kenBurnsScenes} Ken Burns)</>}
+                  </>
                 )}
               </p>
             </div>

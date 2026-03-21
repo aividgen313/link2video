@@ -102,32 +102,36 @@ export const QUALITY_TIERS = {
     bgColor: "bg-emerald-400/10",
     borderColor: "border-emerald-400/20",
     useAIVideo: false,
+    videoSceneStrategy: "none" as const, // no AI video
     usePollsTTS: false, // Edge TTS (free)
     imageModel: "pollinations",
     textModel: "pollinations",
   },
   medium: {
     label: "Medium",
-    description: "Grok Text + Grok Images + Ken Burns + ElevenLabs TTS",
-    usdPerScene: 0.021, // $0.001 text + $0.02 image + $0 TTS (Pollinations free)
-    usdBreakdown: "$0.001 text + $0.02 image",
+    description: "Grok Images + Grok Video (key scenes) + Ken Burns (rest)",
+    usdPerScene: 0.021, // base: $0.001 text + $0.02 image (video scenes add ~$0.40 each)
+    usdBreakdown: "$0.02/image + $0.40 for 2-3 video scenes",
     color: "text-primary",
     bgColor: "bg-primary/10",
     borderColor: "border-primary/20",
-    useAIVideo: false,
+    useAIVideo: true,
+    videoSceneStrategy: "key_scenes" as const, // only hook + climax + ending get video
+    maxVideoScenes: 3, // cap at 3 Grok Video scenes
     usePollsTTS: true,
     imageModel: "grok-imagine",
     textModel: "grok",
   },
   pro: {
     label: "Pro",
-    description: "Grok Text + Grok Images + Grok Video + ElevenLabs TTS",
+    description: "Grok Images + Grok Video (all scenes) + ElevenLabs TTS",
     usdPerScene: 0.42, // $0.001 text + $0.02 image + $0.40 video (8s × $0.05/s)
-    usdBreakdown: "$0.001 text + $0.02 image + $0.40 video (8s × $0.05/s)",
+    usdBreakdown: "$0.02/image + $0.40/video (all scenes)",
     color: "text-tertiary",
     bgColor: "bg-tertiary/10",
     borderColor: "border-tertiary/20",
     useAIVideo: true,
+    videoSceneStrategy: "all" as const, // every scene gets AI video
     usePollsTTS: true,
     imageModel: "grok-imagine",
     textModel: "grok",
