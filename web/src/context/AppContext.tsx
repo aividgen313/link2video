@@ -73,33 +73,33 @@ export const VOICES = [
   { id: "elli", name: "Elli", gender: "Female", description: "Young & Energetic" },
 ];
 
-// Credit costs per scene (in Pollinations pollen credits)
-// USD estimate: ~$0.01 per 1 pollen credit (based on Pollinations pricing)
-export const POLLEN_TO_USD = 0.01;
+// xAI Grok pricing (as of 2026):
+// Text: grok-4-1-fast — $0.20/1M input, $0.50/1M output (~$0.001 per scene)
+// Image: grok-imagine-image — $0.02 per image
+// Video: grok-imagine-video — $0.05 per second
+// ElevenLabs TTS via Pollinations: ~$0.002 per scene
 
 export const QUALITY_TIERS = {
   basic: {
     label: "Basic",
-    description: "Free — Edge TTS + Pollinations Images (Ken Burns)",
-    creditsPerScene: 0.003,
+    description: "Free — Pollinations Text + Images (Ken Burns effect)",
     usdPerScene: 0.00,
     color: "text-emerald-400",
     bgColor: "bg-emerald-400/10",
     borderColor: "border-emerald-400/20",
     useAIVideo: false,
     usePollsTTS: false, // Uses Edge TTS (free)
-    imageModel: "grok-imagine",
-    textModel: "claude",
+    imageModel: "pollinations",
+    textModel: "pollinations",
   },
   medium: {
     label: "Medium",
-    description: "Grok Text + Grok Images + Grok Video + ElevenLabs TTS",
-    creditsPerScene: 0.008,
-    usdPerScene: 0.008,
+    description: "Grok Text + Grok Images + Ken Burns + ElevenLabs TTS",
+    usdPerScene: 0.023, // $0.001 text + $0.02 image + $0.002 TTS
     color: "text-primary",
     bgColor: "bg-primary/10",
     borderColor: "border-primary/20",
-    useAIVideo: true,
+    useAIVideo: false,
     usePollsTTS: true,
     imageModel: "grok-imagine",
     textModel: "grok",
@@ -107,8 +107,7 @@ export const QUALITY_TIERS = {
   pro: {
     label: "Pro",
     description: "Grok Text + Grok Images + Grok Video + ElevenLabs TTS",
-    creditsPerScene: 0.025,
-    usdPerScene: 0.025,
+    usdPerScene: 0.42, // $0.001 text + $0.02 image + $0.05/s × 8s video + $0.002 TTS
     color: "text-tertiary",
     bgColor: "bg-tertiary/10",
     borderColor: "border-tertiary/20",

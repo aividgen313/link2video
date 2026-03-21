@@ -58,6 +58,7 @@ export default function VideoGeneration() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
   const [stitchStatus, setStitchStatus] = useState<string>("");
+  const [previewSceneId, setPreviewSceneId] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
@@ -208,7 +209,8 @@ export default function VideoGeneration() {
         let actualDuration = scene.duration_estimate_seconds;
         if (!isMusicVideo && audioUrl) {
           const audioDur = await getAudioDuration(audioUrl);
-          actualDuration = Math.max(audioDur + 1, scene.duration_estimate_seconds);
+          // Add 1.5s padding so audio doesn't get cut off at scene transitions
+          actualDuration = Math.max(audioDur + 1.5, scene.duration_estimate_seconds);
           console.log(`Scene ${index + 1}: estimated=${scene.duration_estimate_seconds}s, audio=${audioDur.toFixed(1)}s, using=${actualDuration.toFixed(1)}s`);
         }
 
@@ -238,7 +240,12 @@ export default function VideoGeneration() {
           }
         }
 
-        updateSceneStatus(scene.id, { phase: "complete", progress: 100 });
+        updateSceneStatus(scene.id, {
+          phase: "complete",
+          progress: 100,
+          videoURL: grokVideoUrl || undefined,
+          audioURL: audioUrl || undefined,
+        });
 
         completedScenes++;
         setProgress(Math.round(10 + (completedScenes / totalScenes) * 60));
@@ -406,7 +413,7 @@ export default function VideoGeneration() {
           setProgress(100);
 
           // Track credits
-          const creditsForThis = tier.creditsPerScene * sceneAssets.length;
+          const creditsForThis = tier.usdPerScene * sceneAssets.length;
           setCreditsUsed(creditsUsed + creditsForThis);
 
           // Save to history
@@ -587,8 +594,8 @@ export default function VideoGeneration() {
                     </span>
                   )}
                   <div className="text-center">
-                    <p className="text-[10px] text-outline uppercase font-label tracking-widest">Credits Used</p>
-                    <p className="font-bold text-sm text-on-surface">{qualityTier === "basic" ? "FREE" : `$${(tier.creditsPerScene * (scriptData?.scenes.length || 0)).toFixed(4)}`}</p>
+                    <p className="text-[10px] text-outline uppercase font-label tracking-widest">Est. Cost</p>
+                    <p className="font-bold text-sm text-on-surface">{qualityTier === "basic" ? "FREE" : `~$${(tier.usdPerScene * (scriptData?.scenes.length || 0)).toFixed(2)}`}</p>
                   </div>
                 </div>
               </div>
@@ -598,7 +605,7 @@ export default function VideoGeneration() {
             <div className="col-span-12 lg:col-span-4 space-y-4 h-[calc(100vh-280px)] flex flex-col">
               <div className="flex items-center justify-between px-2">
                 <h3 className="font-headline text-lg font-bold">Generated Scenes</h3>
-                <span className="text-tertiary bg-tertiary/10 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tighter">Pollinations AI</span>
+                <span className="text-tertiary bg-tertiary/10 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tighter">{qualityTier === "basic" ? "Pollinations AI" : "xAI Grok"}</span>
               </div>
               <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
 
@@ -609,27 +616,58 @@ export default function VideoGeneration() {
                   const isError = status?.phase === "error";
 
                   if (isComplete) {
+                    const isPreview = previewSceneId === scene.id;
                     return (
-                      <div key={scene.id} className="p-4 rounded-xl glass-card flex items-start gap-4 hover:border-primary/30 transition-all cursor-pointer">
-                        <div className="w-20 h-14 rounded-lg overflow-hidden bg-surface-container-lowest relative flex-shrink-0">
-                          {status?.imageURL ? (
-                            <img src={status.imageURL} alt={`Scene ${i+1}`} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                              <span className="material-symbols-outlined text-white text-lg">check_circle</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-1 min-w-0">
-                              <h4 className="font-body text-sm font-semibold truncate">{String(i + 1).padStart(2, '0')}. Scene</h4>
-                              <span className="text-[9px] font-medium text-primary/70 bg-primary/5 px-1 rounded flex-shrink-0">done</span>
-                            </div>
-                            <span className="text-[10px] font-bold text-outline ml-2">{scene.duration_estimate_seconds}s</span>
+                      <div key={scene.id}>
+                        <div
+                          onClick={() => setPreviewSceneId(isPreview ? null : scene.id)}
+                          className={`p-4 rounded-xl glass-card flex items-start gap-4 hover:border-primary/30 transition-all cursor-pointer ${isPreview ? "border-primary/50 ring-1 ring-primary/30" : ""}`}
+                        >
+                          <div className="w-20 h-14 rounded-lg overflow-hidden bg-surface-container-lowest relative flex-shrink-0">
+                            {status?.imageURL ? (
+                              <img src={status.imageURL} alt={`Scene ${i+1}`} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                                <span className="material-symbols-outlined text-white text-lg">check_circle</span>
+                              </div>
+                            )}
+                            {status?.videoURL && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                <span className="material-symbols-outlined text-white text-sm">play_circle</span>
+                              </div>
+                            )}
                           </div>
-                          <p className="text-xs text-outline line-clamp-1 mt-1 italic">&quot;{scene.narration}&quot;</p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-1 min-w-0">
+                                <h4 className="font-body text-sm font-semibold truncate">{String(i + 1).padStart(2, '0')}. Scene</h4>
+                                <span className="text-[9px] font-medium text-primary/70 bg-primary/5 px-1 rounded flex-shrink-0">done</span>
+                              </div>
+                              <span className="text-[10px] font-bold text-outline ml-2">{scene.duration_estimate_seconds}s</span>
+                            </div>
+                            <p className="text-xs text-outline line-clamp-1 mt-1 italic">&quot;{scene.narration}&quot;</p>
+                          </div>
                         </div>
+                        {/* Scene Preview Panel */}
+                        {isPreview && (
+                          <div className="mt-2 p-3 rounded-xl bg-surface-container-highest border border-outline-variant/10 space-y-2">
+                            {status?.videoURL ? (
+                              <video
+                                src={status.videoURL}
+                                controls
+                                autoPlay
+                                className="w-full rounded-lg"
+                                style={{ maxHeight: 200 }}
+                              />
+                            ) : status?.imageURL ? (
+                              <img src={status.imageURL} alt={`Scene ${i+1} preview`} className="w-full rounded-lg" style={{ maxHeight: 200, objectFit: "cover" }} />
+                            ) : null}
+                            {status?.audioURL && (
+                              <audio src={status.audioURL} controls className="w-full h-8" />
+                            )}
+                            <p className="text-[11px] text-outline italic leading-snug">{scene.narration}</p>
+                          </div>
+                        )}
                       </div>
                     );
                   } else if (isActive) {

@@ -74,18 +74,22 @@ export async function POST(req: NextRequest) {
       } else {
         try {
           // Step 1: Submit video generation request
+          // Sanitize and limit prompt length for xAI (avoid 400 errors)
+          const cleanPrompt = (prompt || "")
+            .replace(/[<>{}|\\^`[\]]/g, "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .substring(0, 1000);
+
           const submitBody: Record<string, unknown> = {
             model: "grok-imagine-video",
-            prompt,
+            prompt: cleanPrompt,
             duration: clampedDuration,
             aspect_ratio: "16:9",
             resolution: "720p",
           };
 
-          // If we have an image, use image_url for image-to-video
-          if (imageDataUrl && imageDataUrl.startsWith("data:")) {
-            submitBody.image_url = imageDataUrl;
-          }
+          // Note: image_url data URIs are too large for video API, skip them
 
           const submitRes = await fetch("https://api.x.ai/v1/videos/generations", {
             method: "POST",

@@ -246,7 +246,6 @@ export default function Home() {
 
   const tier = QUALITY_TIERS[qualityTier];
   const sceneCount = Math.ceil(targetDurationMinutes * 60 / 8);
-  const estimatedCredits = (tier.creditsPerScene * sceneCount).toFixed(3);
   const estimatedUsd = (tier.usdPerScene * sceneCount).toFixed(2);
 
   const canGenerate = mode === "link" ? inputValue.trim().length > 0
@@ -565,7 +564,7 @@ export default function Home() {
                   );
                 })}
               </div>
-              <p className="text-[11px] text-outline pl-1">{tier.description} · Estimated: <span className="font-bold text-on-surface">{qualityTier === "basic" ? "FREE" : `$${estimatedUsd} USD (${estimatedCredits} credits)`}</span></p>
+              <p className="text-[11px] text-outline pl-1">{tier.description} · Estimated: <span className="font-bold text-on-surface">{qualityTier === "basic" ? "FREE" : `~$${estimatedUsd} USD`}</span></p>
             </div>
 
             {/* Duration — hide for music-video (duration comes from audio) */}

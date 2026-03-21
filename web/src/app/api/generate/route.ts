@@ -160,8 +160,10 @@ Return ONLY raw JSON (no markdown fences):
       }
     }
 
-    // Detect narrative style from topic keywords
-    const topicLower = extractedText.toLowerCase();
+    // Detect narrative style from the USER'S ORIGINAL INPUT only (topic/angle), NOT from extracted article content
+    // This prevents article words like "acquitted" matching "quit" and derailing the script
+    const userInput = ((topic || "") + " " + (angle || "")).toLowerCase().trim();
+    const topicLower = userInput;
     let narrativeStyle = "documentary";
     if (topicLower.startsWith("pov:") || topicLower.startsWith("pov |") || topicLower.startsWith("pov:")) {
       if (topicLower.includes("every") || topicLower.includes("level") || topicLower.includes("tier")) {
@@ -537,6 +539,10 @@ UNIVERSAL WRITING RULES:
 - NEVER use filler words or generic phrasing
 - Use psychological triggers: curiosity, suspense, surprise, empathy, aspiration
 - ALWAYS write in English unless the topic specifically involves other languages
+- The narration must tell the ACTUAL STORY from the source material — stick to the REAL facts, events, and people
+- NEVER narrate physical descriptions of characters — that's what the visual_prompt is for
+- The narration should NEVER say things like "He stands 6 foot 2 with a muscular frame" — instead, TELL THE STORY
+- Narration = storytelling voiceover. Visual_prompt = what the camera sees. Keep them separate.
 
 VISUAL PROMPT RULES — EXTREME LIKENESS REQUIRED:
 - Each scene's visual_prompt must describe EXACTLY what should appear on screen

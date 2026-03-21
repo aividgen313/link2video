@@ -41,7 +41,7 @@ export default function ScriptBuilder() {
 
   const tier = QUALITY_TIERS[qualityTier];
   const estimatedTotalCost = scriptData
-    ? (tier.creditsPerScene * scriptData.scenes.length).toFixed(4)
+    ? (tier.usdPerScene * scriptData.scenes.length).toFixed(4)
     : "0.00";
 
   // Generate image for a single scene
