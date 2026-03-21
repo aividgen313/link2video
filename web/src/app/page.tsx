@@ -564,7 +564,14 @@ export default function Home() {
                   );
                 })}
               </div>
-              <p className="text-[11px] text-outline pl-1">{tier.description} · Estimated: <span className="font-bold text-on-surface">{qualityTier === "basic" ? "FREE" : `~$${estimatedUsd} USD`}</span></p>
+              <p className="text-[11px] text-outline pl-1">{tier.description}</p>
+              <p className="text-[11px] text-outline pl-1">
+                {qualityTier === "basic" ? (
+                  <span className="font-bold text-emerald-400">FREE</span>
+                ) : (
+                  <>Estimated: <span className="font-bold text-on-surface">~${estimatedUsd}</span> for {sceneCount} scenes ({tier.usdBreakdown})</>
+                )}
+              </p>
             </div>
 
             {/* Duration — hide for music-video (duration comes from audio) */}

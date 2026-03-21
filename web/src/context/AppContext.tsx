@@ -73,29 +73,44 @@ export const VOICES = [
   { id: "elli", name: "Elli", gender: "Female", description: "Young & Energetic" },
 ];
 
-// xAI Grok pricing (as of 2026):
-// Text: grok-4-1-fast — $0.20/1M input, $0.50/1M output (~$0.001 per scene)
-// Image: grok-imagine-image — $0.02 per image
-// Video: grok-imagine-video — $0.05 per second
-// ElevenLabs TTS via Pollinations: ~$0.002 per scene
+// ═══════════════════════════════════════════════════════════════
+// xAI Grok EXACT pricing (from docs.x.ai/developers/models):
+//
+// TEXT: grok-4-1-fast-non-reasoning
+//   Input:  $0.20 / 1M tokens (cached: $0.05)
+//   Output: $0.50 / 1M tokens
+//   Per script gen (~3K in + 2K out): ~$0.0016
+//   Per scene (amortized across 8): ~$0.001
+//
+// IMAGE: grok-imagine-image = $0.02 per image
+//
+// VIDEO: grok-imagine-video = $0.05 per SECOND
+//   8-second scene = $0.40  ← THIS IS EXPENSIVE
+//   15-second scene = $0.75
+//
+// TTS: ElevenLabs via Pollinations (free with API key)
+// Edge TTS: free (basic tier)
+// ═══════════════════════════════════════════════════════════════
 
 export const QUALITY_TIERS = {
   basic: {
     label: "Basic",
-    description: "Free — Pollinations Text + Images (Ken Burns effect)",
+    description: "Free — Pollinations Text + Images + Ken Burns",
     usdPerScene: 0.00,
+    usdBreakdown: "Free (Pollinations)",
     color: "text-emerald-400",
     bgColor: "bg-emerald-400/10",
     borderColor: "border-emerald-400/20",
     useAIVideo: false,
-    usePollsTTS: false, // Uses Edge TTS (free)
+    usePollsTTS: false, // Edge TTS (free)
     imageModel: "pollinations",
     textModel: "pollinations",
   },
   medium: {
     label: "Medium",
     description: "Grok Text + Grok Images + Ken Burns + ElevenLabs TTS",
-    usdPerScene: 0.023, // $0.001 text + $0.02 image + $0.002 TTS
+    usdPerScene: 0.021, // $0.001 text + $0.02 image + $0 TTS (Pollinations free)
+    usdBreakdown: "$0.001 text + $0.02 image",
     color: "text-primary",
     bgColor: "bg-primary/10",
     borderColor: "border-primary/20",
@@ -107,7 +122,8 @@ export const QUALITY_TIERS = {
   pro: {
     label: "Pro",
     description: "Grok Text + Grok Images + Grok Video + ElevenLabs TTS",
-    usdPerScene: 0.42, // $0.001 text + $0.02 image + $0.05/s × 8s video + $0.002 TTS
+    usdPerScene: 0.42, // $0.001 text + $0.02 image + $0.40 video (8s × $0.05/s)
+    usdBreakdown: "$0.001 text + $0.02 image + $0.40 video (8s × $0.05/s)",
     color: "text-tertiary",
     bgColor: "bg-tertiary/10",
     borderColor: "border-tertiary/20",
