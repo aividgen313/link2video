@@ -40,12 +40,25 @@ export default function VideoGeneration() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
   const [stitchStatus, setStitchStatus] = useState<string>("");
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
   const ffmpegRef = useRef<FFmpeg | null>(null);
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
+
+  // Elapsed time timer
+  useEffect(() => {
+    if (isGenerating && !finalVideoUrl) {
+      setElapsedSeconds(0);
+      timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [isGenerating, finalVideoUrl]);
 
   useEffect(() => {
     ffmpegRef.current = new FFmpeg();
@@ -390,9 +403,14 @@ export default function VideoGeneration() {
               <div className="flex justify-between items-end">
                 <div className="flex items-center gap-2">
                   <span className="font-body text-sm font-semibold text-primary">Rendering Progress</span>
-                  <span className="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-tighter">Free</span>
+                  <span className="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-tighter">{tier.label}</span>
                 </div>
-                <span className="font-headline text-2xl font-bold">{progress}%</span>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-sm text-outline tabular-nums">
+                    {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')}
+                  </span>
+                  <span className="font-headline text-2xl font-bold">{progress}%</span>
+                </div>
               </div>
               <div className="h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-primary to-primary-container rounded-full shadow-[0_0_12px_rgba(75,142,255,0.4)] transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div>

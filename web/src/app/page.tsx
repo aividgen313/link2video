@@ -202,6 +202,7 @@ export default function Home() {
   const tier = QUALITY_TIERS[qualityTier];
   const sceneCount = Math.ceil(targetDurationMinutes * 60 / 8);
   const estimatedCredits = (tier.creditsPerScene * sceneCount).toFixed(3);
+  const estimatedUsd = (tier.usdPerScene * sceneCount).toFixed(2);
 
 
   return (
@@ -273,12 +274,12 @@ export default function Home() {
                       className={`py-2.5 px-2 rounded-xl flex flex-col items-center gap-0.5 transition-all ${isActive ? `${info.bgColor} ${info.color} border ${info.borderColor}` : "text-outline hover:bg-surface-variant/30"}`}
                     >
                       <span className="font-bold text-sm">{info.label}</span>
-                      <span className="text-[10px] opacity-70 leading-tight text-center hidden sm:block">{t === "basic" ? "FREE" : `~$${info.creditsPerScene}/scene`}</span>
+                      <span className="text-[10px] opacity-70 leading-tight text-center hidden sm:block">{t === "basic" ? "FREE" : `~$${info.usdPerScene.toFixed(3)}/scene`}</span>
                     </button>
                   );
                 })}
               </div>
-              <p className="text-[11px] text-outline pl-1">{tier.description} · Estimated: <span className="font-bold text-on-surface">{qualityTier === "basic" ? "FREE" : `$${estimatedCredits} credits`}</span></p>
+              <p className="text-[11px] text-outline pl-1">{tier.description} · Estimated: <span className="font-bold text-on-surface">{qualityTier === "basic" ? "FREE" : `$${estimatedUsd} USD (${estimatedCredits} credits)`}</span></p>
             </div>
 
             {/* Duration */}

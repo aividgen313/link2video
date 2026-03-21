@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Quality boosters for photorealism + full body accuracy
-    const suffix = ", ultra-realistic, photorealistic, 8k UHD, hyperdetailed, accurate likeness, exact resemblance, full body visible, correct anatomy, correct proportions, professional DSLR photography, cinematic lighting, sharp focus, in English";
+    const suffix = ", ultra-realistic, photorealistic, 8k UHD, hyperdetailed, accurate facial likeness, exact face resemblance, recognizable identity, correct anatomy, correct proportions, professional DSLR photography, cinematic lighting, sharp focus, detailed face, in English";
     const maxPromptLen = 900;
     const negativeEncoded = encodeURIComponent(NEGATIVE_PROMPT);
 

@@ -47,37 +47,49 @@ export const VOICES = [
   { id: "elli", name: "Elli", gender: "Female", description: "Young & Energetic" },
 ];
 
-// Credit costs per scene (in Pollinations credits)
+// Credit costs per scene (in Pollinations pollen credits)
+// USD estimate: ~$0.01 per 1 pollen credit (based on Pollinations pricing)
+export const POLLEN_TO_USD = 0.01;
+
 export const QUALITY_TIERS = {
   basic: {
     label: "Basic",
-    description: "Free — Edge TTS + AI Images (Ken Burns)",
-    creditsPerScene: 0.002,
+    description: "Free — Edge TTS + Grok Images (Ken Burns)",
+    creditsPerScene: 0.003,
+    usdPerScene: 0.00,
     color: "text-emerald-400",
     bgColor: "bg-emerald-400/10",
     borderColor: "border-emerald-400/20",
     useAIVideo: false,
     usePollsTTS: false, // Uses Edge TTS (free)
+    imageModel: "grok-imagine",
+    textModel: "claude",
   },
   medium: {
     label: "Medium",
-    description: "ElevenLabs TTS + HD Images",
-    creditsPerScene: 0.004,
+    description: "Claude Script + ElevenLabs TTS + HD Images",
+    creditsPerScene: 0.008,
+    usdPerScene: 0.008,
     color: "text-primary",
     bgColor: "bg-primary/10",
     borderColor: "border-primary/20",
     useAIVideo: false,
     usePollsTTS: true,
+    imageModel: "grok-imagine",
+    textModel: "claude",
   },
   pro: {
     label: "Pro",
-    description: "AI Video Generation (Wan model)",
-    creditsPerScene: 0.016,
+    description: "Claude Script + AI Video (Wan) + ElevenLabs TTS",
+    creditsPerScene: 0.025,
+    usdPerScene: 0.025,
     color: "text-tertiary",
     bgColor: "bg-tertiary/10",
     borderColor: "border-tertiary/20",
     useAIVideo: true,
     usePollsTTS: true,
+    imageModel: "grok-imagine",
+    textModel: "claude",
   },
 };
 

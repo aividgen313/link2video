@@ -23,6 +23,7 @@ export default function ScriptBuilder() {
   const [scenePreviewUrl, setScenePreviewUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isExtending, setIsExtending] = useState(false);
 
 
   useEffect(() => {
@@ -80,6 +81,88 @@ export default function ScriptBuilder() {
   const handleGenerateVideo = () => {
     router.push("/storyboard");
   };
+
+  // Continue Writing — AI generates more scenes to extend the script
+  const handleContinueWriting = async () => {
+    if (!scriptData || isExtending) return;
+    setIsExtending(true);
+    try {
+      const lastScenes = scriptData.scenes.slice(-3);
+      const currentDuration = scriptData.scenes.reduce((sum, s) => sum + s.duration_estimate_seconds, 0);
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: url || scriptData.title,
+          angle: scriptData.angle,
+          visualStyle: globalVisualStyle,
+          durationMinutes: 1,
+          continueFrom: lastScenes.map(s => s.narration).join(" "),
+          existingTitle: scriptData.title,
+        }),
+      });
+      const data = await res.json();
+      if (data.scenes && data.scenes.length > 0) {
+        const maxId = Math.max(...scriptData.scenes.map(s => s.id), 0);
+        const newScenes = data.scenes.map((s: any, i: number) => ({
+          ...s,
+          id: maxId + i + 1,
+          scene_number: scriptData.scenes.length + i + 1,
+        }));
+        setScriptData({
+          ...scriptData,
+          scenes: [...scriptData.scenes, ...newScenes],
+        });
+      }
+    } catch (err) {
+      console.error("Continue writing error:", err);
+    } finally {
+      setIsExtending(false);
+    }
+  };
+
+  // End Story — AI generates a final concluding scene
+  const handleEndStory = async () => {
+    if (!scriptData || isExtending) return;
+    setIsExtending(true);
+    try {
+      const lastScenes = scriptData.scenes.slice(-3);
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: url || scriptData.title,
+          angle: scriptData.angle,
+          visualStyle: globalVisualStyle,
+          durationMinutes: 0.2,
+          endStory: true,
+          continueFrom: lastScenes.map(s => s.narration).join(" "),
+          existingTitle: scriptData.title,
+        }),
+      });
+      const data = await res.json();
+      if (data.scenes && data.scenes.length > 0) {
+        const maxId = Math.max(...scriptData.scenes.map(s => s.id), 0);
+        const endScene = {
+          ...data.scenes[data.scenes.length - 1],
+          id: maxId + 1,
+          scene_number: scriptData.scenes.length + 1,
+        };
+        setScriptData({
+          ...scriptData,
+          scenes: [...scriptData.scenes, endScene],
+        });
+      }
+    } catch (err) {
+      console.error("End story error:", err);
+    } finally {
+      setIsExtending(false);
+    }
+  };
+
+  // Calculate script duration
+  const scriptDurationSeconds = scriptData?.scenes.reduce((sum, s) => sum + s.duration_estimate_seconds, 0) || 0;
+  const scriptDurationFormatted = `${Math.floor(scriptDurationSeconds / 60)}:${String(scriptDurationSeconds % 60).padStart(2, '0')}`;
 
   const handleRegenerateSceneImage = async () => {
     if (!activeScene?.visual_prompt) return;
@@ -288,6 +371,43 @@ export default function ScriptBuilder() {
               <span className="material-symbols-outlined" data-icon="add_circle">add_circle</span>
               Insert New Scene
             </button>
+
+            {/* Script Duration + Continue/End Buttons */}
+            <div className="space-y-3 mt-4">
+              <div className="flex items-center justify-between px-2">
+                <span className="text-xs text-outline">
+                  Script Duration: <span className="font-bold text-on-surface">{scriptDurationFormatted}</span>
+                  <span className="text-outline/60"> · {scriptData?.scenes.length || 0} scenes</span>
+                </span>
+                <span className="text-xs text-outline">
+                  Target: <span className="font-bold text-on-surface">{targetDurationMinutes} min</span>
+                </span>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleContinueWriting}
+                  disabled={isExtending || isLoading}
+                  className="flex-1 py-3 rounded-2xl font-body font-bold text-sm bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                >
+                  {isExtending ? (
+                    <><div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /> Writing...</>
+                  ) : (
+                    <><span className="material-symbols-outlined text-sm">add</span> Continue Writing</>
+                  )}
+                </button>
+                <button
+                  onClick={handleEndStory}
+                  disabled={isExtending || isLoading}
+                  className="flex-1 py-3 rounded-2xl font-body font-bold text-sm bg-tertiary/10 text-tertiary border border-tertiary/20 hover:bg-tertiary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                >
+                  {isExtending ? (
+                    <><div className="w-4 h-4 border-2 border-tertiary/30 border-t-tertiary rounded-full animate-spin" /> Writing...</>
+                  ) : (
+                    <><span className="material-symbols-outlined text-sm">flag</span> End Story</>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Right Side: Visual Prompt Builder */}

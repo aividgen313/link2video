@@ -4,7 +4,7 @@ import { generateGeminiText } from "@/lib/gemini";
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, url, angle, visualStyle = "Cinematic Documentary", durationMinutes = 3 } = await req.json();
+    const { topic, url, angle, visualStyle = "Cinematic Documentary", durationMinutes = 3, continueFrom, endStory, existingTitle } = await req.json();
 
     if (!topic && !url) {
       return NextResponse.json({ error: "URL or Topic is required" }, { status: 400 });
@@ -314,6 +314,17 @@ CRITICAL JSON RULES:
 - All strings must be valid JSON — escape double quotes with backslash (\\").
 - For heights, use feet-inches format without quote marks (e.g. "6 foot 6" not "6'6\\"").
 - Do NOT wrap the response in \`\`\`json or \`\`\` code blocks.
+${continueFrom ? `
+CONTINUATION MODE: You are continuing an existing script. The previous scenes ended with:
+"${continueFrom}"
+Continue the story naturally from where it left off. Generate new scenes that flow seamlessly.
+Keep the same title: "${existingTitle || "Untitled"}"
+` : ""}${endStory ? `
+ENDING MODE: You are writing the FINAL scene to conclude this story. The previous scenes ended with:
+"${continueFrom}"
+Write a powerful, memorable conclusion that wraps up the narrative. Make it emotionally resonant.
+Generate only 1-2 scenes maximum. Keep the same title: "${existingTitle || "Untitled"}"
+` : ""}
 `;
 
     // STEP 3: Generate the script
