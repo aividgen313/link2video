@@ -171,7 +171,7 @@ export default function Home() {
               <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Video Style</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {STYLE_TEMPLATES.map((s) => {
-                  const isActive = inputValue.startsWith(s.prefix) || inputValue === s.example;
+                  const isActive = activeStyle === s.label;
                   return (
                     <button
                       key={s.label}
