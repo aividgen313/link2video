@@ -80,7 +80,7 @@ export const QUALITY_TIERS = {
   },
   pro: {
     label: "Pro",
-    description: "Claude Script + AI Video (Wan) + ElevenLabs TTS",
+    description: "Claude Script + Grok Video + ElevenLabs TTS",
     creditsPerScene: 0.025,
     usdPerScene: 0.025,
     color: "text-tertiary",
@@ -121,7 +121,7 @@ interface AppContextType {
   targetDurationMinutes: number;
   setTargetDurationMinutes: (min: number) => void;
   storyboardImages: Record<number, string>;
-  setStoryboardImages: (imgs: Record<number, string>) => void;
+  setStoryboardImages: (imgs: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
   // Legacy (kept for script page compatibility)
   globalVideoModel: string;
   globalImageModel: string;

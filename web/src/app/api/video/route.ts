@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 export const maxDuration = 300;
 
 const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || "";
+const AIRFORCE_API_KEY = process.env.AIRFORCE_API_KEY || "";
 
 /**
  * Video generation — supports two modes:
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
     const {
       prompt,
       duration = 5,
-      mode = "kenburns", // "kenburns" or "ai"
+      mode = "kenburns", // "kenburns", "grok", or "ai"
       imageDataUrl,
     } = await req.json();
 
@@ -62,7 +63,129 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // MODE 2: AI Video Generation via Pollinations (requires credits)
+    // MODE 2: Grok Video via api.airforce (Pro tier)
+    if (mode === "grok") {
+      console.log("Video (Grok Video via api.airforce):", prompt?.substring(0, 60) + "...");
+      const clampedDuration = Math.min(Math.max(duration, 2), 15);
+
+      if (!AIRFORCE_API_KEY) {
+        console.warn("No AIRFORCE_API_KEY, falling back to Pollinations AI video");
+        // Fall through to Pollinations AI mode below
+      } else {
+        try {
+          // Submit video generation request
+          const submitRes = await fetch("https://api.airforce/v1/videos/generations", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${AIRFORCE_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: "grok-imagine-video",
+              prompt,
+              duration: clampedDuration,
+              aspect_ratio: "16:9",
+              resolution: "720p",
+            }),
+            signal: AbortSignal.timeout(30000),
+          });
+
+          if (!submitRes.ok) {
+            const errText = await submitRes.text().catch(() => "");
+            console.warn(`Grok Video submit failed: ${submitRes.status}`, errText.substring(0, 200));
+            if (submitRes.status === 402 || submitRes.status === 403) {
+              return NextResponse.json({
+                error: "Insufficient api.airforce credits for Grok Video.",
+                isCreditsError: true,
+                retryable: false,
+              }, { status: 402 });
+            }
+            // Fall through to Pollinations
+          } else {
+            const submitData = await submitRes.json();
+
+            // If we get a direct video URL back
+            if (submitData.video?.url || submitData.url) {
+              const videoUrl = submitData.video?.url || submitData.url;
+              const videoRes = await fetch(videoUrl, { signal: AbortSignal.timeout(60000) });
+              if (videoRes.ok) {
+                const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
+                if (videoBuffer.length > 1000) {
+                  return NextResponse.json({
+                    success: true,
+                    videoUrl: `data:video/mp4;base64,${videoBuffer.toString("base64")}`,
+                    videoUUID: uuidv4(),
+                    useKenBurns: false,
+                    cost: 0,
+                    duration: clampedDuration,
+                  });
+                }
+              }
+            }
+
+            // If async (request_id returned), poll for result
+            if (submitData.request_id || submitData.id) {
+              const requestId = submitData.request_id || submitData.id;
+              console.log(`Grok Video request submitted: ${requestId}, polling...`);
+
+              // Poll up to 4 minutes
+              const pollStart = Date.now();
+              const maxPollMs = 240000;
+              while (Date.now() - pollStart < maxPollMs) {
+                await new Promise(r => setTimeout(r, 5000)); // wait 5s between polls
+
+                try {
+                  const pollRes = await fetch(`https://api.airforce/v1/videos/generations/${requestId}`, {
+                    headers: { "Authorization": `Bearer ${AIRFORCE_API_KEY}` },
+                    signal: AbortSignal.timeout(15000),
+                  });
+
+                  if (!pollRes.ok) {
+                    console.warn(`Grok Video poll: ${pollRes.status}`);
+                    continue;
+                  }
+
+                  const pollData = await pollRes.json();
+                  console.log(`Grok Video status: ${pollData.status}`);
+
+                  if (pollData.status === "done" || pollData.status === "completed") {
+                    const videoUrl = pollData.video?.url || pollData.url || pollData.output?.url;
+                    if (videoUrl) {
+                      const videoRes = await fetch(videoUrl, { signal: AbortSignal.timeout(60000) });
+                      if (videoRes.ok) {
+                        const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
+                        if (videoBuffer.length > 1000) {
+                          return NextResponse.json({
+                            success: true,
+                            videoUrl: `data:video/mp4;base64,${videoBuffer.toString("base64")}`,
+                            videoUUID: uuidv4(),
+                            useKenBurns: false,
+                            cost: 0,
+                            duration: clampedDuration,
+                          });
+                        }
+                      }
+                    }
+                  } else if (pollData.status === "failed" || pollData.status === "expired") {
+                    console.warn("Grok Video failed:", pollData);
+                    break;
+                  }
+                } catch (pollErr) {
+                  console.warn("Grok Video poll error:", pollErr);
+                }
+              }
+
+              console.warn("Grok Video timed out or failed, falling back to Pollinations");
+            }
+          }
+        } catch (grokErr: any) {
+          console.warn("Grok Video error, falling back to Pollinations:", grokErr.message);
+        }
+      }
+      // Fall through to Pollinations AI mode if Grok fails
+    }
+
+    // MODE 3: AI Video Generation via Pollinations (requires credits)
     // Try multiple video models for reliability
     console.log("Video (AI mode):", prompt?.substring(0, 60) + "...");
 

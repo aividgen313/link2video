@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     const maxPromptLen = 900;
     const negativeEncoded = encodeURIComponent(NEGATIVE_PROMPT);
 
-    // Models ranked by quality — grok-imagine first, then fallbacks
+    // Models ranked by quality — grok-imagine (paid via Pollinations) first, then fallbacks
     const MODELS_TO_TRY = model ? [model] : ["grok-imagine", "flux", "nanobanana-pro"];
 
     // Build retry attempts: each model with progressively simpler prompts

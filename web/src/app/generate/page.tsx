@@ -18,6 +18,21 @@ type SceneStatus = {
   progress: number;
 };
 
+/** Measure actual audio duration from a data URL using HTML Audio element */
+function getAudioDuration(dataUrl: string): Promise<number> {
+  return new Promise((resolve) => {
+    const audio = new Audio(dataUrl);
+    audio.addEventListener('loadedmetadata', () => {
+      resolve(audio.duration || 8);
+    });
+    audio.addEventListener('error', () => {
+      resolve(8); // fallback
+    });
+    // Timeout fallback in case metadata never loads
+    setTimeout(() => resolve(8), 5000);
+  });
+}
+
 export default function VideoGeneration() {
   const {
     scriptData,
@@ -81,6 +96,8 @@ export default function VideoGeneration() {
       }
 
       updateSceneStatus(scene.id, { phase: "image", progress: 20 });
+      // Use Grok Imagine via Pollinations for Pro and Medium tiers
+      const imageModel = (qualityTier === "pro" || qualityTier === "medium") ? "grok-imagine" : undefined;
       const res = await fetch("/api/runware/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -88,6 +105,7 @@ export default function VideoGeneration() {
           prompt: scene.visual_prompt,
           width: 1280,
           height: 768,
+          ...(imageModel && { model: imageModel }),
         }),
       });
 
@@ -182,16 +200,48 @@ export default function VideoGeneration() {
         const imageResult = await generateSceneImage(scene);
         if (!imageResult) throw new Error(`Scene ${index + 1} image failed`);
 
-        // Mark scene as complete once image is ready
-        // (video will be created from image via FFmpeg Ken Burns effect)
-        updateSceneStatus(scene.id, { phase: "complete", progress: 100 });
-
+        // Wait for TTS to finish and measure actual audio duration
         const audioUrl = await audioPromise;
+        let actualDuration = scene.duration_estimate_seconds;
+        if (audioUrl) {
+          const audioDur = await getAudioDuration(audioUrl);
+          // Use actual audio duration + 1s buffer so narration never cuts off
+          actualDuration = Math.max(audioDur + 1, scene.duration_estimate_seconds);
+          console.log(`Scene ${index + 1}: estimated=${scene.duration_estimate_seconds}s, audio=${audioDur.toFixed(1)}s, using=${actualDuration.toFixed(1)}s`);
+        }
+
+        // Pro tier: generate Grok Video clip via api.airforce
+        let grokVideoUrl: string | null = null;
+        if (tier.useAIVideo) {
+          try {
+            updateSceneStatus(scene.id, { phase: "video", progress: 70 });
+            const videoRes = await fetch("/api/video", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                prompt: scene.visual_prompt,
+                duration: Math.min(Math.ceil(actualDuration), 15),
+                mode: "grok",
+              }),
+            });
+            const videoData = await videoRes.json();
+            if (videoData.success && videoData.videoUrl && !videoData.useKenBurns) {
+              grokVideoUrl = videoData.videoUrl;
+              console.log(`Scene ${index + 1}: Grok Video generated`);
+            } else {
+              console.warn(`Scene ${index + 1}: Grok Video unavailable, using Ken Burns`);
+            }
+          } catch (videoErr) {
+            console.warn(`Scene ${index + 1}: Grok Video error, using Ken Burns:`, videoErr);
+          }
+        }
+
+        updateSceneStatus(scene.id, { phase: "complete", progress: 100 });
 
         completedScenes++;
         setProgress(Math.round(10 + (completedScenes / totalScenes) * 60));
 
-        return { image: imageResult.imageURL, audio: audioUrl, duration: scene.duration_estimate_seconds, narration: scene.narration };
+        return { image: imageResult.imageURL, audio: audioUrl, duration: actualDuration, narration: scene.narration, grokVideoUrl };
       });
 
       try {
@@ -219,29 +269,37 @@ export default function VideoGeneration() {
 
           for (let index = 0; index < sceneAssets.length; index++) {
             const asset = sceneAssets[index];
-            const imgFile = `img${index}.jpg`;
-            const vidFile = `vid${index}.mp4`;
             const mergedFile = `scene${index}.mp4`;
+            // Use audio-driven duration so narration never cuts off
             const sceneDuration = Math.max(asset.duration || 8, 4);
+            const useGrokVideo = tier.useAIVideo;
 
-            // Write the image file
-            await ffmpeg.writeFile(imgFile, await fetchFile(asset.image));
+            let vidFile = `vid${index}.mp4`;
 
-            // Create video from image with Ken Burns zoom effect using selected dimensions
-            const outW = dim.width;
-            const outH = dim.height;
-            await ffmpeg.exec([
-              '-loop', '1',
-              '-i', imgFile,
-              '-vf', `scale=${outW * 2}:${outH * 2},zoompan=z='min(zoom+0.0015,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${sceneDuration * 25}:s=${outW}x${outH}:fps=25`,
-              '-c:v', 'libx264',
-              '-t', String(sceneDuration),
-              '-pix_fmt', 'yuv420p',
-              '-r', '25',
-              vidFile,
-            ]);
+            if (useGrokVideo && asset.grokVideoUrl) {
+              // Pro tier: use Grok Video clip
+              setStitchStatus(`Using Grok Video for scene ${index + 1}...`);
+              await ffmpeg.writeFile(vidFile, await fetchFile(asset.grokVideoUrl));
+            } else {
+              // Ken Burns: create video from image with zoom/pan effect
+              const imgFile = `img${index}.jpg`;
+              await ffmpeg.writeFile(imgFile, await fetchFile(asset.image));
 
-            // Merge with TTS audio if available
+              const outW = dim.width;
+              const outH = dim.height;
+              await ffmpeg.exec([
+                '-loop', '1',
+                '-i', imgFile,
+                '-vf', `scale=${outW * 2}:${outH * 2},zoompan=z='min(zoom+0.0015,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${Math.ceil(sceneDuration) * 25}:s=${outW}x${outH}:fps=25`,
+                '-c:v', 'libx264',
+                '-t', String(Math.ceil(sceneDuration)),
+                '-pix_fmt', 'yuv420p',
+                '-r', '25',
+                vidFile,
+              ]);
+            }
+
+            // Merge with TTS audio — video is already >= audio duration
             if (asset.audio) {
               const audFile = `tts${index}.mp3`;
               await ffmpeg.writeFile(audFile, await fetchFile(asset.audio));
@@ -249,7 +307,7 @@ export default function VideoGeneration() {
                 '-i', vidFile, '-i', audFile,
                 '-c:v', 'copy', '-c:a', 'aac',
                 '-map', '0:v:0', '-map', '1:a:0',
-                '-shortest',
+                '-t', String(Math.ceil(sceneDuration)),
                 mergedFile,
               ]);
             } else {
@@ -258,8 +316,7 @@ export default function VideoGeneration() {
                 '-i', vidFile,
                 '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo',
                 '-c:v', 'copy', '-c:a', 'aac',
-                '-t', String(sceneDuration),
-                '-shortest',
+                '-t', String(Math.ceil(sceneDuration)),
                 mergedFile,
               ]);
             }
