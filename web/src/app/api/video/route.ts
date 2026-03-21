@@ -142,8 +142,9 @@ export async function POST(req: NextRequest) {
 
               const pollStart = Date.now();
               const maxPollMs = 240000; // 4 minutes max
+              let pollInterval = 10000; // start at 10s, back off on 429
               while (Date.now() - pollStart < maxPollMs) {
-                await new Promise(r => setTimeout(r, 5000)); // poll every 5s
+                await new Promise(r => setTimeout(r, pollInterval));
 
                 try {
                   const pollRes = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
@@ -153,8 +154,15 @@ export async function POST(req: NextRequest) {
 
                   if (!pollRes.ok) {
                     console.warn(`xAI poll ${pollRes.status}`);
+                    if (pollRes.status === 429) {
+                      // Back off: increase interval up to 30s
+                      pollInterval = Math.min(pollInterval + 5000, 30000);
+                      console.log(`xAI rate limited, backing off to ${pollInterval / 1000}s`);
+                    }
                     continue;
                   }
+                  // Reset interval on success
+                  pollInterval = 10000;
 
                   const pollData = await pollRes.json();
                   console.log(`xAI Grok Video status: ${pollData.status}`);

@@ -196,27 +196,38 @@ export default function VideoGeneration() {
       const totalScenes = scriptData.scenes.length;
       let completedScenes = 0;
 
-      // Generate images + TTS for all scenes in parallel
-      const sceneResults = scriptData.scenes.map(async (scene, index) => {
-        setActiveSceneIndex(index);
+      // Step 1: Generate images + TTS for all scenes in parallel (these are fast)
+      setStitchStatus("Generating images & voiceovers...");
+      const imageAudioResults = await Promise.all(
+        scriptData.scenes.map(async (scene, index) => {
+          setActiveSceneIndex(index);
+          const audioPromise = isMusicVideo ? Promise.resolve(null) : generateSceneAudio(scene);
+          const imageResult = await generateSceneImage(scene);
+          if (!imageResult) throw new Error(`Scene ${index + 1} image failed`);
+          const audioUrl = await audioPromise;
+          let actualDuration = scene.duration_estimate_seconds;
+          if (!isMusicVideo && audioUrl) {
+            const audioDur = await getAudioDuration(audioUrl);
+            actualDuration = Math.max(audioDur + 1.5, scene.duration_estimate_seconds);
+            console.log(`Scene ${index + 1}: estimated=${scene.duration_estimate_seconds}s, audio=${audioDur.toFixed(1)}s, using=${actualDuration.toFixed(1)}s`);
+          }
 
-        // Music Video mode: skip TTS (user's audio is the soundtrack)
-        const audioPromise = isMusicVideo ? Promise.resolve(null) : generateSceneAudio(scene);
-        const imageResult = await generateSceneImage(scene);
-        if (!imageResult) throw new Error(`Scene ${index + 1} image failed`);
+          completedScenes++;
+          setProgress(Math.round(10 + (completedScenes / totalScenes) * 30));
 
-        const audioUrl = await audioPromise;
-        let actualDuration = scene.duration_estimate_seconds;
-        if (!isMusicVideo && audioUrl) {
-          const audioDur = await getAudioDuration(audioUrl);
-          // Add 1.5s padding so audio doesn't get cut off at scene transitions
-          actualDuration = Math.max(audioDur + 1.5, scene.duration_estimate_seconds);
-          console.log(`Scene ${index + 1}: estimated=${scene.duration_estimate_seconds}s, audio=${audioDur.toFixed(1)}s, using=${actualDuration.toFixed(1)}s`);
-        }
+          return { image: imageResult.imageURL, audio: audioUrl, duration: actualDuration, narration: scene.narration, scene };
+        })
+      );
 
-        // Pro tier: generate Grok Video clip
-        let grokVideoUrl: string | null = null;
-        if (tier.useAIVideo) {
+      // Step 2: Generate AI videos SEQUENTIALLY (one at a time to avoid xAI 429 rate limits)
+      const sceneAssets: { image: string; audio: string | null; duration: number; narration: string; grokVideoUrl: string | null }[] = [];
+      if (tier.useAIVideo) {
+        setStitchStatus("Generating AI video clips (one at a time)...");
+        for (let i = 0; i < imageAudioResults.length; i++) {
+          const result = imageAudioResults[i];
+          const scene = result.scene;
+          let grokVideoUrl: string | null = null;
+
           try {
             updateSceneStatus(scene.id, { phase: "video", progress: 70 });
             const videoRes = await fetch("/api/video", {
@@ -224,38 +235,44 @@ export default function VideoGeneration() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 prompt: scene.visual_prompt,
-                duration: Math.min(Math.ceil(actualDuration), 15),
+                duration: Math.min(Math.ceil(result.duration), 15),
                 mode: "grok",
               }),
             });
             const videoData = await videoRes.json();
             if (videoData.success && videoData.videoUrl && !videoData.useKenBurns) {
               grokVideoUrl = videoData.videoUrl;
-              console.log(`Scene ${index + 1}: Grok Video generated`);
+              console.log(`Scene ${i + 1}: Grok Video generated`);
             } else {
-              console.warn(`Scene ${index + 1}: Grok Video unavailable, using Ken Burns`);
+              console.warn(`Scene ${i + 1}: Grok Video unavailable, using Ken Burns`);
             }
           } catch (videoErr) {
-            console.warn(`Scene ${index + 1}: Grok Video error, using Ken Burns:`, videoErr);
+            console.warn(`Scene ${i + 1}: Grok Video error, using Ken Burns:`, videoErr);
           }
+
+          updateSceneStatus(scene.id, {
+            phase: "complete",
+            progress: 100,
+            videoURL: grokVideoUrl || undefined,
+            audioURL: result.audio || undefined,
+          });
+
+          setProgress(Math.round(40 + ((i + 1) / imageAudioResults.length) * 30));
+          sceneAssets.push({ image: result.image, audio: result.audio, duration: result.duration, narration: result.narration, grokVideoUrl });
         }
-
-        updateSceneStatus(scene.id, {
-          phase: "complete",
-          progress: 100,
-          videoURL: grokVideoUrl || undefined,
-          audioURL: audioUrl || undefined,
-        });
-
-        completedScenes++;
-        setProgress(Math.round(10 + (completedScenes / totalScenes) * 60));
-
-        return { image: imageResult.imageURL, audio: audioUrl, duration: actualDuration, narration: scene.narration, grokVideoUrl };
-      });
+      } else {
+        // No AI video — just mark all complete
+        for (const result of imageAudioResults) {
+          updateSceneStatus(result.scene.id, {
+            phase: "complete",
+            progress: 100,
+            audioURL: result.audio || undefined,
+          });
+          sceneAssets.push({ image: result.image, audio: result.audio, duration: result.duration, narration: result.narration, grokVideoUrl: null });
+        }
+      }
 
       try {
-        setStitchStatus("Generating images & voiceovers...");
-        const sceneAssets = await Promise.all(sceneResults);
         const resolvedMusicUrl = await musicPromise;
 
         setProgress(75);
