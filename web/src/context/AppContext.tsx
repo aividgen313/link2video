@@ -80,7 +80,7 @@ export const POLLEN_TO_USD = 0.01;
 export const QUALITY_TIERS = {
   basic: {
     label: "Basic",
-    description: "Free — Edge TTS + Grok Images (Ken Burns)",
+    description: "Free — Edge TTS + Pollinations Images (Ken Burns)",
     creditsPerScene: 0.003,
     usdPerScene: 0.00,
     color: "text-emerald-400",
@@ -93,7 +93,7 @@ export const QUALITY_TIERS = {
   },
   medium: {
     label: "Medium",
-    description: "Claude Script + ElevenLabs TTS + HD Images",
+    description: "Claude Script + ElevenLabs TTS + Grok Images",
     creditsPerScene: 0.008,
     usdPerScene: 0.008,
     color: "text-primary",
@@ -106,7 +106,7 @@ export const QUALITY_TIERS = {
   },
   pro: {
     label: "Pro",
-    description: "Claude Script + Grok Video + ElevenLabs TTS",
+    description: "Claude Script + Grok Video + Grok Images + ElevenLabs TTS",
     creditsPerScene: 0.025,
     usdPerScene: 0.025,
     color: "text-tertiary",

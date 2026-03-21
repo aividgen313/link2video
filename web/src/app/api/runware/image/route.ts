@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || "";
+const XAI_API_KEY = process.env.XAI_API_KEY || "";
 
 const NEGATIVE_PROMPT = [
   // Anatomy / Body
@@ -56,8 +57,63 @@ function sanitizePrompt(prompt: string, maxLen: number): string {
 }
 
 /**
- * Image generation via Pollinations.ai — FREE with API key
- * Retries with simplified prompt on failure
+ * Generate image via xAI Grok Imagine API
+ */
+async function generateViaGrok(prompt: string): Promise<{ dataUrl: string; id: string } | null> {
+  if (!XAI_API_KEY) return null;
+
+  try {
+    console.log("Trying xAI Grok Imagine...");
+    const response = await fetch("https://api.x.ai/v1/images/generations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "grok-imagine-image",
+        prompt: prompt,
+        n: 1,
+        response_format: "url",
+      }),
+      signal: AbortSignal.timeout(60000),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      console.warn(`xAI Grok Imagine failed: ${response.status}`, errText.substring(0, 200));
+      return null;
+    }
+
+    const data = await response.json();
+    const imageUrl = data?.data?.[0]?.url;
+
+    if (!imageUrl) {
+      console.warn("xAI Grok returned no image URL");
+      return null;
+    }
+
+    // Download the image and convert to base64
+    const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });
+    if (!imgRes.ok) {
+      console.warn(`Failed to download Grok image: ${imgRes.status}`);
+      return null;
+    }
+
+    const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
+    const contentType = imgRes.headers.get("content-type") || "image/png";
+    const dataUrl = `data:${contentType};base64,${imgBuffer.toString("base64")}`;
+
+    console.log("xAI Grok Imagine success");
+    return { dataUrl, id: `grok-${Date.now()}` };
+  } catch (err: any) {
+    console.warn("xAI Grok Imagine error:", err.message);
+    return null;
+  }
+}
+
+/**
+ * Image generation — tries xAI Grok first (if useGrok), then Pollinations fallback
  */
 export async function POST(req: NextRequest) {
   try {
@@ -66,6 +122,7 @@ export async function POST(req: NextRequest) {
       width = 1280,
       height = 768,
       model,
+      useGrok = false,
     } = await req.json();
 
     if (!prompt) {
@@ -77,7 +134,26 @@ export async function POST(req: NextRequest) {
     const maxPromptLen = 900;
     const negativeEncoded = encodeURIComponent(NEGATIVE_PROMPT);
 
-    // Models ranked by quality — grok-imagine (paid via Pollinations) first, then fallbacks
+    // Try xAI Grok Imagine first for Medium/Pro/Story/Music tiers
+    if (useGrok) {
+      const grokPrompt = sanitizePrompt(prompt, maxPromptLen) + suffix;
+      const result = await generateViaGrok(grokPrompt);
+      if (result) {
+        return NextResponse.json({
+          success: true,
+          images: [{
+            imageURL: result.dataUrl,
+            imageUUID: result.id,
+            seed: 0,
+            cost: 0,
+          }],
+        });
+      }
+      console.warn("Grok Imagine failed, falling back to Pollinations...");
+    }
+
+    // Fallback: Pollinations.ai
+    // Models ranked by quality — grok-imagine first, then fallbacks
     const MODELS_TO_TRY = model ? [model] : ["grok-imagine", "flux", "nanobanana-pro"];
 
     // Build retry attempts: each model with progressively simpler prompts

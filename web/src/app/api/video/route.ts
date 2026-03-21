@@ -5,12 +5,13 @@ import { v4 as uuidv4 } from "uuid";
 export const maxDuration = 300;
 
 const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || "";
-const AIRFORCE_API_KEY = process.env.AIRFORCE_API_KEY || "";
+const XAI_API_KEY = process.env.XAI_API_KEY || "";
 
 /**
- * Video generation — supports two modes:
+ * Video generation — supports three modes:
  * 1. "kenburns" (FREE) — Returns the image, client creates video with FFmpeg zoom/pan
- * 2. "ai" (paid credits) — Pollinations AI video via wan model
+ * 2. "grok" (paid) — xAI Grok Video (grok-imagine-video) with async polling
+ * 3. "ai" (paid credits) — Pollinations AI video via wan model
  */
 export async function POST(req: NextRequest) {
   try {
@@ -63,39 +64,45 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // MODE 2: Grok Video via api.airforce (Pro tier)
+    // MODE 2: Grok Video via xAI API (Pro tier)
     if (mode === "grok") {
-      console.log("Video (Grok Video via api.airforce):", prompt?.substring(0, 60) + "...");
+      console.log("Video (xAI Grok Video):", prompt?.substring(0, 60) + "...");
       const clampedDuration = Math.min(Math.max(duration, 2), 15);
 
-      if (!AIRFORCE_API_KEY) {
-        console.warn("No AIRFORCE_API_KEY, falling back to Pollinations AI video");
-        // Fall through to Pollinations AI mode below
+      if (!XAI_API_KEY) {
+        console.warn("No XAI_API_KEY, falling back to Pollinations AI video");
       } else {
         try {
-          // Submit video generation request
-          const submitRes = await fetch("https://api.airforce/v1/videos/generations", {
+          // Step 1: Submit video generation request
+          const submitBody: Record<string, unknown> = {
+            model: "grok-imagine-video",
+            prompt,
+            duration: clampedDuration,
+            aspect_ratio: "16:9",
+            resolution: "720p",
+          };
+
+          // If we have an image, use image_url for image-to-video
+          if (imageDataUrl && imageDataUrl.startsWith("data:")) {
+            submitBody.image_url = imageDataUrl;
+          }
+
+          const submitRes = await fetch("https://api.x.ai/v1/videos/generations", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${AIRFORCE_API_KEY}`,
+              "Authorization": `Bearer ${XAI_API_KEY}`,
             },
-            body: JSON.stringify({
-              model: "grok-imagine-video",
-              prompt,
-              duration: clampedDuration,
-              aspect_ratio: "16:9",
-              resolution: "720p",
-            }),
+            body: JSON.stringify(submitBody),
             signal: AbortSignal.timeout(30000),
           });
 
           if (!submitRes.ok) {
             const errText = await submitRes.text().catch(() => "");
-            console.warn(`Grok Video submit failed: ${submitRes.status}`, errText.substring(0, 200));
-            if (submitRes.status === 402 || submitRes.status === 403) {
+            console.warn(`xAI Grok Video submit failed: ${submitRes.status}`, errText.substring(0, 300));
+            if (submitRes.status === 402 || submitRes.status === 403 || submitRes.status === 429) {
               return NextResponse.json({
-                error: "Insufficient api.airforce credits for Grok Video.",
+                error: "xAI Grok Video rate limited or insufficient credits.",
                 isCreditsError: true,
                 retryable: false,
               }, { status: 402 });
@@ -103,14 +110,15 @@ export async function POST(req: NextRequest) {
             // Fall through to Pollinations
           } else {
             const submitData = await submitRes.json();
+            console.log("xAI Grok Video submit response:", JSON.stringify(submitData).substring(0, 300));
 
-            // If we get a direct video URL back
-            if (submitData.video?.url || submitData.url) {
-              const videoUrl = submitData.video?.url || submitData.url;
-              const videoRes = await fetch(videoUrl, { signal: AbortSignal.timeout(60000) });
+            // Check for direct video URL in response
+            if (submitData.video?.url) {
+              const videoRes = await fetch(submitData.video.url, { signal: AbortSignal.timeout(60000) });
               if (videoRes.ok) {
                 const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
                 if (videoBuffer.length > 1000) {
+                  console.log("xAI Grok Video returned directly");
                   return NextResponse.json({
                     success: true,
                     videoUrl: `data:video/mp4;base64,${videoBuffer.toString("base64")}`,
@@ -123,38 +131,38 @@ export async function POST(req: NextRequest) {
               }
             }
 
-            // If async (request_id returned), poll for result
-            if (submitData.request_id || submitData.id) {
-              const requestId = submitData.request_id || submitData.id;
-              console.log(`Grok Video request submitted: ${requestId}, polling...`);
+            // Step 2: Async polling — xAI returns { request_id: "..." }
+            const requestId = submitData.request_id || submitData.id;
+            if (requestId) {
+              console.log(`xAI Grok Video request: ${requestId}, polling...`);
 
-              // Poll up to 4 minutes
               const pollStart = Date.now();
-              const maxPollMs = 240000;
+              const maxPollMs = 240000; // 4 minutes max
               while (Date.now() - pollStart < maxPollMs) {
-                await new Promise(r => setTimeout(r, 5000)); // wait 5s between polls
+                await new Promise(r => setTimeout(r, 5000)); // poll every 5s
 
                 try {
-                  const pollRes = await fetch(`https://api.airforce/v1/videos/generations/${requestId}`, {
-                    headers: { "Authorization": `Bearer ${AIRFORCE_API_KEY}` },
+                  const pollRes = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
+                    headers: { "Authorization": `Bearer ${XAI_API_KEY}` },
                     signal: AbortSignal.timeout(15000),
                   });
 
                   if (!pollRes.ok) {
-                    console.warn(`Grok Video poll: ${pollRes.status}`);
+                    console.warn(`xAI poll ${pollRes.status}`);
                     continue;
                   }
 
                   const pollData = await pollRes.json();
-                  console.log(`Grok Video status: ${pollData.status}`);
+                  console.log(`xAI Grok Video status: ${pollData.status}`);
 
                   if (pollData.status === "done" || pollData.status === "completed") {
-                    const videoUrl = pollData.video?.url || pollData.url || pollData.output?.url;
+                    const videoUrl = pollData.video?.url;
                     if (videoUrl) {
                       const videoRes = await fetch(videoUrl, { signal: AbortSignal.timeout(60000) });
                       if (videoRes.ok) {
                         const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
                         if (videoBuffer.length > 1000) {
+                          console.log("xAI Grok Video completed successfully");
                           return NextResponse.json({
                             success: true,
                             videoUrl: `data:video/mp4;base64,${videoBuffer.toString("base64")}`,
@@ -167,19 +175,20 @@ export async function POST(req: NextRequest) {
                       }
                     }
                   } else if (pollData.status === "failed" || pollData.status === "expired") {
-                    console.warn("Grok Video failed:", pollData);
+                    console.warn("xAI Grok Video failed:", JSON.stringify(pollData).substring(0, 200));
                     break;
                   }
-                } catch (pollErr) {
-                  console.warn("Grok Video poll error:", pollErr);
+                  // "pending" — keep polling
+                } catch (pollErr: any) {
+                  console.warn("xAI poll error:", pollErr.message);
                 }
               }
 
-              console.warn("Grok Video timed out or failed, falling back to Pollinations");
+              console.warn("xAI Grok Video timed out, falling back to Pollinations");
             }
           }
         } catch (grokErr: any) {
-          console.warn("Grok Video error, falling back to Pollinations:", grokErr.message);
+          console.warn("xAI Grok Video error, falling back:", grokErr.message);
         }
       }
       // Fall through to Pollinations AI mode if Grok fails
@@ -187,7 +196,7 @@ export async function POST(req: NextRequest) {
 
     // MODE 3: AI Video Generation via Pollinations (requires credits)
     // Try multiple video models for reliability
-    console.log("Video (AI mode):", prompt?.substring(0, 60) + "...");
+    console.log("Video (Pollinations AI mode):", prompt?.substring(0, 60) + "...");
 
     const seed = Math.floor(Math.random() * 1000000);
     const clampedDuration = Math.min(Math.max(duration, 2), 10);

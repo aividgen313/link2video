@@ -99,8 +99,8 @@ export default function VideoGeneration() {
       }
 
       updateSceneStatus(scene.id, { phase: "image", progress: 20 });
-      // Use Grok Imagine via Pollinations for Pro and Medium tiers
-      const imageModel = (qualityTier === "pro" || qualityTier === "medium") ? "grok-imagine" : undefined;
+      // Use xAI Grok Imagine for Pro, Medium, Story, and Music Video modes
+      const useGrok = qualityTier === "pro" || qualityTier === "medium" || mode === "short-story" || mode === "music-video";
       const res = await fetch("/api/runware/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -108,7 +108,7 @@ export default function VideoGeneration() {
           prompt: scene.visual_prompt,
           width: 1280,
           height: 768,
-          ...(imageModel && { model: imageModel }),
+          useGrok,
         }),
       });
 
