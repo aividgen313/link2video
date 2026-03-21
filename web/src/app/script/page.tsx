@@ -51,21 +51,7 @@ export default function ScriptBuilder() {
 
     setGeneratingImages(prev => ({ ...prev, [scene.id]: true }));
     try {
-      // Use xAI Grok for Pro, Medium, Story, and Music Video modes
-      const useGrok = qualityTier === "pro" || qualityTier === "medium" || mode === "short-story" || mode === "music-video";
-
-      // Find best matching reference image for this scene's subjects
-      let refUrl: string | undefined;
-      if (useGrok && Object.keys(referenceImages).length > 0) {
-        const promptLower = (scene.visual_prompt + " " + scene.narration).toLowerCase();
-        for (const [name, urls] of Object.entries(referenceImages)) {
-          if (urls.length > 0 && promptLower.includes(name)) {
-            refUrl = urls[0];
-            break;
-          }
-        }
-      }
-
+      // All tiers use Pollinations (flux/nanobanana-pro) for images — cleaner results
       const res = await fetch("/api/runware/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,8 +59,6 @@ export default function ScriptBuilder() {
           prompt: scene.visual_prompt,
           width: 1280,
           height: 768,
-          useGrok,
-          ...(refUrl && { referenceImageUrl: refUrl }),
         }),
       });
       const data = await res.json();

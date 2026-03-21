@@ -180,27 +180,11 @@ export async function POST(req: NextRequest) {
     const maxPromptLen = 900;
     const negativeEncoded = encodeURIComponent(NEGATIVE_PROMPT);
 
-    // Try xAI Grok Imagine first for Medium/Pro/Story/Music tiers
-    if (useGrok) {
-      const grokPrompt = sanitizePrompt(prompt, maxPromptLen) + suffix;
-      const result = await generateViaGrok(grokPrompt, referenceImageUrl);
-      if (result) {
-        return NextResponse.json({
-          success: true,
-          images: [{
-            imageURL: result.dataUrl,
-            imageUUID: result.id,
-            seed: 0,
-            cost: 0,
-          }],
-        });
-      }
-      console.warn("Grok Imagine failed, falling back to Pollinations...");
-    }
+    // Skip Grok for images — use Pollinations models which produce cleaner results
+    // Grok images have artifacts: gibberish text, merged subjects, distorted faces
 
-    // Fallback: Pollinations.ai
-    // Models ranked by quality — grok-imagine first, then fallbacks
-    const MODELS_TO_TRY = model ? [model] : ["grok-imagine", "flux", "nanobanana-pro"];
+    // Pollinations.ai — flux and nanobanana-pro produce the best photorealistic results
+    const MODELS_TO_TRY = model ? [model] : ["flux", "nanobanana-pro"];
 
     // Build retry attempts: each model with progressively simpler prompts
     type Attempt = { prompt: string; model: string };

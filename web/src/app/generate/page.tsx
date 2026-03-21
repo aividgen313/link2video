@@ -101,21 +101,7 @@ export default function VideoGeneration() {
       }
 
       updateSceneStatus(scene.id, { phase: "image", progress: 20 });
-      // Use xAI Grok Imagine for Pro, Medium, Story, and Music Video modes
-      const useGrok = qualityTier === "pro" || qualityTier === "medium" || mode === "short-story" || mode === "music-video";
-
-      // Find best matching reference image for this scene
-      let refUrl: string | undefined;
-      if (useGrok && Object.keys(referenceImages).length > 0) {
-        const promptLower = (scene.visual_prompt + " " + scene.narration).toLowerCase();
-        for (const [name, urls] of Object.entries(referenceImages)) {
-          if (urls.length > 0 && promptLower.includes(name)) {
-            refUrl = urls[0];
-            break;
-          }
-        }
-      }
-
+      // All tiers use Pollinations (flux/nanobanana-pro) for images — cleaner results
       const res = await fetch("/api/runware/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -123,8 +109,6 @@ export default function VideoGeneration() {
           prompt: scene.visual_prompt,
           width: 1280,
           height: 768,
-          useGrok,
-          ...(refUrl && { referenceImageUrl: refUrl }),
         }),
       });
 
@@ -672,8 +656,8 @@ export default function VideoGeneration() {
                       const total = scriptData?.scenes.length || 0;
                       const vidScenes = tier.videoSceneStrategy === "all" ? total
                         : tier.videoSceneStrategy === "key_scenes" ? Math.min((tier as any).maxVideoScenes || 3, total) : 0;
-                      const cost = total * 0.02 + vidScenes * 0.40 + 0.01;
-                      return `~$${cost.toFixed(2)}`;
+                      const cost = vidScenes * 0.40 + 0.01;
+                      return vidScenes > 0 ? `~$${cost.toFixed(2)}` : "~$0.01";
                     })()}</p>
                   </div>
                 </div>

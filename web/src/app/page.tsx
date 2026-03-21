@@ -251,10 +251,9 @@ export default function Home() {
     : tier.videoSceneStrategy === "key_scenes" ? Math.min((tier as any).maxVideoScenes || 3, sceneCount)
     : 0;
   const kenBurnsScenes = sceneCount - videoScenes;
-  const imageCost = sceneCount * 0.02; // all scenes need images
   const videoCost = videoScenes * 0.40; // $0.05/s × 8s
-  const textCost = 0.01; // amortized
-  const totalUsd = qualityTier === "basic" ? 0 : (imageCost + videoCost + textCost);
+  const textCost = 0.01; // amortized Grok text
+  const totalUsd = qualityTier === "basic" ? 0 : (videoCost + textCost);
   const estimatedUsd = totalUsd.toFixed(2);
 
   const canGenerate = mode === "link" ? inputValue.trim().length > 0
