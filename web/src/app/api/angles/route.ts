@@ -3,7 +3,7 @@ import { generateGeminiText } from "@/lib/gemini";
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic } = await req.json();
+    const { topic, durationMinutes = 3 } = await req.json();
 
     if (!topic) {
       return NextResponse.json({ error: "Topic is required" }, { status: 400 });
@@ -21,7 +21,7 @@ Format your response as a JSON array of objects, each with these keys:
 - "title": A compelling, clickable angle title that creates curiosity (NOT generic — make it feel like a Netflix episode title)
 - "description": 2-3 sentences explaining the narrative approach, the emotional hook, and why viewers would stay until the end
 - "type": The content type (e.g. "True Crime Documentary", "Investigative Expose", "Emotional Narrative", "Mind-Blowing Explainer", "Conspiracy Deep Dive")
-- "duration": Estimated video duration (e.g. "3-5 min", "1-2 min", "5-10 min")
+- "duration": "${durationMinutes} min" (the user wants a ${durationMinutes}-minute video)
 
 Return ONLY the JSON array. No explanations, no markdown, no code blocks.
 `;

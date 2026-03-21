@@ -14,18 +14,19 @@ export default function StoryboardPreview() {
   const [hasMounted, setHasMounted] = useState(false);
   const abortRefs = useRef<Record<number, AbortController>>({});
   const isMountedRef = useRef(true);
+  const startedRef = useRef(false);
 
   useEffect(() => {
+    isMountedRef.current = true;
     setHasMounted(true);
-    return () => { isMountedRef.current = false; };
-  }, []);
 
-  useEffect(() => {
-    if (!hasMounted) return;
+    if (startedRef.current) return;
     if (!scriptData || scriptData.scenes.length === 0) {
       router.replace("/script");
       return;
     }
+
+    startedRef.current = true;
 
     // Initialize statuses
     const init: Record<number, { status: ImgStatus; url?: string }> = {};
@@ -40,8 +41,9 @@ export default function StoryboardPreview() {
     const scenes = scriptData.scenes.filter((s) => !storyboardImages[s.id]);
     generateInBatches(scenes);
 
+    return () => { isMountedRef.current = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasMounted]);
+  }, []);
 
   const generateImage = async (sceneId: number, prompt: string) => {
     if (!isMountedRef.current) return;

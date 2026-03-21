@@ -106,6 +106,8 @@ interface AppContextType {
   setCaptionsEnabled: (enabled: boolean) => void;
   creditsUsed: number;
   setCreditsUsed: (credits: number) => void;
+  targetDurationMinutes: number;
+  setTargetDurationMinutes: (min: number) => void;
   storyboardImages: Record<number, string>;
   setStoryboardImages: (imgs: Record<number, string>) => void;
   // Legacy (kept for script page compatibility)
@@ -131,6 +133,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [musicEnabled, setMusicEnabled] = useState(false);
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
   const [creditsUsed, setCreditsUsed] = useState(0);
+  const [targetDurationMinutes, setTargetDurationMinutes] = useState(3);
   const [storyboardImages, setStoryboardImages] = useState<Record<number, string>>({});
   const [globalScriptModel] = useState("groq");
 
@@ -153,6 +156,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       musicEnabled, setMusicEnabled,
       captionsEnabled, setCaptionsEnabled,
       creditsUsed, setCreditsUsed,
+      targetDurationMinutes, setTargetDurationMinutes,
       storyboardImages, setStoryboardImages,
       globalVideoModel,
       globalImageModel,

@@ -15,6 +15,7 @@ export default function ScriptBuilder() {
     globalVisualStyle,
     selectedVoice,
     musicEnabled, setMusicEnabled,
+    targetDurationMinutes,
   } = useAppContext();
   const [isLoading, setIsLoading] = useState(!scriptData);
   const [hasMounted, setHasMounted] = useState(false);
@@ -51,7 +52,8 @@ export default function ScriptBuilder() {
             angle,
             provider: "gemini",
             model: "groq",
-            visualStyle: globalVisualStyle
+            visualStyle: globalVisualStyle,
+            durationMinutes: targetDurationMinutes,
           })
         });
         const data = await res.json();

@@ -13,7 +13,7 @@ interface Angle {
 
 export default function StoryAngleGenerator() {
   const router = useRouter();
-  const { url, setAngle, globalScriptModel } = useAppContext();
+  const { url, setAngle, globalScriptModel, targetDurationMinutes } = useAppContext();
   const [selectedAngle, setSelectedAngle] = useState("");
   const [angles, setAngles] = useState<Angle[]>([]);
   const [hasMounted, setHasMounted] = useState(false);
@@ -31,10 +31,11 @@ export default function StoryAngleGenerator() {
       const res = await fetch("/api/angles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           topic: url,
           provider,
-          model
+          model,
+          durationMinutes: targetDurationMinutes,
         })
       });
       const data = await res.json();

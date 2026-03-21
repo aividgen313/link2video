@@ -67,7 +67,7 @@ async function generateViaPollinationsWithRetry(prompt: string, maxRetries = 5):
 
 async function generateViaPollinationsText(prompt: string, model = "openai"): Promise<string> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
 
   try {
     const response = await fetch("https://text.pollinations.ai/", {
@@ -91,7 +91,7 @@ async function generateViaPollinationsText(prompt: string, model = "openai"): Pr
     return text;
   } catch (err: any) {
     if (err.name === "AbortError") {
-      throw new Error("Pollinations request timeout after 30s");
+      throw new Error("Pollinations request timeout after 60s");
     }
     throw err;
   } finally {

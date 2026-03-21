@@ -2,6 +2,16 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppContext, VOICES, VIDEO_DIMENSIONS, QUALITY_TIERS, QualityTier } from "@/context/AppContext";
+
+const DURATION_PRESETS = [
+  { label: "1 min", value: 1 },
+  { label: "3 min", value: 3 },
+  { label: "5 min", value: 5 },
+  { label: "10 min", value: 10 },
+  { label: "30 min", value: 30 },
+  { label: "60 min", value: 60 },
+  { label: "120 min", value: 120 },
+];
 import { getHistory, deleteFromHistory, type VideoHistoryItem } from "@/lib/videoHistory";
 
 function formatTimeAgo(date: Date): string {
@@ -18,7 +28,7 @@ const STYLE_TEMPLATES = [
   {
     label: "POV Scenario",
     icon: "person_play",
-    description: "2nd person immersive day-in-the-life experience",
+    description: "Immersive 2nd-person day-in-the-life experience",
     prefix: "POV: ",
     placeholder: "Your life after winning the $500 million lottery",
     example: "POV: Your life after winning the $500 million lottery",
@@ -26,7 +36,7 @@ const STYLE_TEMPLATES = [
   {
     label: "POV Levels",
     icon: "leaderboard",
-    description: "2nd person tier-by-tier comparison from bottom to top",
+    description: "2nd-person tier-by-tier progression from bottom to top",
     prefix: "POV | Your life as every ",
     placeholder: "NBA level",
     example: "POV | Your life as every NBA level",
@@ -34,7 +44,7 @@ const STYLE_TEMPLATES = [
   {
     label: "Every Level",
     icon: "trending_up",
-    description: "3rd person breakdown comparing each wealth/skill tier",
+    description: "3rd-person breakdown of each wealth/skill tier",
     prefix: "Every level of ",
     placeholder: "wealth explained by how you wake up",
     example: "Every level of wealth explained by how you wake up",
@@ -42,10 +52,26 @@ const STYLE_TEMPLATES = [
   {
     label: "Origin Story",
     icon: "attach_money",
-    description: "Documentary on how someone built extraordinary wealth",
+    description: "How someone built extraordinary wealth from nothing",
     prefix: "How ",
-    placeholder: "a broke immigrant built a billion-dollar empire",
-    example: "How a broke immigrant built a billion-dollar empire from nothing",
+    placeholder: "Black athletes ACTUALLY become billionaires",
+    example: "How Black athletes ACTUALLY become billionaires",
+  },
+  {
+    label: "Quit Your Job",
+    icon: "work_off",
+    description: "Side hustle / passive income / escape the 9-5 blueprint",
+    prefix: "",
+    placeholder: "How I quit my 9-5 and now make $30K/month from home",
+    example: "How I quit my 9-5 and now make $30K/month from home",
+  },
+  {
+    label: "Dark Truth",
+    icon: "visibility",
+    description: "Exposé revealing hidden truths behind industries or people",
+    prefix: "The dark truth about ",
+    placeholder: "why most millionaires are secretly broke",
+    example: "The dark truth about why most millionaires are secretly broke",
   },
   {
     label: "Explainer",
@@ -58,10 +84,10 @@ const STYLE_TEMPLATES = [
   {
     label: "Documentary",
     icon: "movie",
-    description: "Cinematic deep-dive with dramatic narration and tension",
+    description: "Cinematic Netflix-style deep-dive with dramatic tension",
     prefix: "",
-    placeholder: "The dark satisfying satisfying truth behind...",
-    example: "The dark satisfying truth behind the world's most expensive coffee",
+    placeholder: "The rise and fall of the world's youngest billionaire",
+    example: "The rise and fall of the world's youngest billionaire",
   },
 ];
 
@@ -83,6 +109,7 @@ export default function Home() {
     selectedVoice, setSelectedVoice,
     musicEnabled, setMusicEnabled,
     captionsEnabled, setCaptionsEnabled,
+    targetDurationMinutes, setTargetDurationMinutes,
     creditsUsed,
   } = useAppContext();
 
@@ -106,7 +133,7 @@ export default function Home() {
   };
 
   const tier = QUALITY_TIERS[qualityTier];
-  const sceneCount = 7; // Approx scenes for cost preview
+  const sceneCount = Math.ceil(targetDurationMinutes * 60 / 8);
   const estimatedCredits = (tier.creditsPerScene * sceneCount).toFixed(3);
 
 
@@ -185,6 +212,28 @@ export default function Home() {
                 })}
               </div>
               <p className="text-[11px] text-outline pl-1">{tier.description} · Estimated: <span className="font-bold text-on-surface">{qualityTier === "basic" ? "FREE" : `$${estimatedCredits} credits`}</span></p>
+            </div>
+
+            {/* Duration */}
+            <div className="space-y-2">
+              <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Duration</label>
+              <div className="flex flex-wrap gap-1.5">
+                {DURATION_PRESETS.map((d) => {
+                  const isActive = targetDurationMinutes === d.value;
+                  return (
+                    <button
+                      key={d.value}
+                      onClick={() => setTargetDurationMinutes(d.value)}
+                      className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${isActive ? "bg-primary/15 text-primary border border-primary/30" : "bg-surface-container-lowest/50 border border-outline-variant/10 text-outline hover:text-primary hover:border-primary/20"}`}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-outline pl-1">
+                ~{Math.ceil(targetDurationMinutes * 60 / 8)} scenes · {targetDurationMinutes >= 60 ? `${targetDurationMinutes / 60}h` : `${targetDurationMinutes}min`} video
+              </p>
             </div>
 
             {/* Row: Dimension + Visual Style */}

@@ -4,7 +4,7 @@ import { generateGeminiText } from "@/lib/gemini";
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, url, angle, visualStyle = "Cinematic Documentary" } = await req.json();
+    const { topic, url, angle, visualStyle = "Cinematic Documentary", durationMinutes = 3 } = await req.json();
 
     if (!topic && !url) {
       return NextResponse.json({ error: "URL or Topic is required" }, { status: 400 });
@@ -39,8 +39,12 @@ export async function POST(req: NextRequest) {
     } else if (topicLower.startsWith("simply explaining") || topicLower.startsWith("explain") || topicLower.includes("questions everyone") || topicLower.includes("q&a")) {
       narrativeStyle = "explainer";
     } else if ((topicLower.includes("how") && (topicLower.includes("billionaire") || topicLower.includes("millionaire") || topicLower.includes("empire") || topicLower.includes("rich") || topicLower.includes("wealthy") || topicLower.includes("built"))) ||
-               topicLower.includes("broke") && topicLower.includes("billion")) {
+               (topicLower.includes("broke") && topicLower.includes("billion"))) {
       narrativeStyle = "rich_story";
+    } else if (topicLower.includes("dark truth") || topicLower.includes("dark side") || topicLower.includes("secretly") || topicLower.includes("exposé") || topicLower.includes("no one talks about")) {
+      narrativeStyle = "dark_truth";
+    } else if (topicLower.includes("quit") || topicLower.includes("9-5") || topicLower.includes("9 to 5") || topicLower.includes("side hustle") || topicLower.includes("passive income") || topicLower.includes("from home") || topicLower.includes("fire your boss")) {
+      narrativeStyle = "quit_job";
     }
 
     let narrativeInstructions = "";
@@ -100,6 +104,26 @@ The viewer should feel the emotional journey — from desperation to triumph.
 Focus on the mindset shifts, the decisions others wouldn't make, and the unconventional path.
 `;
         break;
+      case "dark_truth":
+        narrativeInstructions = `
+NARRATIVE FORMAT: DARK TRUTH EXPOSÉ
+Write like an investigative journalist revealing uncomfortable truths that "they" don't want you to know.
+Tone: confident, slightly conspiratorial, backed with real-sounding specifics. NOT clickbait — deliver REAL insight.
+Structure: Shocking hook statement → "Here's what they don't tell you..." → Layer 1 revelation → Layer 2 (deeper) → The real reason why → Who benefits from the lie → What the smart money does instead → Devastating final truth.
+Use phrases like "Here's the thing nobody talks about...", "And this is where it gets dark...", "But the real story is..."
+Every claim should feel backed by specific numbers, names, or examples. Make the viewer feel like an insider.
+`;
+        break;
+      case "quit_job":
+        narrativeInstructions = `
+NARRATIVE FORMAT: QUIT YOUR JOB / FINANCIAL FREEDOM BLUEPRINT
+Write like a mentor who already escaped the rat race and is giving the viewer the exact playbook.
+Tone: energizing, specific, actionable. NOT vague motivation — give REAL steps with REAL numbers.
+Structure: Hook (the contrast between your 9-5 and freedom) → Why most people stay trapped → The first thing I changed → Month 1-3 reality → The turning point → What $X/month actually looks like → The mindset shift nobody talks about → Your action plan starting today.
+Use specific dollar amounts, timeframes, and platforms. Make it feel achievable but not easy.
+The viewer should feel a fire lit under them — like they NEED to start today.
+`;
+        break;
       default: // documentary
         narrativeInstructions = `
 NARRATIVE FORMAT: CINEMATIC DOCUMENTARY
@@ -155,7 +179,9 @@ VISUAL PROMPT RULES:
 ${aestheticRules}
 
 SCRIPT OUTPUT:
-Generate 6-10 scenes following the narrative format above.
+The target video duration is ${durationMinutes} minute(s) (${durationMinutes * 60} seconds total).
+Generate approximately ${Math.ceil(durationMinutes * 60 / 8)} scenes to fill this duration.
+Each scene should be roughly 6-12 seconds of narration.
 
 Each scene must have:
 - narration: The voiceover text (cinematic, immersive, emotionally engaging)
