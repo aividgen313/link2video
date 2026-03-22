@@ -278,14 +278,15 @@ function EditorInner() {
   const router = useRouter();
   const { scriptData } = useAppContext();
   const {
-    scenes, isInitialized, selectedScene, selectedSceneId,
+    scenes, isInitialized, selectedScene, selectedSceneId, setSelectedSceneId,
     undo, redo, canUndo, canRedo,
     insertScene, splitScene, duplicateScene, deleteScene, deleteSelected,
     selectAllScenes, clearSelection, selectedSceneIds,
     snapEnabled, setSnapEnabled,
     showSafeZones, setShowSafeZones,
     isPlaying, setIsPlaying,
-    playheadPosition, totalDuration,
+    playheadPosition, setPlayheadPosition, totalDuration,
+    getSceneStartTime,
     addOverlay, importMedia,
   } = useEditorContext();
   const { theme: C, isDark, toggle: toggleTheme } = useEditorTheme();
@@ -526,10 +527,19 @@ function EditorInner() {
 
         {/* Transport controls */}
         <div className="flex items-center gap-1">
-          <TBtn icon="skip_previous" label="Go to Start" onClick={() => {}} />
-          <TBtn icon="fast_rewind" label="Step Back" onClick={() => {}} />
+          <TBtn icon="skip_previous" label="Go to Start" onClick={() => { setPlayheadPosition(0); if (scenes.length > 0) setSelectedSceneId(scenes[0].id); }} />
+          <TBtn icon="fast_rewind" label="Step Back" onClick={() => {
+            const idx = scenes.findIndex(s => s.id === selectedSceneId);
+            if (idx > 0) { setSelectedSceneId(scenes[idx - 1].id); setPlayheadPosition(getSceneStartTime(scenes[idx - 1].id)); }
+          }} />
           <button
-            onClick={() => setIsPlaying(!isPlaying)}
+            onClick={() => {
+              if (!isPlaying && playheadPosition >= totalDuration) {
+                setPlayheadPosition(0);
+                if (scenes.length > 0) setSelectedSceneId(scenes[0].id);
+              }
+              setIsPlaying(!isPlaying);
+            }}
             className="flex items-center justify-center w-8 h-8 rounded transition-all"
             style={{ background: isPlaying ? C.danger : C.accent, color: "#fff" }}
           >
@@ -537,8 +547,11 @@ function EditorInner() {
               {isPlaying ? "stop" : "play_arrow"}
             </span>
           </button>
-          <TBtn icon="fast_forward" label="Step Forward" onClick={() => {}} />
-          <TBtn icon="skip_next" label="Go to End" onClick={() => {}} />
+          <TBtn icon="fast_forward" label="Step Forward" onClick={() => {
+            const idx = scenes.findIndex(s => s.id === selectedSceneId);
+            if (idx < scenes.length - 1) { setSelectedSceneId(scenes[idx + 1].id); setPlayheadPosition(getSceneStartTime(scenes[idx + 1].id)); }
+          }} />
+          <TBtn icon="skip_next" label="Go to End" onClick={() => { if (scenes.length > 0) { const last = scenes[scenes.length - 1]; setSelectedSceneId(last.id); setPlayheadPosition(getSceneStartTime(last.id)); } }} />
         </div>
 
         <div className="flex-1" />
