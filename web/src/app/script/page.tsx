@@ -364,7 +364,7 @@ export default function ScriptBuilder() {
             <button
               onClick={handleGenerateVideo}
               disabled={!allImagesReady}
-              className="ml-auto primary-gradient text-white px-6 py-2.5 rounded-xl font-headline font-bold hover:shadow-lg transition-all flex items-center gap-2 shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full md:w-auto md:ml-auto primary-gradient text-white px-6 py-2.5 rounded-xl font-headline font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2 shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="material-symbols-outlined text-lg">movie</span>
               {allImagesReady ? 'Generate Video' : `Waiting for images (${imagesReady}/${totalScenes})`}

@@ -228,17 +228,17 @@ export default function StoryAngleGenerator() {
         )}
 
         {/* Footer Action Bar */}
-        <div className="flex items-center justify-between pt-12 border-t border-outline-variant/10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-12 border-t border-outline-variant/10 gap-4">
           <div className="flex items-center gap-2 text-outline-variant">
             <span className="material-symbols-outlined text-sm">info</span>
             <p className="text-xs font-body italic">Selection will lock your script's primary narrative flow.</p>
           </div>
-          <div className="flex gap-4">
-            <button onClick={fetchAngles} disabled={isLoading} className="ghost-border border border-outline-variant/30 text-on-surface font-headline font-bold py-4 px-10 rounded-xl hover:bg-surface-container-high transition-all flex items-center gap-2 disabled:opacity-50">
+          <div className="flex flex-col xs:flex-row gap-3 w-full sm:w-auto">
+            <button onClick={fetchAngles} disabled={isLoading} className="ghost-border border border-outline-variant/30 text-on-surface font-headline font-bold py-3 px-6 rounded-xl hover:bg-surface-container-high transition-all flex items-center justify-center gap-2 disabled:opacity-50 w-full sm:w-auto">
               <span className={`material-symbols-outlined text-xl ${isLoading ? "animate-spin" : ""}`}>refresh</span>
               Regenerate Angles
             </button>
-            <button onClick={handleGenerateScript} disabled={isLoading || angles.length === 0} className="primary-gradient text-white font-headline font-bold py-4 px-12 rounded-xl flex items-center gap-3 shadow-2xl shadow-primary/30 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:hover:scale-100">
+            <button onClick={handleGenerateScript} disabled={isLoading || angles.length === 0} className="primary-gradient text-white font-headline font-bold py-3 px-8 rounded-xl flex items-center justify-center gap-3 shadow-2xl shadow-primary/30 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:hover:scale-100 w-full sm:w-auto">
               Generate Script
               <span className="material-symbols-outlined text-xl">keyboard_double_arrow_right</span>
             </button>

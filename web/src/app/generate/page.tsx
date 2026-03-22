@@ -529,13 +529,13 @@ export default function VideoGeneration() {
 
   return (
     <>
-      <div className="mb-8 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Link href="/script" className="text-outline hover:text-primary transition-colors">Script Builder</Link>
-          <span className="material-symbols-outlined text-outline-variant text-sm">chevron_right</span>
-          <span className="font-headline font-bold text-on-surface">Video Generation</span>
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link href="/script" className="text-outline hover:text-primary transition-colors shrink-0 text-sm">Script Builder</Link>
+          <span className="material-symbols-outlined text-outline-variant text-sm shrink-0">chevron_right</span>
+          <span className="font-headline font-bold text-on-surface truncate">Video Generation</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 shrink-0">
           <button className="p-2 text-outline hover:text-on-surface transition-colors">
             <span className="material-symbols-outlined">notifications</span>
           </button>
@@ -628,8 +628,8 @@ export default function VideoGeneration() {
               </div>
 
               {/* Action Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-4 p-6 glass-card rounded-xl">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4 p-4 sm:p-6 glass-card rounded-xl">
+                <div className="flex flex-wrap items-center gap-3">
                   <button
                     onClick={() => {
                       if (finalVideoUrl) {
@@ -640,16 +640,16 @@ export default function VideoGeneration() {
                       }
                     }}
                     disabled={!finalVideoUrl}
-                    className="px-6 py-3 rounded-xl bg-primary text-on-primary font-headline font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
-                    <span className="material-symbols-outlined">download</span>
-                    Download Video
+                    className="px-4 py-2.5 rounded-xl bg-primary text-on-primary font-headline font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 text-sm">
+                    <span className="material-symbols-outlined text-base">download</span>
+                    Download
                   </button>
                   <button
                     onClick={() => router.push("/editor")}
                     disabled={!finalVideoUrl}
-                    className="px-6 py-3 rounded-xl bg-secondary text-on-secondary font-headline font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
-                    <span className="material-symbols-outlined">movie_edit</span>
-                    Open in Editor
+                    className="px-4 py-2.5 rounded-xl bg-secondary text-on-secondary font-headline font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 text-sm">
+                    <span className="material-symbols-outlined text-base">movie_edit</span>
+                    Editor
                   </button>
                   <button
                     onClick={() => {
@@ -669,9 +669,9 @@ export default function VideoGeneration() {
                       URL.revokeObjectURL(url);
                     }}
                     disabled={!scriptData}
-                    className="px-6 py-3 rounded-xl bg-surface-container-highest text-on-surface font-headline font-bold flex items-center gap-2 hover:bg-surface-variant transition-colors border border-outline-variant/20 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span className="material-symbols-outlined">description</span>
-                    Export Prompts
+                    className="px-4 py-2.5 rounded-xl bg-surface-container-highest text-on-surface font-headline font-bold flex items-center gap-2 hover:bg-surface-variant transition-colors border border-outline-variant/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                    <span className="material-symbols-outlined text-base">description</span>
+                    Prompts
                   </button>
                 </div>
                 <div className="flex items-center gap-3">
@@ -698,7 +698,7 @@ export default function VideoGeneration() {
             </div>
 
             {/* Scenes List Sidebar */}
-            <div className="col-span-12 lg:col-span-4 space-y-4 h-[calc(100vh-280px)] flex flex-col">
+            <div className="col-span-12 lg:col-span-4 space-y-4 lg:h-[calc(100vh-280px)] flex flex-col">
               <div className="flex items-center justify-between px-2">
                 <h3 className="font-headline text-lg font-bold">Generated Scenes</h3>
                 <span className="text-tertiary bg-tertiary/10 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tighter">Pollinations AI</span>
