@@ -68,6 +68,7 @@ export default function VideoGeneration() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
   const ffmpegRef = useRef<FFmpeg | null>(null);
+  const pipelineStartedRef = useRef(false); // prevent StrictMode double-run
 
   useEffect(() => {
     setHasMounted(true);
@@ -180,6 +181,9 @@ export default function VideoGeneration() {
   // Main generation pipeline
   useEffect(() => {
     if (!scriptData || isGenerating || finalVideoUrl) return;
+    // Prevent StrictMode double-invocation from causing duplicate saves
+    if (pipelineStartedRef.current) return;
+    pipelineStartedRef.current = true;
 
     const runPipeline = async () => {
       setIsGenerating(true);
@@ -500,7 +504,7 @@ export default function VideoGeneration() {
           // Save to history
           const firstSceneImg = sceneAssets[0]?.image;
           const totalSecs = sceneAssets.reduce((sum, a) => sum + (a.duration || 8), 0);
-          saveToHistory({
+          await saveToHistory({
             id: Date.now().toString(),
             title: scriptData?.title || "Untitled Video",
             topic: url || "",

@@ -27,8 +27,15 @@ export default function StoryAngleGenerator() {
     }
   }, [hasMounted, url, router]);
 
+  const abortRef = useRef<AbortController | null>(null);
+
   const fetchAngles = async () => {
     if (!url) return;
+    // Abort any previous in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setIsLoading(true);
     try {
       const isRunware = globalScriptModel.startsWith("runware:");
@@ -43,7 +50,8 @@ export default function StoryAngleGenerator() {
           provider,
           model,
           durationMinutes: targetDurationMinutes,
-        })
+        }),
+        signal: controller.signal,
       });
       const data = await res.json();
 
@@ -57,7 +65,8 @@ export default function StoryAngleGenerator() {
         setErrorMessage(data.error);
         setAngles([]);
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.name === "AbortError") return; // navigated away — ignore
       console.error("Failed to fetch angles:", e);
       setErrorMessage("Network error: Unable to connect to the server.");
     } finally {

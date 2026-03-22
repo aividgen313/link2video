@@ -987,8 +987,9 @@ export default function Home() {
               {recentVideos.map((v) => {
                 const date = new Date(v.createdAt);
                 const timeAgo = formatTimeAgo(date);
-                const mins = Math.floor(v.totalSeconds / 60);
-                const secs = v.totalSeconds % 60;
+                const totalRounded = Math.round(v.totalSeconds);
+                const mins = Math.floor(totalRounded / 60);
+                const secs = totalRounded % 60;
                 const durationLabel = `${mins}:${String(secs).padStart(2, "0")}`;
                 return (
                   <div key={v.id} className="group glass-card glass-card-hover rounded-[1.5rem] overflow-hidden flex flex-col transition-all hover:translate-y-[-3px] hover:shadow-xl hover:shadow-primary/5">

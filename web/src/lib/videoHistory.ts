@@ -15,25 +15,83 @@ export type VideoHistoryItem = {
 
 const HISTORY_KEY = "link2video_history";
 const MAX_ITEMS = 20;
-const MAX_THUMBNAIL_BYTES = 150000; // 150KB base64 limit per item
+const MAX_THUMBNAIL_BYTES = 80000; // 80KB final compressed limit per item
+
+/**
+ * Compress a base64 data URL thumbnail to fit within size limits.
+ * Uses an offscreen canvas to resize and re-encode as JPEG.
+ */
+function compressThumbnail(dataUrl: string): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    // External URLs are always fine (tiny strings)
+    if (dataUrl.startsWith("http")) {
+      resolve(dataUrl);
+      return;
+    }
+    // Only compress data URLs
+    if (!dataUrl.startsWith("data:image")) {
+      resolve(dataUrl.length < MAX_THUMBNAIL_BYTES ? dataUrl : undefined);
+      return;
+    }
+    try {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 320;
+        const maxH = 200;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxW || h > maxH) {
+          const scale = Math.min(maxW / w, maxH / h);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { resolve(undefined); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressed = canvas.toDataURL("image/jpeg", 0.6);
+        resolve(compressed.length < MAX_THUMBNAIL_BYTES ? compressed : undefined);
+      };
+      img.onerror = () => resolve(undefined);
+      img.src = dataUrl;
+    } catch {
+      resolve(undefined);
+    }
+  });
+}
 
 export function getHistory(): VideoHistoryItem[] {
   try {
     const raw = localStorage.getItem(HISTORY_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const items: VideoHistoryItem[] = JSON.parse(raw);
+    // Deduplicate by title+createdAt within 5 seconds (handles StrictMode double-saves)
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      const ts = Math.floor(new Date(item.createdAt).getTime() / 5000);
+      const key = `${item.title}::${ts}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   } catch {
     return [];
   }
 }
 
-export function saveToHistory(item: VideoHistoryItem): void {
+export async function saveToHistory(item: VideoHistoryItem): Promise<void> {
   try {
-    // Trim large thumbnails before saving
+    // Compress thumbnail for storage
+    let thumbUrl: string | undefined;
+    if (item.thumbnailUrl) {
+      thumbUrl = await compressThumbnail(item.thumbnailUrl);
+    }
     const safe: VideoHistoryItem = {
       ...item,
-      thumbnailUrl: item.thumbnailUrl && item.thumbnailUrl.length < MAX_THUMBNAIL_BYTES
-        ? item.thumbnailUrl
-        : undefined,
+      totalSeconds: Math.round(item.totalSeconds), // avoid floating point
+      thumbnailUrl: thumbUrl,
     };
     const existing = getHistory().filter((h) => h.id !== safe.id);
     const updated = [safe, ...existing].slice(0, MAX_ITEMS);
