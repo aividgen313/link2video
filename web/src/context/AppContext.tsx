@@ -84,9 +84,12 @@ export const VOICES = [
 export const QUALITY_TIERS = {
   basic: {
     label: "Basic",
-    description: "Free — Pollinations Text + Images + Ken Burns",
-    usdPerScene: 0.00,
+    description: "Low Cost — Pollinations Text + Images + Ken Burns",
+    usdPerScene: 0.00112,
     usdBreakdown: "Free (Pollinations)",
+    pollenPerScene: 0.00112,
+    pollenPerSceneBreakdown: "1 image (0.00012) + 1 TTS (0.001)",
+    pollenFixed: 0.001, // text gen only, no music for basic
     color: "text-emerald-400",
     bgColor: "bg-emerald-400/10",
     borderColor: "border-emerald-400/20",
@@ -99,8 +102,11 @@ export const QUALITY_TIERS = {
   medium: {
     label: "Medium",
     description: "Pollinations Text + Images + Alternating AI Video & Ken Burns",
-    usdPerScene: 0.00,
+    usdPerScene: 0.20112,
     usdBreakdown: "3 AI video → 3 Ken Burns → repeating",
+    pollenPerScene: 0.20112,
+    pollenPerSceneBreakdown: "1 image (0.00012) + 1 TTS (0.001) + ~50% AI video (0.20)",
+    pollenFixed: 0.002, // text gen + music
     color: "text-primary",
     bgColor: "bg-primary/10",
     borderColor: "border-primary/20",
@@ -114,8 +120,11 @@ export const QUALITY_TIERS = {
   pro: {
     label: "Pro",
     description: "Pollinations Text + Images + AI Video (all scenes)",
-    usdPerScene: 0.00,
+    usdPerScene: 0.40112,
     usdBreakdown: "Pollinations credits for all video scenes",
+    pollenPerScene: 0.40112,
+    pollenPerSceneBreakdown: "1 image (0.00012) + 1 TTS (0.001) + AI video (0.40)",
+    pollenFixed: 0.002, // text gen + music
     color: "text-tertiary",
     bgColor: "bg-tertiary/10",
     borderColor: "border-tertiary/20",
@@ -125,6 +134,16 @@ export const QUALITY_TIERS = {
     imageModel: "pollinations",
     textModel: "pollinations",
   },
+};
+
+// Pollinations pricing reference (1 pollen ≈ $1 USD)
+export const POLLEN_COSTS = {
+  textGeneration: 0.0009,    // per API call (script, angles)
+  imageGeneration: 0.00012,  // per image (nanobanana-pro)
+  ttsGeneration: 0.001,      // per TTS request (elevenlabs)
+  videoPerSecond: 0.05,      // per second of AI video (wan model)
+  musicGeneration: 0.001,    // per music generation request
+  avgSceneDuration: 8,       // average scene duration in seconds
 };
 
 interface AppContextType {
@@ -190,6 +209,10 @@ interface AppContextType {
   setMusicSegments: (segments: MusicSegment[]) => void;
   audioDuration: number; // seconds
   setAudioDuration: (dur: number) => void;
+  // Navigation intent — true only when user explicitly clicked "Generate" from home page
+  // Prevents auto-triggering API calls when browsing via sidebar
+  generateRequested: boolean;
+  setGenerateRequested: (val: boolean) => void;
   // Legacy (kept for script page compatibility)
   globalVideoModel: string;
   globalImageModel: string;
@@ -236,6 +259,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [sceneVideoUrls, setSceneVideoUrls] = useState<Record<number, string>>(() => loadSaved("sceneVideoUrls", {}));
   const [sceneDurations, setSceneDurations] = useState<Record<number, number>>(() => loadSaved("sceneDurations", {}));
   const [youtubeStyleSuffix, setYoutubeStyleSuffix] = useState(() => loadSaved("youtubeStyleSuffix", ""));
+  const [generateRequested, setGenerateRequested] = useState(false); // session-only, never persisted
   const [globalScriptModel] = useState("pollinations");
   // Short Story Mode
   const [storyText, setStoryText] = useState(() => loadSaved("storyText", ""));
@@ -247,28 +271,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [musicSegments, setMusicSegments] = useState<MusicSegment[]>(() => loadSaved("musicSegments", []));
   const [audioDuration, setAudioDuration] = useState(() => loadSaved("audioDuration", 0));
 
-  // Persist key state to sessionStorage
+  // Persist key state to localStorage/sessionStorage.
+  // NOTE: audioFile is excluded because it can be a large base64 data URL.
+  // storyboardImages, sceneAudioUrls, and sceneVideoUrls are now persisted
+  // because they contain lightweight external URLs (not base64 blobs).
   useEffect(() => {
     try {
       const state = {
         mode, url, angle, scriptData, qualityTier, globalVisualStyle,
         videoDimension, selectedVoice, musicEnabled, captionsEnabled,
-        targetDurationMinutes, storyboardImages, referenceImages,
-        sceneAudioUrls, sceneVideoUrls, sceneDurations,
-        storyText, characterProfiles, audioFile, audioFileName,
+        targetDurationMinutes, referenceImages, sceneDurations,
+        storyboardImages, sceneAudioUrls, sceneVideoUrls,
+        storyText, characterProfiles, audioFileName,
         lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
-    } catch {
-      // localStorage full or unavailable — silently ignore
+    } catch (e) {
+      console.warn("Failed to persist state to localStorage (quota may be exceeded):", e);
     }
   }, [
     mode, url, angle, scriptData, qualityTier, globalVisualStyle,
     videoDimension, selectedVoice, musicEnabled, captionsEnabled,
-    targetDurationMinutes, storyboardImages, referenceImages,
-    sceneAudioUrls, sceneVideoUrls, sceneDurations,
-    storyText, characterProfiles, audioFile, audioFileName,
+    targetDurationMinutes, referenceImages, sceneDurations,
+    storyboardImages, sceneAudioUrls, sceneVideoUrls,
+    storyText, characterProfiles, audioFileName,
     lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
   ]);
 
@@ -309,6 +336,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       globalVideoModel,
       globalImageModel,
       globalAudioModel,
+      generateRequested, setGenerateRequested,
       globalScriptModel,
       setGlobalScriptModel: () => {},
     }}>

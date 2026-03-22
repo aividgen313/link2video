@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useEditorContext, TransitionType, FilterType, KenBurnsDirection } from "@/context/EditorContext";
 import TextOverlayEditor from "./TextOverlayEditor";
 
@@ -47,6 +47,20 @@ export default function PropertiesPanel() {
   const [isRegeneratingAudio, setIsRegeneratingAudio] = useState(false);
   const [isRegeneratingVideo, setIsRegeneratingVideo] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showStatus = useCallback((text: string, type: "success" | "error") => {
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+    setStatusMessage({ text, type });
+    statusTimerRef.current = setTimeout(() => setStatusMessage(null), 3000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+    };
+  }, []);
 
   if (!selectedScene) {
     return (
@@ -62,17 +76,29 @@ export default function PropertiesPanel() {
   const handleRegenerateImage = async () => {
     setIsRegeneratingImage(true);
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
       const res = await fetch("/api/runware/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: selectedScene.visual_prompt, width: 1280, height: 768 }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
+      if (!res.ok) throw new Error(`Image API error: ${res.status} ${res.statusText}`);
       const data = await res.json();
       if (data.success && data.images?.[0]) {
         updateScene(selectedScene.id, { imageUrl: data.images[0].imageURL });
+        showStatus("Image regenerated successfully", "success");
+      } else {
+        throw new Error(data.error || "No image returned from API");
       }
     } catch (err) {
+      const message = err instanceof DOMException && err.name === "AbortError"
+        ? "Image generation timed out"
+        : `Image regeneration failed: ${err instanceof Error ? err.message : "Unknown error"}`;
       console.error("Image regeneration failed:", err);
+      showStatus(message, "error");
     } finally {
       setIsRegeneratingImage(false);
     }
@@ -81,6 +107,8 @@ export default function PropertiesPanel() {
   const handleRegenerateNarration = async () => {
     setIsRegeneratingNarration(true);
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -90,13 +118,23 @@ export default function PropertiesPanel() {
           visual_prompt: selectedScene.visual_prompt,
           mood: selectedScene.mood,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
+      if (!res.ok) throw new Error(`Narration API error: ${res.status} ${res.statusText}`);
       const data = await res.json();
       if (data.narration) {
         updateScene(selectedScene.id, { narration: data.narration });
+        showStatus("Narration rewritten successfully", "success");
+      } else {
+        throw new Error(data.error || "No narration returned from API");
       }
     } catch (err) {
+      const message = err instanceof DOMException && err.name === "AbortError"
+        ? "Narration rewrite timed out"
+        : `Narration rewrite failed: ${err instanceof Error ? err.message : "Unknown error"}`;
       console.error("Narration regeneration failed:", err);
+      showStatus(message, "error");
     } finally {
       setIsRegeneratingNarration(false);
     }
@@ -106,17 +144,29 @@ export default function PropertiesPanel() {
     if (!selectedScene.narration) return;
     setIsRegeneratingAudio(true);
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: selectedScene.narration, voice: "adam" }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
+      if (!res.ok) throw new Error(`TTS API error: ${res.status} ${res.statusText}`);
       const data = await res.json();
       if (data.success && data.audioUrl) {
         updateScene(selectedScene.id, { audioUrl: data.audioUrl });
+        showStatus("Audio generated successfully", "success");
+      } else {
+        throw new Error(data.error || "No audio returned from API");
       }
     } catch (err) {
+      const message = err instanceof DOMException && err.name === "AbortError"
+        ? "Audio generation timed out"
+        : `Audio generation failed: ${err instanceof Error ? err.message : "Unknown error"}`;
       console.error("Audio regeneration failed:", err);
+      showStatus(message, "error");
     } finally {
       setIsRegeneratingAudio(false);
     }
@@ -125,6 +175,8 @@ export default function PropertiesPanel() {
   const handleRegenerateVideo = async () => {
     setIsRegeneratingVideo(true);
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 120000);
       const res = await fetch("/api/video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -133,15 +185,23 @@ export default function PropertiesPanel() {
           duration: Math.min(Math.ceil(selectedScene.duration), 15),
           mode: "ai",
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
+      if (!res.ok) throw new Error(`Video API error: ${res.status} ${res.statusText}`);
       const data = await res.json();
       if (data.success && data.videoUrl && !data.useKenBurns) {
         updateScene(selectedScene.id, { aiVideoUrl: data.videoUrl });
+        showStatus("AI video generated successfully", "success");
       } else {
-        alert("AI video unavailable for this scene. Ken Burns will be used.");
+        showStatus("AI video unavailable for this scene. Ken Burns will be used.", "error");
       }
     } catch (err) {
+      const message = err instanceof DOMException && err.name === "AbortError"
+        ? "Video generation timed out"
+        : `Video generation failed: ${err instanceof Error ? err.message : "Unknown error"}`;
       console.error("Video regeneration failed:", err);
+      showStatus(message, "error");
     } finally {
       setIsRegeneratingVideo(false);
     }
@@ -228,6 +288,31 @@ export default function PropertiesPanel() {
 
       {/* Tab Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4">
+
+        {/* Status Message Banner */}
+        {statusMessage && (
+          <div
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-medium animate-in fade-in duration-200 ${
+              statusMessage.type === "error"
+                ? "bg-red-500/15 text-red-300 border border-red-500/20"
+                : "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm">
+              {statusMessage.type === "error" ? "error" : "check_circle"}
+            </span>
+            <span className="flex-1">{statusMessage.text}</span>
+            <button
+              onClick={() => {
+                if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+                setStatusMessage(null);
+              }}
+              className="text-white/40 hover:text-white/70"
+            >
+              <span className="material-symbols-outlined text-xs">close</span>
+            </button>
+          </div>
+        )}
 
         {/* ═══ SCENE TAB ═══ */}
         {tab === "scene" && (

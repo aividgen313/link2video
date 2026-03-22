@@ -9,22 +9,38 @@ interface Props {
 export default function MusicTrack({ totalWidth }: Props) {
   const { musicTrack, setMusicTrack } = useEditorContext();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
+    setError(null);
+
+    // Cancel any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const res = await fetch("/api/music", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: "cinematic background music for a documentary video", duration: 120 }),
+        signal: controller.signal,
       });
+      if (!res.ok) throw new Error(`Music generation failed (${res.status})`);
       const data = await res.json();
       if (data.audioUrl) {
         setMusicTrack({ url: data.audioUrl, name: "Generated Music", duration: 120, volume: 0.15 });
+      } else {
+        setError("No audio returned");
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       console.error("Music generation failed:", err);
+      setError(err instanceof Error ? err.message : "Generation failed");
+      setTimeout(() => setError(null), 4000);
     } finally {
       setIsGenerating(false);
     }
@@ -96,6 +112,9 @@ export default function MusicTrack({ totalWidth }: Props) {
             Upload
           </button>
           <input ref={fileRef} type="file" accept="audio/*" onChange={handleUpload} className="hidden" />
+          {error && (
+            <span className="text-[9px] text-red-400 ml-1">{error}</span>
+          )}
         </div>
       )}
     </div>

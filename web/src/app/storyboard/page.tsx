@@ -24,7 +24,6 @@ export default function StoryboardPreview() {
 
     if (startedRef.current) return;
     if (!scriptData || scriptData.scenes.length === 0) {
-      router.replace("/script");
       return;
     }
 
@@ -62,6 +61,7 @@ export default function StoryboardPreview() {
         body: JSON.stringify({ prompt, width: 1280, height: 720 }),
         signal: controller.signal,
       });
+      if (!res.ok) throw new Error(`Image API error: ${res.status}`);
       const data = await res.json();
       if (!isMountedRef.current) return;
 
@@ -101,7 +101,17 @@ export default function StoryboardPreview() {
   };
 
   if (!hasMounted) return null;
-  if (!scriptData) return null;
+  if (!scriptData || scriptData.scenes.length === 0) return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <span className="material-symbols-outlined text-6xl text-outline/30 mb-4">view_comfy</span>
+      <h3 className="font-headline font-bold text-xl text-on-surface mb-2">No Storyboard Yet</h3>
+      <p className="text-outline text-sm max-w-md mb-6">Generate a script first to see your storyboard preview.</p>
+      <a href="/" className="primary-gradient text-white px-6 py-3 rounded-xl font-headline font-bold flex items-center gap-2 shadow-md">
+        <span className="material-symbols-outlined">home</span>
+        Go to Dashboard
+      </a>
+    </div>
+  );
 
   const total = scriptData.scenes.length;
   const doneCount = Object.values(statuses).filter((s) => s.status === "done").length;
@@ -143,7 +153,7 @@ export default function StoryboardPreview() {
             <span className="font-bold text-on-surface text-xs">{doneCount}/{total}</span>
           </div>
           <button
-            onClick={() => router.push("/generate")}
+            onClick={() => router.push("/editor")}
             disabled={anyLoading}
             className="primary-gradient text-white font-headline font-bold px-8 py-3 rounded-2xl flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
@@ -154,8 +164,8 @@ export default function StoryboardPreview() {
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>movie</span>
-                {allReady ? "Approve & Generate Video" : `Generate Video (${doneCount}/${total} ready)`}
+                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>movie_edit</span>
+                {allReady ? "Open in Editor" : `Open in Editor (${doneCount}/${total} ready)`}
               </>
             )}
           </button>

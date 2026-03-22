@@ -8,42 +8,43 @@ import Timeline from "@/components/editor/Timeline";
 import PropertiesPanel from "@/components/editor/PropertiesPanel";
 import ExportDialog from "@/components/editor/ExportDialog";
 import TextOverlayEditor from "@/components/editor/TextOverlayEditor";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
-// ── Theme system ──
+// ── Theme system — softer, modern palette ──
 const DARK = {
-  bg: "#1e1e1e",
-  panel: "#232323",
-  panelDark: "#1a1a1a",
-  border: "#3a3a3a",
-  borderLight: "#4a4a4a",
-  headerBg: "#2d2d2d",
-  accent: "#4a9eed",
-  accentDim: "#2a6aad",
-  accentBg: "rgba(74, 158, 237, 0.12)",
-  text: "#d4d4d4",
-  textDim: "#808080",
-  textMuted: "#5a5a5a",
-  danger: "#e5534b",
-  success: "#3fb950",
-  warn: "#d29922",
+  bg: "#161618",
+  panel: "#1c1c20",
+  panelDark: "#141416",
+  border: "#2a2a30",
+  borderLight: "#3a3a42",
+  headerBg: "#1e1e24",
+  accent: "#5b9ef4",
+  accentDim: "#4080d0",
+  accentBg: "rgba(91, 158, 244, 0.10)",
+  text: "#e0e0e4",
+  textDim: "#9a9aa0",
+  textMuted: "#5a5a62",
+  danger: "#f06060",
+  success: "#4ade80",
+  warn: "#f0b040",
 };
 
 const LIGHT = {
-  bg: "#f5f5f5",
+  bg: "#f4f5f7",
   panel: "#ffffff",
-  panelDark: "#f0f0f0",
-  border: "#e0e0e0",
-  borderLight: "#d0d0d0",
-  headerBg: "#fafafa",
-  accent: "#2979ff",
-  accentDim: "#1565c0",
-  accentBg: "rgba(41, 121, 255, 0.08)",
-  text: "#1a1a1a",
-  textDim: "#666666",
-  textMuted: "#999999",
-  danger: "#d32f2f",
-  success: "#2e7d32",
-  warn: "#f57f17",
+  panelDark: "#eef0f2",
+  border: "#dfe1e5",
+  borderLight: "#d0d2d6",
+  headerBg: "#f8f9fb",
+  accent: "#3b82f6",
+  accentDim: "#2563eb",
+  accentBg: "rgba(59, 130, 246, 0.08)",
+  text: "#1e1e2e",
+  textDim: "#64748b",
+  textMuted: "#94a3b8",
+  danger: "#ef4444",
+  success: "#22c55e",
+  warn: "#f59e0b",
 };
 
 type EditorTheme = typeof DARK;
@@ -58,14 +59,15 @@ function PanelTab({ label, active, onClick }: { label: string; active?: boolean;
   return (
     <button
       onClick={onClick}
-      className="px-3 py-1 text-[11px] font-medium transition-colors relative"
+      className="px-3 py-1.5 text-[11px] font-medium transition-all relative rounded-t-md"
       style={{
         color: active ? C.text : C.textDim,
         background: active ? C.panel : "transparent",
+        opacity: active ? 1 : 0.7,
       }}
     >
       {label}
-      {active && <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: C.accent }} />}
+      {active && <div className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full" style={{ background: C.accent }} />}
     </button>
   );
 }
@@ -74,25 +76,25 @@ function PanelTab({ label, active, onClick }: { label: string; active?: boolean;
 function TBtn({ icon, label, onClick, active, disabled, danger, badge, filled }: {
   icon: string; label: string; onClick?: () => void; active?: boolean; disabled?: boolean; danger?: boolean; badge?: string | number; filled?: boolean;
 }) {
-  const hoverBg = C.bg === DARK.bg ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+  const hoverBg = C.bg === DARK.bg ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       title={label}
-      className="relative flex items-center justify-center w-7 h-7 rounded transition-all"
+      className="relative flex items-center justify-center w-8 h-8 rounded-lg transition-all"
       style={{
-        opacity: disabled ? 0.3 : 1,
+        opacity: disabled ? 0.25 : 1,
         cursor: disabled ? "not-allowed" : "pointer",
         color: danger ? C.danger : active ? C.accent : C.textDim,
         background: active ? C.accentBg : "transparent",
       }}
-      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = active ? C.accentBg : hoverBg; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = active ? C.accentBg : "transparent"; }}
+      onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.background = active ? C.accentBg : hoverBg; e.currentTarget.style.color = danger ? C.danger : C.accent; } }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = active ? C.accentBg : "transparent"; e.currentTarget.style.color = danger ? C.danger : active ? C.accent : C.textDim; }}
     >
-      <span className="material-symbols-outlined text-[16px]" style={filled ? { fontVariationSettings: "'FILL' 1" } : undefined}>{icon}</span>
+      <span className="material-symbols-outlined text-[17px]" style={filled ? { fontVariationSettings: "'FILL' 1" } : undefined}>{icon}</span>
       {badge && (
-        <span className="absolute -top-0.5 -right-0.5 text-white text-[7px] w-3 h-3 rounded-full flex items-center justify-center font-bold" style={{ background: C.accent }}>{badge}</span>
+        <span className="absolute -top-0.5 -right-0.5 text-white text-[7px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold" style={{ background: C.accent }}>{badge}</span>
       )}
     </button>
   );
@@ -131,15 +133,14 @@ function SourceMonitor() {
   return (
     <div className="flex flex-col h-full" style={{ background: C.panel, borderRight: `1px solid ${C.border}` }}>
       {/* Panel header */}
-      <div className="flex items-center justify-between px-1 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 24 }}>
+      <div className="flex items-center justify-between px-1 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 28 }}>
         <div className="flex">
           <PanelTab label="Source" active />
-          <PanelTab label="Media" />
         </div>
-        <span className="text-[9px] font-mono pr-2" style={{ color: C.textMuted }}>{scenes.length} clips</span>
+        <span className="text-[10px] font-mono pr-2" style={{ color: C.textMuted }}>{scenes.length} clips</span>
       </div>
       {/* Scene grid */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-1.5 gap-1.5" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", alignContent: "start" }}>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 gap-2" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", alignContent: "start" }}>
         {scenes.map((scene, index) => {
           const isSelected = selectedSceneId === scene.id;
           const isDragTarget = dragOver === index && dragFrom !== index;
@@ -155,14 +156,15 @@ function SourceMonitor() {
                 setSelectedSceneId(scene.id);
                 setPlayheadPosition(getSceneStartTime(scene.id));
               }}
-              className="cursor-pointer rounded overflow-hidden transition-all"
+              className="cursor-pointer rounded-lg overflow-hidden transition-all hover:scale-[1.02] group/card"
               style={{
                 border: `2px solid ${isSelected ? C.accent : isDragTarget ? C.warn : "transparent"}`,
                 opacity: scene.isHidden ? 0.3 : dragFrom === index ? 0.4 : 1,
                 background: C.panelDark,
+                boxShadow: isSelected ? `0 0 12px ${C.accent}30` : "none",
               }}
             >
-              <div className="aspect-video relative" style={{ background: "rgba(255,255,255,0.03)" }}>
+              <div className="aspect-video relative" style={{ background: "rgba(255,255,255,0.02)" }}>
                 {scene.imageUrl ? (
                   <img src={scene.imageUrl} alt="" className="w-full h-full object-cover" draggable={false} />
                 ) : (
@@ -170,21 +172,23 @@ function SourceMonitor() {
                     <span className="material-symbols-outlined text-sm" style={{ color: C.textMuted }}>image</span>
                   </div>
                 )}
-                <div className="absolute top-0.5 left-0.5 px-1 rounded text-[8px] font-bold text-white" style={{ background: "rgba(0,0,0,0.7)" }}>
+                <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md text-[8px] font-bold text-white" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
                   {scene.orderIndex + 1}
                 </div>
-                <div className="absolute bottom-0.5 right-0.5 px-1 rounded text-[8px] font-mono text-white" style={{ background: "rgba(0,0,0,0.7)" }}>
-                  {scene.duration}s
+                <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md text-[8px] font-mono text-white/80" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
+                  {Math.round(scene.duration * 10) / 10}s
                 </div>
                 {(scene.overlays.length > 0 || scene.filter !== "none") && (
-                  <div className="absolute top-0.5 right-0.5 flex gap-0.5">
-                    {scene.overlays.length > 0 && <span className="w-2.5 h-2.5 rounded-sm flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.accent }}>T</span>}
-                    {scene.filter !== "none" && <span className="w-2.5 h-2.5 rounded-sm flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.warn }}>F</span>}
+                  <div className="absolute top-1 right-1 flex gap-0.5">
+                    {scene.overlays.length > 0 && <span className="w-3 h-3 rounded-full flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.accent }}>T</span>}
+                    {scene.filter !== "none" && <span className="w-3 h-3 rounded-full flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.warn }}>F</span>}
                   </div>
                 )}
+                {/* Hover overlay */}
+                <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/20 transition-colors" />
               </div>
-              <div className="px-1 py-0.5" style={{ background: isSelected ? C.accentBg : "transparent" }}>
-                <p className="text-[8px] truncate" style={{ color: C.textDim }}>{scene.narration.slice(0, 35)}</p>
+              <div className="px-1.5 py-1" style={{ background: isSelected ? C.accentBg : "transparent" }}>
+                <p className="text-[9px] truncate" style={{ color: isSelected ? C.accent : C.textDim }}>{scene.narration.slice(0, 40)}</p>
               </div>
             </div>
           );
@@ -276,7 +280,7 @@ function TextToolPanel({ onClose }: { onClose: () => void }) {
 
 function EditorInner() {
   const router = useRouter();
-  const { scriptData } = useAppContext();
+  const { scriptData, creditsUsed, qualityTier } = useAppContext();
   const {
     scenes, isInitialized, selectedScene, selectedSceneId, setSelectedSceneId,
     undo, redo, canUndo, canRedo,
@@ -298,7 +302,49 @@ function EditorInner() {
   const [showSource, setShowSource] = useState(true);
   const [activeRightTab, setActiveRightTab] = useState<"properties" | "text">("properties");
   const [isDragOverEditor, setIsDragOverEditor] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
+
+  // ── Resizable panel widths and timeline height ──
+  const DEFAULT_SOURCE_W = 220;
+  const DEFAULT_PROPS_W = 340;
+  const DEFAULT_TIMELINE_H = 200;
+  const [sourceWidth, setSourceWidth] = useState(DEFAULT_SOURCE_W);
+  const [propsWidth, setPropsWidth] = useState(DEFAULT_PROPS_W);
+  const [timelineHeight, setTimelineHeight] = useState(DEFAULT_TIMELINE_H);
+
+  // Generic resize handler for panels
+  const panelResizeRef = useRef<{ startX: number; startW: number; setter: (w: number) => void; min: number; max: number; direction: 1 | -1 } | null>(null);
+
+  const startPanelResize = useCallback((e: React.MouseEvent, setter: (w: number) => void, startW: number, min: number, max: number, direction: 1 | -1 = 1) => {
+    e.preventDefault();
+    panelResizeRef.current = { startX: e.clientX, startW: startW, setter, min, max, direction };
+    const handleMove = (ev: MouseEvent) => {
+      if (!panelResizeRef.current) return;
+      const { startX, startW: sw, setter: set, min: mn, max: mx, direction: dir } = panelResizeRef.current;
+      const delta = (ev.clientX - startX) * dir;
+      set(Math.max(mn, Math.min(mx, sw + delta)));
+    };
+    const handleUp = () => {
+      panelResizeRef.current = null;
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+  }, []);
+
+  const resetLayout = useCallback(() => {
+    setSourceWidth(DEFAULT_SOURCE_W);
+    setPropsWidth(DEFAULT_PROPS_W);
+    setTimelineHeight(DEFAULT_TIMELINE_H);
+    setShowSource(true);
+    setShowProperties(true);
+  }, []);
 
   // Drag and drop files into editor
   const handleEditorDrop = async (e: React.DragEvent) => {
@@ -348,7 +394,11 @@ function EditorInner() {
     if (meta && e.key === "d" && selectedScene) { e.preventDefault(); duplicateScene(selectedScene.id); }
     if (meta && e.key === "t") { e.preventDefault(); setShowTextTool(v => !v); setActiveRightTab("text"); }
     if (e.key === "?") { setShowShortcuts(v => !v); }
-  }, [undo, redo, selectAllScenes, clearSelection, isPlaying, setIsPlaying, selectedScene, selectedSceneIds, deleteSelected, deleteScene, duplicateScene, scenes.length]);
+    if (e.key === "n" || e.key === "N") { setSnapEnabled(!snapEnabled); }
+    if (e.key === "t" && !meta) { setShowTrim(prev => !prev); }
+    if (e.key === "Home") { e.preventDefault(); setPlayheadPosition(0); }
+    if (e.key === "End") { e.preventDefault(); setPlayheadPosition(totalDuration); }
+  }, [undo, redo, selectAllScenes, clearSelection, isPlaying, setIsPlaying, selectedScene, selectedSceneIds, deleteSelected, deleteScene, duplicateScene, scenes.length, snapEnabled, setSnapEnabled, setPlayheadPosition, totalDuration]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -394,11 +444,14 @@ function EditorInner() {
   if (!scriptData?.scenes?.length) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: C.bg }}>
-        <div className="text-center space-y-4">
-          <span className="material-symbols-outlined text-5xl" style={{ color: C.textMuted }}>movie_edit</span>
-          <h2 className="text-lg font-semibold" style={{ color: C.text }}>No project loaded</h2>
-          <p className="text-sm max-w-xs" style={{ color: C.textDim }}>Create a video first — enter a topic, generate a script, and approve your storyboard.</p>
-          <button onClick={() => router.push("/")} className="mt-2 px-6 py-2 rounded text-sm font-semibold text-white" style={{ background: C.accent }}>Go to Home</button>
+        <div className="text-center space-y-5 p-8 rounded-2xl" style={{ background: C.panel, border: `1px solid ${C.border}`, maxWidth: 420 }}>
+          <span className="material-symbols-outlined text-6xl" style={{ color: C.textMuted, opacity: 0.3 }}>movie_edit</span>
+          <h2 className="text-xl font-bold" style={{ color: C.text }}>No Project Loaded</h2>
+          <p className="text-sm leading-relaxed" style={{ color: C.textDim }}>Create a video from the dashboard, or open a previous project from your video history.</p>
+          <a href="/" className="inline-flex items-center gap-2 mt-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.accentDim})` }}>
+            <span className="material-symbols-outlined text-[18px]">home</span>
+            Go to Dashboard
+          </a>
         </div>
       </div>
     );
@@ -407,7 +460,10 @@ function EditorInner() {
   if (!isInitialized || scenes.length === 0) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: C.bg }}>
-        <div className="text-sm" style={{ color: C.textDim }}>Loading editor...</div>
+        <div className="flex items-center gap-3" style={{ color: C.textDim }}>
+          <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm">Loading editor...</span>
+        </div>
       </div>
     );
   }
@@ -415,7 +471,7 @@ function EditorInner() {
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col overflow-hidden"
-      style={{ background: C.bg, color: C.text, fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif" }}
+      style={{ background: C.bg, color: C.text, fontFamily: "Inter, 'SF Pro Display', -apple-system, system-ui, sans-serif" }}
       onDragOver={(e) => { e.preventDefault(); setIsDragOverEditor(true); }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setIsDragOverEditor(false); }}
       onDrop={handleEditorDrop}
@@ -435,47 +491,144 @@ function EditorInner() {
       )}
 
       {/* ═══ Menu Bar ═══ */}
-      <div className="flex items-center gap-0 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 32 }}>
+      <div className="flex items-center gap-0 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 36 }}>
         {/* App logo + back */}
         <button onClick={() => router.push("/storyboard")} className="flex items-center gap-1.5 px-3 h-full transition-colors"
           style={{ color: C.textDim }}
           onMouseEnter={(e) => { e.currentTarget.style.color = C.accent; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = C.textDim; }}
         >
-          <span className="material-symbols-outlined text-[14px]">arrow_back</span>
-          <span className="text-[11px] font-medium">Link2Video</span>
+          <span className="material-symbols-outlined text-[15px]">arrow_back</span>
+          <span className="text-[12px] font-semibold tracking-tight">Link2Video</span>
         </button>
-        <div style={{ width: 1, height: 16, background: C.border }} />
+        <div style={{ width: 1, height: 18, background: C.border }} />
 
-        {/* Menu items */}
-        {["File", "Edit", "Clip", "Sequence"].map(m => (
-          <button key={m} className="px-3 h-full text-[11px] transition-colors"
-            style={{ color: C.textDim }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"; e.currentTarget.style.color = C.text; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.textDim; }}
-            onClick={() => {
-              if (m === "File") setShowExport(true);
-              if (m === "Edit") {} // future
-            }}
-          >{m}</button>
+        {/* Menu items with dropdowns */}
+        {[
+          { label: "File", items: [
+            { label: "Import Media...", icon: "upload", action: () => importFileRef.current?.click() },
+            { label: "Export Video", icon: "movie", action: () => setShowExport(true), shortcut: "Ctrl+E" },
+            { divider: true },
+            { label: "Back to Storyboard", icon: "arrow_back", action: () => router.push("/storyboard") },
+          ]},
+          { label: "Edit", items: [
+            { label: "Undo", icon: "undo", action: undo, disabled: !canUndo, shortcut: "Ctrl+Z" },
+            { label: "Redo", icon: "redo", action: redo, disabled: !canRedo, shortcut: "Ctrl+Shift+Z" },
+            { divider: true },
+            { label: "Select All", icon: "select_all", action: selectAllScenes, shortcut: "Ctrl+A" },
+            { label: "Deselect", icon: "deselect", action: clearSelection, shortcut: "Esc" },
+            { divider: true },
+            { label: "Preferences", icon: "settings", action: () => setShowShortcuts(true) },
+          ]},
+          { label: "Clip", items: [
+            { label: "Insert Scene", icon: "add", action: () => insertScene(selectedScene?.id || null) },
+            { label: "Duplicate", icon: "content_copy", action: () => selectedScene && duplicateScene(selectedScene.id), disabled: !selectedScene, shortcut: "Ctrl+D" },
+            { label: "Split", icon: "content_cut", action: () => selectedScene && splitScene(selectedScene.id, Math.floor(selectedScene.duration / 2)), disabled: !selectedScene || (selectedScene?.duration ?? 0) < 4 },
+            { divider: true },
+            { label: "Add Text Overlay", icon: "title", action: handleAddText, disabled: !selectedScene, shortcut: "Ctrl+T" },
+            { divider: true },
+            { label: "Delete", icon: "delete_outline", action: () => selectedScene && scenes.length > 1 && deleteScene(selectedScene.id), disabled: !selectedScene || scenes.length <= 1, danger: true, shortcut: "Del" },
+          ]},
+          { label: "View", items: [
+            { label: showSource ? "Hide Source Panel" : "Show Source Panel", icon: "view_sidebar", action: () => setShowSource(!showSource) },
+            { label: showProperties ? "Hide Properties" : "Show Properties", icon: "tune", action: () => setShowProperties(!showProperties) },
+            { divider: true },
+            { label: "Safe Zones", icon: "grid_on", action: () => setShowSafeZones(!showSafeZones), active: showSafeZones },
+            { label: "Snap to Grid", icon: "straighten", action: () => setSnapEnabled(!snapEnabled), active: snapEnabled },
+            { divider: true },
+            { label: "Keyboard Shortcuts", icon: "keyboard", action: () => setShowShortcuts(true), shortcut: "?" },
+            { divider: true },
+            { label: "Reset Layout", icon: "fit_screen", action: resetLayout },
+          ]},
+        ].map(menu => (
+          <div key={menu.label} className="relative">
+            <button
+              className="px-3 h-full text-[11px] transition-colors"
+              style={{ color: openMenu === menu.label ? C.text : C.textDim, background: openMenu === menu.label ? (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)") : "transparent" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+                e.currentTarget.style.color = C.text;
+                if (openMenu) setOpenMenu(menu.label);
+              }}
+              onMouseLeave={(e) => {
+                if (openMenu !== menu.label) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.textDim; }
+              }}
+              onClick={() => setOpenMenu(openMenu === menu.label ? null : menu.label)}
+            >{menu.label}</button>
+            {openMenu === menu.label && (
+              <>
+                <div className="fixed inset-0 z-[49]" onClick={() => setOpenMenu(null)} />
+                <div className="absolute top-full left-0 z-[50] py-1 rounded-lg shadow-2xl min-w-[200px]"
+                  style={{ background: isDark ? "#252528" : "#fff", border: `1px solid ${C.border}` }}
+                >
+                  {menu.items.map((item: any, i: number) =>
+                    item.divider ? (
+                      <div key={i} className="my-1 mx-2 h-px" style={{ background: C.border }} />
+                    ) : (
+                      <button
+                        key={i}
+                        disabled={item.disabled}
+                        onClick={() => { if (!item.disabled) { item.action?.(); setOpenMenu(null); } }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-left transition-colors"
+                        style={{
+                          color: item.danger ? C.danger : item.disabled ? C.textMuted : C.text,
+                          opacity: item.disabled ? 0.4 : 1,
+                        }}
+                        onMouseEnter={(e) => { if (!item.disabled) e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                      >
+                        <span className="material-symbols-outlined text-[14px]" style={{ color: item.active ? C.accent : "inherit" }}>{item.icon}</span>
+                        <span className="flex-1">{item.label}</span>
+                        {item.active && <span className="material-symbols-outlined text-[12px]" style={{ color: C.accent }}>check</span>}
+                        {item.shortcut && <span className="text-[9px] font-mono" style={{ color: C.textMuted }}>{item.shortcut}</span>}
+                      </button>
+                    )
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         ))}
 
         <div className="flex-1" />
 
         {/* Center: Project info */}
         <div className="flex items-center gap-3">
-          <span className="text-[11px] font-medium" style={{ color: C.text }}>{scriptData?.title || "Untitled Sequence"}</span>
-          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.06)", color: C.textDim }}>
+          <span className="text-[12px] font-semibold" style={{ color: C.text }}>{scriptData?.title || "Untitled Sequence"}</span>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full" style={{ background: C.accentBg, color: C.accent }}>
             {scenes.length} clips
           </span>
         </div>
 
         <div className="flex-1" />
 
-        {/* Right: workspace controls */}
-        <div className="flex items-center gap-1 pr-2">
+        {/* Right: credits + workspace controls */}
+        <div className="flex items-center gap-2 pr-2">
+          {/* Credits indicator */}
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg" style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", border: `1px solid ${C.border}` }}
+            title={`Quality: ${qualityTier.charAt(0).toUpperCase() + qualityTier.slice(1)} · Credits used: $${creditsUsed.toFixed(4)}`}
+          >
+            <span className="material-symbols-outlined text-[14px]" style={{ color: creditsUsed > 0 ? C.warn : C.success, fontVariationSettings: "'FILL' 1" }}>
+              {creditsUsed > 0 ? "toll" : "stars"}
+            </span>
+            <div className="flex flex-col leading-none">
+              <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: C.textMuted }}>Credits</span>
+              <span className="text-[11px] font-bold tabular-nums" style={{ color: creditsUsed > 0 ? C.text : C.success }}>
+                {creditsUsed > 0 ? `$${creditsUsed.toFixed(2)}` : "Free"}
+              </span>
+            </div>
+            <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase" style={{
+              background: qualityTier === "pro" ? "rgba(168,85,247,0.15)" : qualityTier === "medium" ? C.accentBg : "rgba(74,222,128,0.12)",
+              color: qualityTier === "pro" ? "#a855f7" : qualityTier === "medium" ? C.accent : C.success,
+            }}>
+              {qualityTier}
+            </span>
+          </div>
+
+          <div style={{ width: 1, height: 18, background: C.border }} />
+
           {/* Theme toggle */}
-          <button onClick={toggleTheme} className="p-1 rounded transition-colors"
+          <button onClick={toggleTheme} className="p-1 rounded-lg transition-colors"
             style={{ color: C.textMuted }}
             onMouseEnter={(e) => { e.currentTarget.style.color = C.text; e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = "transparent"; }}
@@ -483,7 +636,7 @@ function EditorInner() {
           >
             <span className="material-symbols-outlined text-[14px]">{isDark ? "light_mode" : "dark_mode"}</span>
           </button>
-          <button onClick={() => setShowShortcuts(true)} className="p-1 rounded transition-colors"
+          <button onClick={() => setShowShortcuts(true)} className="p-1 rounded-lg transition-colors"
             style={{ color: C.textMuted }}
             onMouseEnter={(e) => { e.currentTarget.style.color = C.text; e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = "transparent"; }}
@@ -491,10 +644,10 @@ function EditorInner() {
           >
             <span className="material-symbols-outlined text-[14px]">keyboard</span>
           </button>
-          <button onClick={() => setShowExport(true)} className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-semibold text-white transition-all"
-            style={{ background: C.accent }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = C.accentDim; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = C.accent; }}
+          <button onClick={() => setShowExport(true)} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-bold text-white transition-all shadow-sm"
+            style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.accentDim})` }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; e.currentTarget.style.transform = "scale(1.02)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "scale(1)"; }}
           >
             <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>movie</span>
             Export
@@ -503,7 +656,7 @@ function EditorInner() {
       </div>
 
       {/* ═══ Toolbar ═══ */}
-      <div className="flex items-center px-2 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 34 }}>
+      <div className="flex items-center px-2 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 38 }}>
         {/* Edit tools */}
         <div className="flex items-center gap-0.5">
           <TBtn icon="undo" label="Undo (Ctrl+Z)" onClick={undo} disabled={!canUndo} />
@@ -540,10 +693,12 @@ function EditorInner() {
               }
               setIsPlaying(!isPlaying);
             }}
-            className="flex items-center justify-center w-8 h-8 rounded transition-all"
+            className="flex items-center justify-center w-9 h-9 rounded-lg transition-all shadow-sm"
             style={{ background: isPlaying ? C.danger : C.accent, color: "#fff" }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.85"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
           >
-            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
               {isPlaying ? "stop" : "play_arrow"}
             </span>
           </button>
@@ -558,41 +713,51 @@ function EditorInner() {
 
         {/* Timecode display */}
         <div className="flex items-center gap-2">
-          <div className="px-2 py-0.5 rounded font-mono text-[11px] tabular-nums" style={{ background: isDark ? "#000" : "#e8e8e8", color: C.accent, letterSpacing: "0.5px" }}>
+          <div className="px-3 py-1 rounded-md font-mono text-[12px] tabular-nums font-semibold" style={{ background: isDark ? "rgba(0,0,0,0.5)" : "#e8e8e8", color: C.accent, letterSpacing: "0.5px" }}>
             {fmt(playheadPosition)}
           </div>
-          <span className="text-[9px]" style={{ color: C.textMuted }}>/ {fmtShort(totalDuration)}</span>
+          <span className="text-[10px]" style={{ color: C.textMuted }}>/ {fmtShort(totalDuration)}</span>
         </div>
 
-        {/* Panel toggles */}
+        {/* Panel toggles + reset */}
         <div className="flex items-center gap-0.5 ml-3">
           <TBtn icon="view_sidebar" label="Source" onClick={() => setShowSource(!showSource)} active={showSource} />
           <TBtn icon="tune" label="Properties" onClick={() => setShowProperties(!showProperties)} active={showProperties} />
+          <TBtn icon="fit_screen" label="Reset Layout" onClick={resetLayout} />
         </div>
       </div>
 
-      {/* ═══ Main Content: 3-panel layout ═══ */}
-      <div className="flex-1 flex min-h-0" style={{ gap: 2 }}>
+      {/* ═══ Main Content: 3-panel layout with resizable borders ═══ */}
+      <div className="flex-1 flex min-h-0">
         {/* Left: Source Monitor */}
         {showSource && (
-          <div className="w-[220px] min-w-[180px] flex-shrink-0">
-            <SourceMonitor />
-          </div>
+          <>
+            <div className="flex-shrink-0 min-w-[140px] max-w-[400px]" style={{ width: sourceWidth }}>
+              <SourceMonitor />
+            </div>
+            {/* Resize handle: source ↔ preview */}
+            <div
+              className="flex-shrink-0 w-[5px] cursor-col-resize hover:bg-white/10 active:bg-white/15 transition-colors flex items-center justify-center group"
+              style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}
+              onMouseDown={(e) => startPanelResize(e, setSourceWidth, sourceWidth, 140, 400, 1)}
+            >
+              <div className="w-[2px] h-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: C.accent }} />
+            </div>
+          </>
         )}
 
         {/* Center: Program Monitor (Preview) */}
         <div className="flex-1 min-w-0 flex flex-col" style={{ background: C.panel }}>
           {/* Program monitor header */}
-          <div className="flex items-center px-1 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 24 }}>
+          <div className="flex items-center px-1 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 28 }}>
             <PanelTab label="Program" active />
-            <PanelTab label="Reference" />
             <div className="flex-1" />
-            <span className="text-[9px] font-mono pr-2" style={{ color: C.textMuted }}>
+            <span className="text-[10px] font-mono pr-2" style={{ color: C.textMuted }}>
               {selectedScene ? `Scene ${selectedScene.orderIndex + 1}` : "No selection"}
             </span>
           </div>
           {/* Preview area */}
-          <div className="flex-1 relative min-h-0 p-1" style={{ background: "#000" }}>
+          <div className="flex-1 relative min-h-0 p-1.5" style={{ background: "#0a0a0c" }}>
             <PreviewPlayer />
             {showTextTool && <TextToolPanel onClose={() => setShowTextTool(false)} />}
           </div>
@@ -600,46 +765,56 @@ function EditorInner() {
 
         {/* Right: Properties / Effects */}
         {showProperties && (
-          <div className="w-[340px] min-w-[280px] flex-shrink-0 flex flex-col" style={{ background: C.panel, borderLeft: `1px solid ${C.border}` }}>
-            {/* Tabs */}
-            <div className="flex items-center px-1 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 24 }}>
-              <PanelTab label="Properties" active={activeRightTab === "properties"} onClick={() => setActiveRightTab("properties")} />
-              <PanelTab label="Text" active={activeRightTab === "text"} onClick={() => setActiveRightTab("text")} />
+          <>
+            {/* Resize handle: preview ↔ properties */}
+            <div
+              className="flex-shrink-0 w-[5px] cursor-col-resize hover:bg-white/10 active:bg-white/15 transition-colors flex items-center justify-center group"
+              style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" }}
+              onMouseDown={(e) => startPanelResize(e, setPropsWidth, propsWidth, 240, 500, -1)}
+            >
+              <div className="w-[2px] h-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: C.accent }} />
             </div>
-            {/* Trim panel (collapsible) */}
-            {showTrim && <TrimPanel />}
-            {/* Content */}
-            <div className="flex-1 overflow-hidden">
-              {activeRightTab === "properties" ? (
-                <PropertiesPanel />
-              ) : (
-                <div className="p-2 overflow-y-auto h-full">
-                  <TextOverlayEditor />
-                </div>
-              )}
+            <div className="flex-shrink-0 flex flex-col min-w-[240px] max-w-[500px]" style={{ width: propsWidth, background: C.panel }}>
+              {/* Tabs */}
+              <div className="flex items-center px-1 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 28 }}>
+                <PanelTab label="Properties" active={activeRightTab === "properties"} onClick={() => setActiveRightTab("properties")} />
+                <PanelTab label="Text" active={activeRightTab === "text"} onClick={() => setActiveRightTab("text")} />
+              </div>
+              {/* Trim panel (collapsible) */}
+              {showTrim && <TrimPanel />}
+              {/* Content */}
+              <div className="flex-1 overflow-hidden">
+                {activeRightTab === "properties" ? (
+                  <PropertiesPanel />
+                ) : (
+                  <div className="p-2 overflow-y-auto h-full">
+                    <TextOverlayEditor />
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
 
-      {/* ═══ Timeline ═══ */}
-      <div style={{ borderTop: `1px solid ${C.border}` }}>
-        <Timeline />
+      {/* ═══ Timeline (resizable height) ═══ */}
+      <div style={{ borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+        <Timeline height={timelineHeight} onHeightChange={setTimelineHeight} />
       </div>
 
       {/* ═══ Status Bar ═══ */}
-      <div className="flex items-center justify-between px-3 flex-shrink-0" style={{ background: C.headerBg, borderTop: `1px solid ${C.border}`, height: 22 }}>
+      <div className="flex items-center justify-between px-4 flex-shrink-0" style={{ background: C.headerBg, borderTop: `1px solid ${C.border}`, height: 26 }}>
         <div className="flex items-center gap-3">
-          <span className="text-[9px]" style={{ color: C.textMuted }}>
+          <span className="text-[10px]" style={{ color: C.textDim }}>
             {selectedSceneIds.size > 1 ? `${selectedSceneIds.size} selected` : selectedScene ? `Scene ${selectedScene.orderIndex + 1} — ${selectedScene.duration}s` : "Ready"}
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-[9px] font-mono" style={{ color: C.textMuted }}>{scenes.length} scenes</span>
-          <span className="text-[9px] font-mono" style={{ color: C.textMuted }}>{fmtShort(totalDuration)} total</span>
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: C.success }} />
-            <span className="text-[9px]" style={{ color: C.textMuted }}>Ready</span>
+        <div className="flex items-center gap-4">
+          <span className="text-[10px] font-mono" style={{ color: C.textMuted }}>{scenes.length} scenes</span>
+          <span className="text-[10px] font-mono" style={{ color: C.textMuted }}>{fmtShort(totalDuration)} total</span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full" style={{ background: isPlaying ? C.danger : C.success }} />
+            <span className="text-[10px]" style={{ color: C.textDim }}>{isPlaying ? "Playing" : "Ready"}</span>
           </span>
         </div>
       </div>
@@ -649,17 +824,20 @@ function EditorInner() {
 
       {/* ═══ Keyboard Shortcuts Modal ═══ */}
       {showShortcuts && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShowShortcuts(false)}>
-          <div className="rounded-lg p-5 w-full max-w-sm shadow-2xl" style={{ background: C.panel, border: `1px solid ${C.border}` }} onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold" style={{ color: C.text }}>Keyboard Shortcuts</h3>
-              <button onClick={() => setShowShortcuts(false)} style={{ color: C.textDim }}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowShortcuts(false)}>
+          <div className="rounded-xl p-6 w-full max-w-sm shadow-2xl" style={{ background: isDark ? "#252528" : "#fff", border: `1px solid ${C.border}` }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold" style={{ color: C.text }}>Keyboard Shortcuts</h3>
+              <button onClick={() => setShowShortcuts(false)} className="p-1 rounded-lg transition-colors" style={{ color: C.textDim }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
                 <span className="material-symbols-outlined text-sm">close</span>
               </button>
             </div>
-            <div className="space-y-1 text-xs">
+            <div className="space-y-0.5">
               {[
-                ["Space", "Play / Stop"],
+                ["Space", "Play / Pause"],
                 ["Ctrl + Z", "Undo"],
                 ["Ctrl + Shift + Z", "Redo"],
                 ["Ctrl + D", "Duplicate scene"],
@@ -668,11 +846,18 @@ function EditorInner() {
                 ["Ctrl + E", "Export"],
                 ["Delete", "Remove clip"],
                 ["Escape", "Deselect / close"],
+                ["N", "Toggle Snap"],
+                ["T", "Toggle Trim Panel"],
+                ["Home", "Go to Start"],
+                ["End", "Go to End"],
                 ["?", "Shortcuts"],
               ].map(([key, desc]) => (
-                <div key={key} className="flex items-center justify-between py-1" style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <span style={{ color: C.textDim }}>{desc}</span>
-                  <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono" style={{ background: "rgba(255,255,255,0.06)", color: C.text }}>{key}</kbd>
+                <div key={key} className="flex items-center justify-between py-1.5 px-1 rounded-md transition-colors"
+                  onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                >
+                  <span className="text-[12px]" style={{ color: C.textDim }}>{desc}</span>
+                  <kbd className="px-2 py-0.5 rounded-md text-[10px] font-mono" style={{ background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", color: C.text, border: `1px solid ${C.border}` }}>{key}</kbd>
                 </div>
               ))}
             </div>
@@ -709,10 +894,12 @@ function EditorThemeProvider({ children }: { children: React.ReactNode }) {
 
 export default function EditorPage() {
   return (
-    <EditorThemeProvider>
-      <EditorProvider>
-        <EditorInner />
-      </EditorProvider>
-    </EditorThemeProvider>
+    <ErrorBoundary>
+      <EditorThemeProvider>
+        <EditorProvider>
+          <EditorInner />
+        </EditorProvider>
+      </EditorThemeProvider>
+    </ErrorBoundary>
   );
 }

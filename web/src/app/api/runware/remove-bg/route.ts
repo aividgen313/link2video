@@ -10,8 +10,8 @@ export async function POST(req: NextRequest) {
       outputFormat = "PNG",
     } = await req.json();
 
-    if (!inputImage) {
-      return NextResponse.json({ error: "inputImage (imageUUID or URL) is required" }, { status: 400 });
+    if (!inputImage || typeof inputImage !== "string" || !inputImage.trim()) {
+      return NextResponse.json({ error: "inputImage must be a non-empty string (imageUUID or URL)" }, { status: 400 });
     }
 
     console.log("Runware Remove Background:", inputImage);
@@ -33,9 +33,15 @@ export async function POST(req: NextRequest) {
           includeCost: true,
         },
       ]),
+      signal: AbortSignal.timeout(30000),
     });
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON response from Runware" }, { status: 502 });
+    }
 
     if (data.errors) {
       console.error("Runware remove-bg error:", data.errors);

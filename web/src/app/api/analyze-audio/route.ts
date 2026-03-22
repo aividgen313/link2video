@@ -3,10 +3,15 @@ import { generateGeminiText } from "@/lib/gemini";
 
 export async function POST(req: NextRequest) {
   try {
-    const { lyrics, durationSeconds } = await req.json();
+    const body = await req.json();
+    const { lyrics, durationSeconds } = body;
 
-    if (!durationSeconds || durationSeconds <= 0) {
-      return NextResponse.json({ error: "durationSeconds is required" }, { status: 400 });
+    const parsedDuration = Number(durationSeconds);
+    if (!Number.isFinite(parsedDuration) || parsedDuration < 1 || parsedDuration > 7200) {
+      return NextResponse.json({ error: "durationSeconds must be a number between 1 and 7200" }, { status: 400 });
+    }
+    if (lyrics != null && typeof lyrics !== "string") {
+      return NextResponse.json({ error: "lyrics must be a string" }, { status: 400 });
     }
 
     // If lyrics provided, use AI to segment them
@@ -38,10 +43,16 @@ Return JSON array:
 
       const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        const segments = JSON.parse(jsonMatch[0]);
+        let segments;
+        try {
+          segments = JSON.parse(jsonMatch[0]);
+        } catch (parseError) {
+          console.error("JSON parse error on AI response:", parseError);
+          throw new Error("Failed to parse AI segment analysis: invalid JSON");
+        }
         return NextResponse.json({ segments });
       }
-      throw new Error("Failed to parse AI segment analysis");
+      throw new Error("Failed to parse AI segment analysis: no JSON array found");
     }
 
     // No lyrics: generate heuristic segments based on typical song structure

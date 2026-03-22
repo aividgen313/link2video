@@ -5,6 +5,10 @@ export async function POST(req: NextRequest) {
   try {
     const { title, angle, scenes = [], dimension = "16:9" } = await req.json();
 
+    if (!title || typeof title !== "string" || !title.trim()) {
+      return NextResponse.json({ error: "title must be a non-empty string" }, { status: 400 });
+    }
+
     const narrationSummary = scenes
       .slice(0, 4)
       .map((s: { narration: string }) => s.narration)
@@ -47,7 +51,12 @@ Return ONLY this JSON (no markdown, no explanations):
     const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("No JSON in response");
 
-    const data = JSON.parse(jsonMatch[0]);
+    let data;
+    try {
+      data = JSON.parse(jsonMatch[0]);
+    } catch {
+      return NextResponse.json({ error: "Failed to parse AI response as JSON" }, { status: 502 });
+    }
     return NextResponse.json({ success: true, ...data });
   } catch (error: any) {
     console.error("Social copy error:", error);

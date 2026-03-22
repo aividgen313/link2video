@@ -222,7 +222,7 @@ export default function PreviewPlayer() {
   return (
     <div ref={containerRef} className="flex flex-col h-full gap-1">
       {/* Preview area */}
-      <div className="flex-1 flex items-center justify-center bg-black/50 rounded-xl overflow-hidden relative group">
+      <div className="flex-1 flex items-center justify-center bg-black/60 rounded-xl overflow-hidden relative group">
         {selectedScene?.imageUrl || selectedScene?.aiVideoUrl ? (
           <>
             {/* AI Video or Ken Burns Image */}
@@ -415,37 +415,37 @@ export default function PreviewPlayer() {
       </div>
 
       {/* Transport bar */}
-      <div className="flex items-center justify-between px-2 py-1">
+      <div className="flex items-center justify-between px-3 py-1.5">
         {/* Left: Scale controls + timecode */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-0.5 rounded-lg overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
             {(["fit", "fill", "100"] as const).map(s => (
               <button
                 key={s}
                 onClick={() => setPreviewScale(s)}
-                className={`text-[9px] px-2 py-0.5 rounded ${previewScale === s ? "bg-primary/20 text-primary" : "text-outline/50 hover:text-outline/80 hover:bg-white/5"}`}
+                className={`text-[10px] px-2.5 py-1 transition-all ${previewScale === s ? "bg-primary/20 text-primary font-semibold" : "text-outline/50 hover:text-outline/80 hover:bg-white/5"}`}
               >
                 {s === "100" ? "1:1" : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
           </div>
-          <span className="text-[9px] text-outline/40 tabular-nums font-mono">
+          <span className="text-[10px] text-outline/50 tabular-nums font-mono">
             {formatTime(playheadPosition)} / {formatTime(totalDuration)}
           </span>
         </div>
 
         {/* Center: Transport controls */}
-        <div className="flex items-center gap-1">
-          <button onClick={goFirst} disabled={sceneIndex <= 0 && !isPlaying} className="w-7 h-7 rounded-lg flex items-center justify-center text-outline/60 hover:text-white hover:bg-white/5 disabled:opacity-20 transition-all">
-            <span className="material-symbols-outlined text-[16px]">first_page</span>
+        <div className="flex items-center gap-1.5">
+          <button onClick={goFirst} disabled={sceneIndex <= 0 && !isPlaying} className="w-8 h-8 rounded-lg flex items-center justify-center text-outline/50 hover:text-white hover:bg-white/8 disabled:opacity-20 transition-all">
+            <span className="material-symbols-outlined text-[18px]">first_page</span>
           </button>
-          <button onClick={goPrev} disabled={sceneIndex <= 0} className="w-8 h-8 rounded-lg flex items-center justify-center text-outline/70 hover:text-white hover:bg-white/5 disabled:opacity-20 transition-all">
+          <button onClick={goPrev} disabled={sceneIndex <= 0} className="w-8 h-8 rounded-lg flex items-center justify-center text-outline/60 hover:text-white hover:bg-white/8 disabled:opacity-20 transition-all">
             <span className="material-symbols-outlined text-lg">skip_previous</span>
           </button>
           {/* Stop button */}
           <button
             onClick={handleStop}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-outline/60 hover:text-white hover:bg-white/5 transition-all"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-outline/50 hover:text-white hover:bg-white/8 transition-all"
           >
             <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>stop</span>
           </button>
@@ -453,30 +453,30 @@ export default function PreviewPlayer() {
           <button
             onClick={() => {
               if (!isPlaying && playheadPosition >= totalDuration) {
-                // If at end, restart from beginning
                 setPlayheadPosition(0);
                 if (v1Scenes.length > 0) setSelectedSceneId(v1Scenes[0].id);
               }
               setIsPlaying(!isPlaying);
             }}
-            className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary hover:bg-primary/30 transition-all"
+            className="w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-lg"
+            style={{ background: isPlaying ? "rgba(239,68,68,0.2)" : "rgba(91,158,244,0.15)", border: `1px solid ${isPlaying ? "rgba(239,68,68,0.3)" : "rgba(91,158,244,0.3)"}`, color: isPlaying ? "#ef4444" : "#5b9ef4" }}
           >
-            <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+            <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
               {isPlaying ? "pause" : "play_arrow"}
             </span>
           </button>
-          <button onClick={goNext} disabled={sceneIndex >= v1Scenes.length - 1} className="w-8 h-8 rounded-lg flex items-center justify-center text-outline/70 hover:text-white hover:bg-white/5 disabled:opacity-20 transition-all">
+          <button onClick={goNext} disabled={sceneIndex >= v1Scenes.length - 1} className="w-8 h-8 rounded-lg flex items-center justify-center text-outline/60 hover:text-white hover:bg-white/8 disabled:opacity-20 transition-all">
             <span className="material-symbols-outlined text-lg">skip_next</span>
           </button>
-          <button onClick={goLast} disabled={sceneIndex >= v1Scenes.length - 1} className="w-7 h-7 rounded-lg flex items-center justify-center text-outline/60 hover:text-white hover:bg-white/5 disabled:opacity-20 transition-all">
-            <span className="material-symbols-outlined text-[16px]">last_page</span>
+          <button onClick={goLast} disabled={sceneIndex >= v1Scenes.length - 1} className="w-8 h-8 rounded-lg flex items-center justify-center text-outline/50 hover:text-white hover:bg-white/8 disabled:opacity-20 transition-all">
+            <span className="material-symbols-outlined text-[18px]">last_page</span>
           </button>
         </div>
 
         {/* Right: Scene info */}
         <div className="text-[10px] text-outline/50 tabular-nums font-mono">
           Scene {sceneIndex + 1} / {v1Scenes.length}
-          {selectedScene && <span className="ml-2 text-outline/30">({selectedScene.duration}s)</span>}
+          {selectedScene && <span className="ml-2 text-outline/30">({Math.round(selectedScene.duration * 10) / 10}s)</span>}
         </div>
       </div>
     </div>

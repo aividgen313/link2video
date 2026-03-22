@@ -26,6 +26,7 @@ export default function ScriptBuilder() {
     audioFile,
     audioDuration,
     youtubeStyleSuffix,
+    generateRequested, setGenerateRequested,
   } = useAppContext();
   const [isLoading, setIsLoading] = useState(!scriptData);
   const [hasMounted, setHasMounted] = useState(false);
@@ -34,6 +35,8 @@ export default function ScriptBuilder() {
   const [isExtending, setIsExtending] = useState(false);
   // Track which scenes are currently generating images
   const [generatingImages, setGeneratingImages] = useState<Record<number, boolean>>({});
+  // Track per-scene image generation errors
+  const [imageErrors, setImageErrors] = useState<Record<number, string>>({});
   // Track if auto-generation has been triggered
   const autoGenTriggered = useRef<Set<number>>(new Set());
 
@@ -60,6 +63,7 @@ export default function ScriptBuilder() {
     if (!scene.visual_prompt || generatingImages[scene.id]) return;
 
     setGeneratingImages(prev => ({ ...prev, [scene.id]: true }));
+    setImageErrors(prev => { const copy = { ...prev }; delete copy[scene.id]; return copy; });
     try {
       // All tiers use Pollinations (nanobanana-pro/seedream-pro) for images — NO flux
       const res = await fetch("/api/runware/image", {
@@ -71,19 +75,30 @@ export default function ScriptBuilder() {
           height: 768,
         }),
       });
+      if (!res.ok) {
+        const msg = `Image generation failed (HTTP ${res.status})`;
+        console.error(msg);
+        setImageErrors(prev => ({ ...prev, [scene.id]: msg }));
+        return;
+      }
       const data = await res.json();
       if (data.success && data.images?.[0]) {
         setStoryboardImages((prev: Record<number, string>) => ({
           ...prev,
           [scene.id]: data.images[0].imageURL,
         }));
+      } else {
+        const msg = data.error || "Image generation returned no results";
+        setImageErrors(prev => ({ ...prev, [scene.id]: msg }));
       }
     } catch (err) {
-      console.error(`Image gen error for scene ${scene.id}:`, err);
+      const msg = `Image gen error for scene ${scene.id}: ${err instanceof Error ? err.message : err}`;
+      console.error(msg);
+      setImageErrors(prev => ({ ...prev, [scene.id]: msg }));
     } finally {
       setGeneratingImages(prev => ({ ...prev, [scene.id]: false }));
     }
-  }, [qualityTier, generatingImages, setStoryboardImages]);
+  }, [qualityTier, generatingImages, setStoryboardImages, setImageErrors]);
 
   // Search for reference images of key subjects (people, locations, brands)
   const searchReferenceImages = useCallback(async (data: any) => {
@@ -101,6 +116,7 @@ export default function ScriptBuilder() {
           storyText: allText.substring(0, 3000),
         }),
       });
+      if (!res.ok) throw new Error("Subject extraction failed");
       const subjectData = await res.json();
       if (!subjectData.subjects || subjectData.subjects.length === 0) return;
 
@@ -110,6 +126,7 @@ export default function ScriptBuilder() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subjects: subjectData.subjects }),
       });
+      if (!imgRes.ok) throw new Error("Reference image search failed");
       const imgData = await imgRes.json();
       if (imgData.subjects) {
         const refMap: Record<string, string[]> = {};
@@ -136,8 +153,8 @@ export default function ScriptBuilder() {
       s => s.visual_prompt && !storyboardImages[s.id] && !generatingImages[s.id] && !autoGenTriggered.current.has(s.id)
     );
 
-    // Generate up to 2 concurrently
-    const batch = scenesNeedingImages.slice(0, 2);
+    // Generate up to 3 concurrently
+    const batch = scenesNeedingImages.slice(0, 3);
     for (const scene of batch) {
       autoGenTriggered.current.add(scene.id);
       generateSceneImage(scene);
@@ -150,6 +167,16 @@ export default function ScriptBuilder() {
       if (scriptData.scenes.length > 0) setActiveScene(scriptData.scenes[0]);
       return;
     }
+
+    // Only auto-generate if user explicitly requested generation (not sidebar browsing)
+    const hasValidInput = (mode === "link" && url && angle) ||
+                          (mode === "short-story" && storyText) ||
+                          (mode === "music-video" && audioFile);
+    if (!hasValidInput || !generateRequested) {
+      setIsLoading(false);
+      return;
+    }
+    setGenerateRequested(false); // Consume the intent signal
 
     const fetchScript = async () => {
       try {
@@ -180,6 +207,7 @@ export default function ScriptBuilder() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody)
         });
+        if (!res.ok) throw new Error(`Script generation failed (HTTP ${res.status})`);
         const data = await res.json();
         if (data.error) {
           setErrorMessage(data.error + (data.message ? `: ${data.message}` : ""));
@@ -225,6 +253,7 @@ export default function ScriptBuilder() {
           existingTitle: scriptData.title,
         }),
       });
+      if (!res.ok) throw new Error(`Continue writing failed (HTTP ${res.status})`);
       const data = await res.json();
       if (data.scenes && data.scenes.length > 0) {
         const maxId = Math.max(...scriptData.scenes.map(s => s.id), 0);
@@ -240,6 +269,7 @@ export default function ScriptBuilder() {
       }
     } catch (err) {
       console.error("Continue writing error:", err);
+      setErrorMessage("Failed to continue writing. Please try again.");
     } finally {
       setIsExtending(false);
     }
@@ -264,6 +294,7 @@ export default function ScriptBuilder() {
           existingTitle: scriptData.title,
         }),
       });
+      if (!res.ok) throw new Error(`End story failed (HTTP ${res.status})`);
       const data = await res.json();
       if (data.scenes && data.scenes.length > 0) {
         const maxId = Math.max(...scriptData.scenes.map(s => s.id), 0);
@@ -279,6 +310,7 @@ export default function ScriptBuilder() {
       }
     } catch (err) {
       console.error("End story error:", err);
+      setErrorMessage("Failed to end story. Please try again.");
     } finally {
       setIsExtending(false);
     }
@@ -295,8 +327,12 @@ export default function ScriptBuilder() {
 
   if (!hasMounted) return null;
 
+  // Show empty state when no script and not loading
+  const showEmptyState = !isLoading && !scriptData && !errorMessage;
+
   return (
     <>
+      {/* Breadcrumb — always visible */}
       <div className="mb-4 flex items-center gap-2">
         <Link href={mode === "link" ? "/story" : "/"} className="text-outline text-sm font-label uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1">
           <span className="material-symbols-outlined text-sm">chevron_left</span>
@@ -307,6 +343,50 @@ export default function ScriptBuilder() {
         <span className="font-headline font-bold text-on-surface truncate max-w-[200px]">{scriptData?.title || url || "Draft Script"}</span>
       </div>
 
+      {/* Empty State */}
+      {showEmptyState && (
+        <div className="flex flex-col items-center justify-center py-20 text-center max-w-md mx-auto">
+          <span className="material-symbols-outlined text-6xl text-outline/30 mb-4">edit_note</span>
+          <h3 className="font-headline font-bold text-xl text-on-surface mb-2">No Script Yet</h3>
+          <p className="text-outline text-sm mb-6">Start from the home page — enter a topic, choose a style, and generate your video script.</p>
+          <a href="/" className="primary-gradient text-white px-6 py-3 rounded-xl font-headline font-bold flex items-center gap-2 shadow-md">
+            <span className="material-symbols-outlined">home</span>
+            Go to Dashboard
+          </a>
+        </div>
+      )}
+
+      {/* Error State */}
+      {errorMessage && !isLoading && (
+        <div className="max-w-2xl mx-auto mb-8">
+          <div className="bg-error-container border-2 border-error rounded-2xl p-8">
+            <div className="flex items-start gap-4">
+              <span className="material-symbols-outlined text-error text-3xl">error</span>
+              <div>
+                <h3 className="font-headline font-bold text-xl text-on-error-container mb-2">Script Generation Failed</h3>
+                <p className="text-on-error-container/80 mb-4">{errorMessage}</p>
+                <button
+                  onClick={() => { setErrorMessage(null); setScriptData(null); }}
+                  className="px-4 py-2 bg-error text-on-error rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
+                  <span className="material-symbols-outlined text-sm">refresh</span>
+                  Retry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {isLoading && !scriptData && (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
+          <p className="font-headline font-bold text-xl animate-pulse">Generating Script...</p>
+        </div>
+      )}
+
+      {/* Main Content — only when script data exists */}
+      {scriptData && (
       <div className="max-w-7xl mx-auto flex flex-col gap-8 w-full mt-4">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row items-start md:items-end justify-between border-b border-outline-variant/5 pb-8 gap-6">
@@ -338,7 +418,7 @@ export default function ScriptBuilder() {
               <span className="material-symbols-outlined text-primary text-sm">account_balance_wallet</span>
               <div>
                 <p className="text-[10px] text-outline uppercase font-bold tracking-wider leading-none">Est. Cost</p>
-                <p className="font-headline font-bold text-sm text-on-surface">{qualityTier === "basic" ? "FREE" : `$${estimatedTotalCost}`}</p>
+                <p className="font-headline font-bold text-sm text-on-surface">${estimatedTotalCost}</p>
               </div>
             </div>
 
@@ -377,23 +457,6 @@ export default function ScriptBuilder() {
 
           {/* Left Side: Script Scenes with Image Previews */}
           <div className="col-span-12 lg:col-span-7 space-y-6">
-            {errorMessage && !isLoading && (
-              <div className="bg-error-container border-2 border-error rounded-2xl p-8 mb-6">
-                <div className="flex items-start gap-4">
-                  <span className="material-symbols-outlined text-error text-3xl">error</span>
-                  <div>
-                    <h3 className="font-headline font-bold text-xl text-on-error-container mb-2">Script Generation Failed</h3>
-                    <p className="text-on-error-container/80 mb-4">{errorMessage}</p>
-                    <button
-                      onClick={() => { setErrorMessage(null); setScriptData(null); }}
-                      className="px-4 py-2 bg-error text-on-error rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
-                      <span className="material-symbols-outlined text-sm">refresh</span>
-                      Retry
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
             {isLoading ? (
               <div className="flex justify-center py-20">
                 <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
@@ -733,6 +796,7 @@ export default function ScriptBuilder() {
           </div>
         </div>
       </div>
+      )}
     </>
   );
 }

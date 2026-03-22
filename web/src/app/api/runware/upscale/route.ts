@@ -11,8 +11,12 @@ export async function POST(req: NextRequest) {
       outputFormat = "JPG",
     } = await req.json();
 
-    if (!inputImage) {
-      return NextResponse.json({ error: "inputImage (imageUUID or URL) is required" }, { status: 400 });
+    if (!inputImage || typeof inputImage !== "string" || !inputImage.trim()) {
+      return NextResponse.json({ error: "inputImage must be a non-empty string (imageUUID or URL)" }, { status: 400 });
+    }
+
+    if (typeof upscaleFactor !== "number" || upscaleFactor < 1 || upscaleFactor > 4) {
+      return NextResponse.json({ error: "upscaleFactor must be a number between 1 and 4" }, { status: 400 });
     }
 
     console.log("Runware Upscale:", inputImage, `${upscaleFactor}x`);
@@ -35,9 +39,15 @@ export async function POST(req: NextRequest) {
           includeCost: true,
         },
       ]),
+      signal: AbortSignal.timeout(60000),
     });
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON response from Runware" }, { status: 502 });
+    }
 
     if (data.errors) {
       console.error("Runware upscale error:", data.errors);

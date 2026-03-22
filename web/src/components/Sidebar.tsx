@@ -69,7 +69,7 @@ export default function Sidebar() {
       <div className="flex flex-col items-center gap-1 mt-auto">
         <button
           title="Settings"
-          onClick={() => window.alert("Settings coming soon! Currently all configuration is automatic.")}
+          onClick={() => router.push("/")}
           className="w-11 h-11 rounded-2xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all"
         >
           <span className="material-symbols-outlined text-xl">settings</span>

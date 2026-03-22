@@ -32,17 +32,25 @@ export function getSavedStyles(): SavedStyle[] {
 }
 
 export function saveStyle(style: SavedStyle): void {
-  const styles = getSavedStyles();
-  // Replace if same ID exists
-  const idx = styles.findIndex(s => s.id === style.id);
-  if (idx >= 0) styles[idx] = style;
-  else styles.unshift(style);
-  // Keep max 20
-  if (styles.length > 20) styles.pop();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(styles));
+  try {
+    const styles = getSavedStyles();
+    // Replace if same ID exists
+    const idx = styles.findIndex(s => s.id === style.id);
+    if (idx >= 0) styles[idx] = style;
+    else styles.unshift(style);
+    // Keep max 20
+    if (styles.length > 20) styles.pop();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(styles));
+  } catch (err) {
+    console.warn("Failed to save style to localStorage:", err);
+  }
 }
 
 export function deleteStyle(id: string): void {
-  const styles = getSavedStyles().filter(s => s.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(styles));
+  try {
+    const styles = getSavedStyles().filter(s => s.id !== id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(styles));
+  } catch (err) {
+    console.warn("Failed to delete style from localStorage:", err);
+  }
 }

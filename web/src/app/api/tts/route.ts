@@ -7,10 +7,17 @@ const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || "";
  */
 export async function POST(req: NextRequest) {
   try {
-    const { text, voice = "adam" } = await req.json();
+    const body = await req.json();
+    const { text, voice = "adam" } = body;
 
-    if (!text) {
-      return NextResponse.json({ error: "Text is required" }, { status: 400 });
+    if (!text || typeof text !== "string" || text.trim().length === 0) {
+      return NextResponse.json({ error: "Text must be a non-empty string" }, { status: 400 });
+    }
+    if (text.length > 5000) {
+      return NextResponse.json({ error: "Text must be at most 5000 characters" }, { status: 400 });
+    }
+    if (typeof voice !== "string" || voice.trim().length === 0) {
+      return NextResponse.json({ error: "Voice must be a non-empty string" }, { status: 400 });
     }
 
     console.log(`TTS (voice=${voice}):`, text.substring(0, 50) + "...");

@@ -1,38 +1,66 @@
 "use client";
-import { useRef, useMemo, useState } from "react";
+import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { useEditorContext, TrackType } from "@/context/EditorContext";
 import TimelineScene from "./TimelineScene";
 
-// Premiere-style colors
+// Modern dark theme colors
 const C = {
-  bg: "#1a1a1a",
-  ruler: "#1e1e1e",
-  trackBg: "#232323",
-  trackAlt: "#1f1f1f",
-  border: "#3a3a3a",
-  accent: "#4a9eed",
-  accentDim: "rgba(74, 158, 237, 0.12)",
-  textDim: "#808080",
-  textMuted: "#5a5a5a",
-  playhead: "#ea4335",
-  audioTrack: "#2a5a2a",
-  videoTrack: "#2a3a5a",
+  bg: "#161618",
+  ruler: "#1c1c1f",
+  trackBg: "#1e1e22",
+  trackAlt: "#1a1a1e",
+  border: "#2e2e34",
+  accent: "#5b9ef4",
+  accentDim: "rgba(91, 158, 244, 0.10)",
+  textDim: "#9a9aa0",
+  textMuted: "#5a5a62",
+  playhead: "#ef4444",
+  audioTrack: "#1e2e1e",
+  videoTrack: "#1e2230",
 };
 
-export default function Timeline() {
+interface TimelineProps {
+  height: number;
+  onHeightChange: (h: number) => void;
+}
+
+export default function Timeline({ height, onHeightChange }: TimelineProps) {
   const {
     scenes, tracks, zoom, setZoom, reorderScene, totalDuration,
     playheadPosition, setPlayheadPosition,
-    setSelectedSceneId, snapEnabled,
+    setSelectedSceneId, selectedSceneId, snapEnabled,
     addTrack, removeTrack, updateTrack, getTrackScenes,
     musicTrack, setMusicTrack, importMedia,
+    isPlaying, deleteScene,
   } = useEditorContext();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importTargetTrack, setImportTargetTrack] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; sceneId: number } | null>(null);
+
+  // Resize handle
+  const resizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizeRef.current = { startY: e.clientY, startHeight: height };
+    const handleMove = (ev: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const delta = resizeRef.current.startY - ev.clientY; // dragging up = bigger
+      const newH = Math.max(120, Math.min(500, resizeRef.current.startHeight + delta));
+      onHeightChange(newH);
+    };
+    const handleUp = () => {
+      resizeRef.current = null;
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+  }, [height, onHeightChange]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -42,6 +70,20 @@ export default function Timeline() {
   const v1Scenes = useMemo(() => scenes.filter(s => s.trackId === "v1"), [scenes]);
   const sceneWidths = useMemo(() => v1Scenes.map(s => Math.max(s.duration * zoom, 50)), [v1Scenes, zoom]);
   const totalWidth = Math.max(sceneWidths.reduce((a, b) => a + b, 0), 400);
+
+  // Compute track heights dynamically based on available space
+  const videoTracks = tracks.filter(t => t.type === "video");
+  const audioTracks = tracks.filter(t => t.type === "audio");
+
+  // Calculate available height for tracks (subtract ruler 24px, bottom bar ~34px, resize handle 6px)
+  const availableTrackHeight = height - 24 - 34 - 6;
+  const collapsedCount = [...videoTracks, ...audioTracks].filter(t => t.isCollapsed).length;
+  const expandedCount = videoTracks.length + audioTracks.length - collapsedCount;
+  // Add track buttons are ~20px each
+  const addButtonsHeight = 40;
+  const collapsedHeight = collapsedCount * 20;
+  const expandableHeight = Math.max(40, availableTrackHeight - collapsedHeight - addButtonsHeight);
+  const perTrackHeight = expandedCount > 0 ? Math.max(40, Math.floor(expandableHeight / expandedCount)) : 60;
 
   // Time ruler marks
   const timeMarks = useMemo(() => {
@@ -78,6 +120,65 @@ export default function Timeline() {
 
   const playheadX = playheadPosition * zoom;
 
+  // ── Scroll-wheel zoom on timeline ──
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    // Ctrl+scroll or pinch = zoom, plain scroll = horizontal scroll
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -5 : 5;
+      const newZoom = Math.max(5, Math.min(150, zoom + delta));
+
+      // Zoom toward mouse position
+      if (scrollRef.current) {
+        const container = scrollRef.current;
+        const rect = container.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left; // mouse position relative to viewport
+        const scrollLeft = container.scrollLeft;
+        const timeAtMouse = (scrollLeft + mouseX) / zoom;
+
+        setZoom(newZoom);
+
+        // After zoom, adjust scroll so the time under the mouse stays put
+        requestAnimationFrame(() => {
+          container.scrollLeft = timeAtMouse * newZoom - mouseX;
+        });
+      } else {
+        setZoom(newZoom);
+      }
+    }
+    // Without ctrl: let native horizontal scroll work
+  }, [zoom, setZoom]);
+
+  // ── Auto-scroll timeline to keep playhead visible during playback ──
+  useEffect(() => {
+    if (!isPlaying || !scrollRef.current) return;
+    const container = scrollRef.current;
+    const viewWidth = container.clientWidth;
+    const scrollLeft = container.scrollLeft;
+    const margin = viewWidth * 0.15;
+
+    if (playheadX > scrollLeft + viewWidth - margin) {
+      container.scrollLeft = playheadX - margin;
+    }
+    if (playheadX < scrollLeft) {
+      container.scrollLeft = Math.max(0, playheadX - margin);
+    }
+  }, [isPlaying, playheadX]);
+
+  // Close context menu on click elsewhere
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [contextMenu]);
+
+  // Context menu handler for timeline scenes
+  const handleSceneContextMenu = (e: React.MouseEvent, sceneId: number) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, sceneId });
+  };
+
   // File drop handler
   const handleFileDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -105,20 +206,23 @@ export default function Timeline() {
     setImportTargetTrack(null);
   };
 
-  const videoTracks = tracks.filter(t => t.type === "video");
-  const audioTracks = tracks.filter(t => t.type === "audio");
-
   return (
     <div
-      className="flex flex-col select-none"
-      style={{ background: C.bg }}
-      onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-      onDragLeave={() => setIsDragOver(false)}
-      onDrop={handleFileDrop}
+      className="flex flex-col select-none relative"
+      style={{ background: C.bg, height }}
     >
+      {/* ── Resize handle (top edge) ── */}
+      <div
+        className="absolute top-0 left-0 right-0 h-[6px] cursor-ns-resize z-30 group flex items-center justify-center"
+        onMouseDown={handleResizeStart}
+        style={{ background: "transparent" }}
+      >
+        <div className="w-10 h-[3px] rounded-full transition-colors group-hover:bg-white/30" style={{ background: "rgba(255,255,255,0.1)" }} />
+      </div>
+
       {/* Drop overlay */}
       {isDragOver && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none" style={{ background: "rgba(74, 158, 237, 0.08)", border: `2px dashed ${C.accent}` }}>
+        <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none" style={{ background: "rgba(91, 158, 244, 0.08)", border: `2px dashed ${C.accent}`, borderRadius: 8 }}>
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: "rgba(0,0,0,0.8)", color: C.accent }}>
             <span className="material-symbols-outlined text-lg">upload_file</span>
             <span className="text-sm font-medium">Drop media here</span>
@@ -129,11 +233,16 @@ export default function Timeline() {
       <input ref={fileInputRef} type="file" accept="image/*,video/*,audio/*" multiple onChange={handleFileInput} className="hidden" />
 
       {/* Combined track header + scrollable area */}
-      <div className="flex relative">
+      <div
+        className="flex relative flex-1 min-h-0 mt-[6px]"
+        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={handleFileDrop}
+      >
         {/* Track labels (fixed left) */}
-        <div className="flex-shrink-0 flex flex-col" style={{ width: 110, background: "#222", borderRight: `1px solid ${C.border}`, zIndex: 10 }}>
+        <div className="flex-shrink-0 flex flex-col" style={{ width: 110, background: "#1a1a1e", borderRight: `1px solid ${C.border}`, zIndex: 10 }}>
           {/* Ruler label */}
-          <div className="flex items-center justify-between px-2" style={{ height: 22, borderBottom: `1px solid ${C.border}` }}>
+          <div className="flex items-center justify-between px-2" style={{ height: 24, borderBottom: `1px solid ${C.border}` }}>
             <span className="text-[9px] font-mono" style={{ color: C.textMuted }}>{formatTime(totalDuration)}</span>
           </div>
 
@@ -142,7 +251,7 @@ export default function Timeline() {
             <div
               key={track.id}
               className="flex items-center justify-between px-1.5 group"
-              style={{ height: track.isCollapsed ? 20 : track.height, borderBottom: `1px solid ${C.border}`, background: C.videoTrack }}
+              style={{ height: track.isCollapsed ? 20 : perTrackHeight, borderBottom: `1px solid ${C.border}`, background: C.videoTrack }}
             >
               <div className="flex items-center gap-1">
                 <button
@@ -187,7 +296,7 @@ export default function Timeline() {
           <button
             onClick={() => addTrack("video")}
             className="flex items-center gap-1 px-2 py-0.5 transition-colors"
-            style={{ color: C.textMuted, borderBottom: `1px solid ${C.border}` }}
+            style={{ color: C.textMuted, borderBottom: `1px solid ${C.border}`, height: 20 }}
             onMouseEnter={(e) => { e.currentTarget.style.color = C.accent; e.currentTarget.style.background = C.accentDim; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = "transparent"; }}
           >
@@ -200,7 +309,7 @@ export default function Timeline() {
             <div
               key={track.id}
               className="flex items-center justify-between px-1.5 group"
-              style={{ height: track.isCollapsed ? 20 : track.height, borderBottom: `1px solid ${C.border}`, background: C.audioTrack }}
+              style={{ height: track.isCollapsed ? 20 : perTrackHeight, borderBottom: `1px solid ${C.border}`, background: C.audioTrack }}
             >
               <div className="flex items-center gap-1">
                 <button
@@ -245,7 +354,7 @@ export default function Timeline() {
           <button
             onClick={() => addTrack("audio")}
             className="flex items-center gap-1 px-2 py-0.5 transition-colors"
-            style={{ color: C.textMuted, borderBottom: `1px solid ${C.border}` }}
+            style={{ color: C.textMuted, borderBottom: `1px solid ${C.border}`, height: 20 }}
             onMouseEnter={(e) => { e.currentTarget.style.color = C.accent; e.currentTarget.style.background = C.accentDim; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = "transparent"; }}
           >
@@ -255,12 +364,12 @@ export default function Timeline() {
         </div>
 
         {/* Scrollable tracks */}
-        <div className="flex-1 min-w-0 overflow-x-auto" ref={scrollRef} style={{ scrollbarWidth: "thin", scrollbarColor: `${C.border} transparent` }}>
+        <div className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden" ref={scrollRef} onWheel={handleWheel} style={{ scrollbarWidth: "thin", scrollbarColor: `${C.border} transparent` }}>
           <div style={{ minWidth: totalWidth + 100, position: "relative" }}>
             {/* Time ruler */}
             <div
               className="relative cursor-pointer"
-              style={{ height: 22, background: C.ruler, borderBottom: `1px solid ${C.border}` }}
+              style={{ height: 24, background: C.ruler, borderBottom: `1px solid ${C.border}` }}
               onClick={handleRulerClick}
             >
               {timeMarks.map(m => (
@@ -275,21 +384,23 @@ export default function Timeline() {
 
             {/* Playhead line (spans all tracks) */}
             <div
-              className="absolute top-0 bottom-0 w-0.5 z-20 pointer-events-none"
-              style={{ left: playheadX + 110, background: C.playhead, transition: "left 0.1s" }}
+              className="absolute top-0 bottom-0 z-20 pointer-events-none"
+              style={{ left: playheadX, width: 2, background: C.playhead }}
             >
-              <div className="w-2.5 h-2.5 rounded-sm -ml-[4px] -mt-0.5 rotate-45" style={{ background: C.playhead }} />
+              {/* Playhead marker triangle */}
+              <div className="absolute -top-[1px] left-1/2 -translate-x-1/2" style={{ width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: `7px solid ${C.playhead}` }} />
             </div>
 
             {/* Video track lanes */}
             {videoTracks.map((track) => {
               const trackScenes = getTrackScenes(track.id);
+              const trackH = track.isCollapsed ? 20 : perTrackHeight;
               return (
                 <div
                   key={track.id}
                   className="relative"
                   style={{
-                    height: track.isCollapsed ? 20 : track.height,
+                    height: trackH,
                     borderBottom: `1px solid ${C.border}`,
                     background: track.isMuted ? "rgba(42,58,90,0.3)" : C.videoTrack,
                     opacity: track.isMuted ? 0.5 : 1,
@@ -298,12 +409,16 @@ export default function Timeline() {
                   {!track.isCollapsed && (
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                       <SortableContext items={trackScenes.map(s => s.id)} strategy={horizontalListSortingStrategy}>
-                        <div className="flex gap-0.5 p-0.5 h-full items-center">
+                        <div className="flex gap-0.5 p-0.5 h-full items-stretch">
                           {trackScenes.map(scene => {
                             const w = Math.max(scene.duration * zoom, 50);
                             return (
-                              <div key={scene.id} style={{ width: w, flexShrink: 0 }}>
-                                <TimelineScene scene={scene} width={w} />
+                              <div
+                                key={scene.id}
+                                style={{ width: w, flexShrink: 0 }}
+                                onContextMenu={(e) => handleSceneContextMenu(e, scene.id)}
+                              >
+                                <TimelineScene scene={scene} width={w} trackHeight={trackH} />
                               </div>
                             );
                           })}
@@ -325,24 +440,25 @@ export default function Timeline() {
             })}
 
             {/* Add video track placeholder */}
-            <div style={{ height: 18, borderBottom: `1px solid ${C.border}` }} />
+            <div style={{ height: 20, borderBottom: `1px solid ${C.border}` }} />
 
             {/* Audio track lanes */}
             {audioTracks.map((track) => {
               const trackScenes = getTrackScenes(track.id);
+              const trackH = track.isCollapsed ? 20 : perTrackHeight;
               return (
                 <div
                   key={track.id}
                   className="relative"
                   style={{
-                    height: track.isCollapsed ? 20 : track.height,
+                    height: trackH,
                     borderBottom: `1px solid ${C.border}`,
                     background: track.isMuted ? "rgba(42,90,42,0.3)" : C.audioTrack,
                     opacity: track.isMuted ? 0.5 : 1,
                   }}
                 >
                   {!track.isCollapsed && (
-                    <div className="flex gap-0.5 p-0.5 h-full items-center">
+                    <div className="flex gap-0.5 p-0.5 h-full items-stretch">
                       {trackScenes.map(scene => {
                         const w = Math.max(scene.duration * zoom, 50);
                         return (
@@ -351,10 +467,11 @@ export default function Timeline() {
                             className="h-full rounded cursor-pointer flex items-center px-2 overflow-hidden"
                             style={{
                               width: w, flexShrink: 0,
-                              background: "rgba(74, 158, 237, 0.15)",
-                              border: `1px solid rgba(74, 158, 237, 0.3)`,
+                              background: "rgba(91, 158, 244, 0.12)",
+                              border: `1px solid rgba(91, 158, 244, 0.25)`,
                             }}
                             onClick={() => setSelectedSceneId(scene.id)}
+                            onContextMenu={(e) => handleSceneContextMenu(e, scene.id)}
                           >
                             <span className="material-symbols-outlined text-[10px] mr-1" style={{ color: C.accent }}>graphic_eq</span>
                             <span className="text-[8px] truncate" style={{ color: C.textDim }}>
@@ -378,44 +495,48 @@ export default function Timeline() {
             })}
 
             {/* Add audio track placeholder */}
-            <div style={{ height: 18, borderBottom: `1px solid ${C.border}` }} />
+            <div style={{ height: 20, borderBottom: `1px solid ${C.border}` }} />
           </div>
         </div>
       </div>
 
       {/* Bottom bar: zoom */}
-      <div className="flex items-center justify-between px-2 py-0.5" style={{ background: "#222", borderTop: `1px solid ${C.border}` }}>
-        <div className="flex items-center gap-3 text-[9px] font-mono" style={{ color: C.textMuted }}>
+      <div className="flex items-center justify-between px-3 flex-shrink-0" style={{ background: C.bg, borderTop: `1px solid ${C.border}`, height: 34 }}>
+        <div className="flex items-center gap-3 text-[10px] font-mono" style={{ color: C.textMuted }}>
           <span>{scenes.length} clips</span>
           <span>{tracks.length} tracks</span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setZoom(Math.max(10, zoom - 10))} className="p-0.5 rounded transition-colors"
+          <button onClick={() => setZoom(Math.max(5, zoom - 10))} className="p-0.5 rounded transition-colors"
             style={{ color: C.textDim }}
             onMouseEnter={(e) => { e.currentTarget.style.color = "#fff"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = C.textDim; }}
           >
             <span className="material-symbols-outlined text-[14px]">remove</span>
           </button>
-          <input type="range" min={10} max={100} value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-20 h-0.5" style={{ accentColor: C.accent }} />
-          <button onClick={() => setZoom(Math.min(100, zoom + 10))} className="p-0.5 rounded transition-colors"
+          <input type="range" min={5} max={150} value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-24 h-0.5" style={{ accentColor: C.accent }} />
+          <button onClick={() => setZoom(Math.min(150, zoom + 10))} className="p-0.5 rounded transition-colors"
             style={{ color: C.textDim }}
             onMouseEnter={(e) => { e.currentTarget.style.color = "#fff"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = C.textDim; }}
           >
             <span className="material-symbols-outlined text-[14px]">add</span>
           </button>
-          <span className="text-[8px] font-mono" style={{ color: C.textMuted }}>{zoom}px/s</span>
+          <span className="text-[9px] font-mono" style={{ color: C.textMuted }}>{zoom}px/s</span>
         </div>
         <button
           onClick={() => {
             const container = scrollRef.current;
-            if (!container && totalDuration > 0) return;
-            const viewWidth = container?.clientWidth || 800;
-            const idealZoom = Math.max(10, Math.min(100, Math.floor(viewWidth / totalDuration)));
+            const el = container || document.querySelector('.overflow-x-auto.overflow-y-hidden') as HTMLDivElement;
+            // Use V1 scenes total for timeline fit (not all-tracks total)
+            const v1Total = v1Scenes.reduce((sum, s) => sum + s.duration, 0);
+            if (!el || v1Total <= 0) return;
+            const viewWidth = el.clientWidth;
+            const idealZoom = Math.max(5, Math.min(150, Math.floor((viewWidth - 20) / v1Total)));
             setZoom(idealZoom);
+            el.scrollLeft = 0;
           }}
-          className="text-[9px] px-2 py-0.5 rounded transition-colors"
+          className="text-[10px] px-2.5 py-0.5 rounded-md transition-colors"
           style={{ color: C.textMuted }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "#fff"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = "transparent"; }}
@@ -423,6 +544,37 @@ export default function Timeline() {
           Fit
         </button>
       </div>
+
+      {/* ── Right-click context menu ── */}
+      {contextMenu && (
+        <div
+          className="fixed z-[100] py-1 rounded-lg shadow-2xl min-w-[160px]"
+          style={{ top: contextMenu.y, left: contextMenu.x, background: "#252528", border: `1px solid ${C.border}` }}
+        >
+          {[
+            { label: "Select", icon: "check_circle", action: () => { setSelectedSceneId(contextMenu.sceneId); } },
+            { divider: true },
+            { label: "Duplicate", icon: "content_copy", action: () => { /* duplicateScene is in parent */ setSelectedSceneId(contextMenu.sceneId); } },
+            { label: "Delete", icon: "delete_outline", danger: true, action: () => { if (scenes.length > 1) deleteScene(contextMenu.sceneId); } },
+          ].map((item: any, i: number) =>
+            item.divider ? (
+              <div key={i} className="my-1 mx-2 h-px" style={{ background: C.border }} />
+            ) : (
+              <button
+                key={i}
+                onClick={() => { item.action(); setContextMenu(null); }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-left transition-colors"
+                style={{ color: item.danger ? C.playhead : "#e0e0e4" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                <span className="material-symbols-outlined text-[14px]">{item.icon}</span>
+                {item.label}
+              </button>
+            )
+          )}
+        </div>
+      )}
     </div>
   );
 }

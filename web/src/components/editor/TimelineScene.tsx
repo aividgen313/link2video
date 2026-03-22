@@ -4,27 +4,31 @@ import { CSS } from "@dnd-kit/utilities";
 import { EditorScene, useEditorContext } from "@/context/EditorContext";
 
 const C = {
-  accent: "#4a9eed",
-  accentDim: "rgba(74, 158, 237, 0.4)",
-  border: "#3a3a3a",
-  selected: "#4a9eed",
-  multi: "#d29922",
-  warn: "#d29922",
-  success: "#3fb950",
-  textDim: "#808080",
+  accent: "#5b9ef4",
+  accentDim: "rgba(91, 158, 244, 0.4)",
+  border: "#2e2e34",
+  selected: "#5b9ef4",
+  multi: "#f0b040",
+  warn: "#f0b040",
+  success: "#4ade80",
+  textDim: "#9a9aa0",
 };
 
 interface Props {
   scene: EditorScene;
   width: number;
+  trackHeight?: number; // dynamic height from timeline
 }
 
-export default function TimelineScene({ scene, width }: Props) {
+export default function TimelineScene({ scene, width, trackHeight }: Props) {
   const { selectedSceneId, setSelectedSceneId, setPlayheadPosition, getSceneStartTime, selectedSceneIds, toggleSceneSelection } = useEditorContext();
   const isSelected = selectedSceneId === scene.id;
   const isMultiSelected = selectedSceneIds.has(scene.id);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: scene.id });
+
+  // Use track height minus padding, or default to 56px
+  const clipHeight = trackHeight ? Math.max(30, trackHeight - 6) : 56;
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -50,23 +54,24 @@ export default function TimelineScene({ scene, width }: Props) {
       style={{
         ...style,
         border: `2px solid ${borderColor}`,
-        borderRadius: 4,
-        background: "#2a2a2a",
+        borderRadius: 6,
+        background: "#22222a",
+        height: clipHeight,
       }}
       {...attributes}
       {...listeners}
       onClick={handleClick}
-      className="h-[60px] flex-shrink-0 overflow-hidden cursor-pointer relative group"
+      className="flex-shrink-0 overflow-hidden cursor-pointer relative group"
     >
-      {/* Colored top bar (Premiere-style clip color) */}
-      <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: isSelected ? C.accent : "#4a7a4a" }} />
+      {/* Colored top bar (clip color) */}
+      <div className="absolute top-0 left-0 right-0 h-[3px] z-10" style={{ background: isSelected ? C.accent : "#4a7a4a" }} />
 
-      {/* Image fill */}
+      {/* Image fill — object-position center to show middle of image */}
       {scene.imageUrl ? (
         <img
           src={scene.imageUrl}
           alt={`S${scene.orderIndex + 1}`}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover object-center"
           draggable={false}
         />
       ) : (
@@ -76,26 +81,26 @@ export default function TimelineScene({ scene, width }: Props) {
       )}
 
       {/* Bottom info bar */}
-      <div className="absolute inset-x-0 bottom-0 h-5 flex items-center justify-between px-1" style={{ background: "rgba(0,0,0,0.75)" }}>
+      <div className="absolute inset-x-0 bottom-0 h-5 flex items-center justify-between px-1.5" style={{ background: "rgba(0,0,0,0.75)" }}>
         <span className="text-[9px] font-bold text-white tabular-nums">{scene.orderIndex + 1}</span>
-        <span className="text-[8px] text-white/70 font-mono tabular-nums">{scene.duration}s</span>
+        <span className="text-[8px] text-white/70 font-mono tabular-nums">{Math.round(scene.duration * 10) / 10}s</span>
       </div>
 
       {/* Badges row */}
-      <div className="absolute top-1 right-1 flex gap-0.5">
+      <div className="absolute top-1 right-1 flex gap-0.5 z-10">
         {scene.filter !== "none" && (
-          <div className="w-2.5 h-2.5 rounded-sm flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.warn }} title={`Filter: ${scene.filter}`}>F</div>
+          <div className="w-3 h-3 rounded-full flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.warn }} title={`Filter: ${scene.filter}`}>F</div>
         )}
         {scene.overlays.length > 0 && (
-          <div className="w-2.5 h-2.5 rounded-sm flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.accent }} title={`${scene.overlays.length} overlay(s)`}>T</div>
+          <div className="w-3 h-3 rounded-full flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.accent }} title={`${scene.overlays.length} overlay(s)`}>T</div>
         )}
         {scene.marker && (
-          <div className="w-2.5 h-2.5 rounded-sm flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.success }} title={scene.marker}>M</div>
+          <div className="w-3 h-3 rounded-full flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.success }} title={scene.marker}>M</div>
         )}
       </div>
 
       {/* Status icons */}
-      <div className="absolute top-1 left-1 flex gap-0.5">
+      <div className="absolute top-1 left-1 flex gap-0.5 z-10">
         {scene.isLocked && <span className="material-symbols-outlined text-[10px]" style={{ color: C.warn, fontVariationSettings: "'FILL' 1" }}>lock</span>}
         {scene.isMuted && <span className="material-symbols-outlined text-[10px]" style={{ color: "#e5534b" }}>volume_off</span>}
         {scene.playbackSpeed !== 1 && <span className="text-[7px] px-0.5 rounded" style={{ background: "rgba(0,0,0,0.6)", color: C.accent }}>{scene.playbackSpeed}x</span>}

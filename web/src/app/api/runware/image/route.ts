@@ -63,15 +63,21 @@ function sanitizePrompt(prompt: string, maxLen: number): string {
  */
 export async function POST(req: NextRequest) {
   try {
-    const {
-      prompt,
-      width = 1280,
-      height = 768,
-      model,
-    } = await req.json();
+    const body = await req.json();
+    const { prompt, model } = body;
 
-    if (!prompt) {
-      return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+    if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
+      return NextResponse.json({ error: "prompt must be a non-empty string" }, { status: 400 });
+    }
+
+    const width = typeof body.width === "number" ? body.width : 1280;
+    const height = typeof body.height === "number" ? body.height : 768;
+
+    if (typeof width !== "number" || !Number.isFinite(width) || width < 64 || width > 4096) {
+      return NextResponse.json({ error: "width must be a number between 64 and 4096" }, { status: 400 });
+    }
+    if (typeof height !== "number" || !Number.isFinite(height) || height < 64 || height > 4096) {
+      return NextResponse.json({ error: "height must be a number between 64 and 4096" }, { status: 400 });
     }
 
     // Quality boosters for photorealism + full body accuracy

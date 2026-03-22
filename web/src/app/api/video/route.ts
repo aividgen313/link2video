@@ -13,15 +13,26 @@ const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || "";
  */
 export async function POST(req: NextRequest) {
   try {
+    const body = await req.json();
     const {
       prompt,
       duration = 5,
-      mode = "kenburns", // "kenburns" or "ai"
+      mode = "kenburns",
       imageDataUrl,
-    } = await req.json();
+    } = body;
 
     if (!prompt && !imageDataUrl) {
       return NextResponse.json({ error: "Prompt or image is required" }, { status: 400 });
+    }
+    if (prompt != null && (typeof prompt !== "string" || prompt.trim().length === 0)) {
+      return NextResponse.json({ error: "Prompt must be a non-empty string" }, { status: 400 });
+    }
+    const parsedDuration = Number(duration);
+    if (!Number.isFinite(parsedDuration) || parsedDuration < 1 || parsedDuration > 30) {
+      return NextResponse.json({ error: "Duration must be a number between 1 and 30" }, { status: 400 });
+    }
+    if (mode !== "kenburns" && mode !== "ai") {
+      return NextResponse.json({ error: "Mode must be \"ai\" or \"kenburns\"" }, { status: 400 });
     }
 
     // MODE 1: Ken Burns — just pass back the image for client-side FFmpeg processing

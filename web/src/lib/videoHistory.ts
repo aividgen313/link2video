@@ -66,7 +66,16 @@ export function getHistory(): VideoHistoryItem[] {
   try {
     const raw = localStorage.getItem(HISTORY_KEY);
     if (!raw) return [];
-    const items: VideoHistoryItem[] = JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    // Filter out malformed entries missing required fields
+    const items: VideoHistoryItem[] = parsed.filter(
+      (item: unknown): item is VideoHistoryItem =>
+        typeof item === "object" && item !== null &&
+        typeof (item as VideoHistoryItem).id === "string" &&
+        typeof (item as VideoHistoryItem).title === "string" &&
+        typeof (item as VideoHistoryItem).createdAt === "string"
+    );
     // Deduplicate by title+createdAt within 5 seconds (handles StrictMode double-saves)
     const seen = new Set<string>();
     return items.filter((item) => {

@@ -1,14 +1,18 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function TopNav() {
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
+  const router = useRouter();
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -21,6 +25,7 @@ export default function TopNav() {
       case "/story": return "Story Angles";
       case "/script": return "Script Editor";
       case "/storyboard": return "Storyboard Preview";
+      case "/editor": return "Video Editor";
       case "/generate": return "Video Generation";
       default: return "Dashboard";
     }
@@ -73,22 +78,43 @@ export default function TopNav() {
           </button>
         )}
         <button
-          onClick={() => window.alert("Notifications coming soon!")}
           title="Notifications"
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all"
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all relative"
         >
           <span className="material-symbols-outlined text-lg">notifications</span>
         </button>
-        <button
-          onClick={() => {
-            const q = window.prompt("Search your projects:");
-            if (q) window.location.href = `/?search=${encodeURIComponent(q)}`;
-          }}
-          title="Search"
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all"
-        >
-          <span className="material-symbols-outlined text-lg">search</span>
-        </button>
+        {showSearch ? (
+          <div className="flex items-center gap-2">
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && searchQuery.trim()) {
+                  router.push(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+                  setShowSearch(false);
+                  setSearchQuery("");
+                } else if (e.key === "Escape") {
+                  setShowSearch(false);
+                  setSearchQuery("");
+                }
+              }}
+              onBlur={() => { setShowSearch(false); setSearchQuery(""); }}
+              placeholder="Search projects..."
+              className="w-48 h-9 px-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-sm text-on-surface focus:ring-1 focus:ring-primary/40 focus:outline-none placeholder:text-outline/50"
+              autoFocus
+            />
+          </div>
+        ) : (
+          <button
+            onClick={() => { setShowSearch(true); setTimeout(() => searchInputRef.current?.focus(), 50); }}
+            title="Search"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all"
+          >
+            <span className="material-symbols-outlined text-lg">search</span>
+          </button>
+        )}
       </div>
     </header>
   );

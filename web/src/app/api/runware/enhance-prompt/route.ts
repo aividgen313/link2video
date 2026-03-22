@@ -10,8 +10,8 @@ export async function POST(req: NextRequest) {
       promptVersions = 4,
     } = await req.json();
 
-    if (!prompt) {
-      return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+    if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+      return NextResponse.json({ error: "Prompt must be a non-empty string" }, { status: 400 });
     }
 
     console.log("Runware Enhance Prompt:", prompt.substring(0, 80));
@@ -32,9 +32,15 @@ export async function POST(req: NextRequest) {
           includeCost: true,
         },
       ]),
+      signal: AbortSignal.timeout(30000),
     });
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON response from Runware" }, { status: 502 });
+    }
 
     if (data.errors) {
       console.error("Runware prompt enhance error:", data.errors);

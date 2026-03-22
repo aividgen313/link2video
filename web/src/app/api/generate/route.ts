@@ -45,9 +45,15 @@ function parseScriptData(responseText: string): any {
       scriptData = JSON.parse(completed);
       console.log("Parsed script after completion with", scriptData.scenes?.length || 0, "scenes");
     } catch (e2) {
+      // Last resort: try stripping trailing commas and re-parsing
       try {
-        scriptData = (new Function('return ' + repairJson(jsonStr)))();
-        console.log("Parsed script via eval with", scriptData.scenes?.length || 0, "scenes");
+        let cleaned = repairJson(jsonStr);
+        // Remove trailing commas before ] or }
+        cleaned = cleaned.replace(/,\s*([\]}])/g, '$1');
+        // Try completing again after comma cleanup
+        cleaned = tryCompleteJson(cleaned);
+        scriptData = JSON.parse(cleaned);
+        console.log("Parsed script after deep cleanup with", scriptData.scenes?.length || 0, "scenes");
       } catch (e3) {
         console.error("JSON Parse failed for response:", responseText.substring(0, 1000));
         throw new Error("Failed to parse AI response as JSON.");

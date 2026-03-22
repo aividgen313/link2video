@@ -9,13 +9,16 @@ const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || "";
  */
 export async function POST(req: NextRequest) {
   try {
-    const {
-      prompt,
-      duration = 30,
-    } = await req.json();
+    const body = await req.json();
+    const { prompt, duration = 30 } = body;
 
-    if (!prompt) {
-      return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+    if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
+      return NextResponse.json({ error: "Prompt must be a non-empty string" }, { status: 400 });
+    }
+
+    const parsedDuration = Number(duration);
+    if (!Number.isFinite(parsedDuration) || parsedDuration < 1 || parsedDuration > 300) {
+      return NextResponse.json({ error: "Duration must be a number between 1 and 300" }, { status: 400 });
     }
 
     console.log("Pollinations Music:", prompt.substring(0, 80) + "...");

@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   try {
     const { youtubeUrl } = await req.json();
 
-    if (!youtubeUrl) {
+    if (!youtubeUrl || typeof youtubeUrl !== "string" || !youtubeUrl.trim()) {
       return NextResponse.json({ error: "YouTube URL is required" }, { status: 400 });
     }
 
@@ -122,8 +122,10 @@ Return ONLY the JSON. No markdown, no code blocks, no explanation.`;
     try {
       styleData = JSON.parse(jsonStr);
     } catch {
+      // Try cleaning trailing commas before objects/arrays close, then re-parse
       try {
-        styleData = (new Function('return ' + jsonStr))();
+        const cleaned = jsonStr.replace(/,\s*([\]}])/g, '$1');
+        styleData = JSON.parse(cleaned);
       } catch {
         throw new Error("Failed to parse AI style analysis");
       }

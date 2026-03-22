@@ -14,7 +14,7 @@ type Asset = {
 };
 
 export default function AssetLibrary() {
-  const { storyboardImages, scriptData } = useAppContext();
+  const { storyboardImages, scriptData, sceneAudioUrls, sceneVideoUrls } = useAppContext();
   const [filter, setFilter] = useState<AssetType>("all");
   const [search, setSearch] = useState("");
   const [uploadedAssets, setUploadedAssets] = useState<Asset[]>([]);
@@ -36,11 +36,35 @@ export default function AssetLibrary() {
       });
     });
 
+    // Add scene audio (TTS narration)
+    Object.entries(sceneAudioUrls).forEach(([sceneId, url]) => {
+      const scene = scriptData?.scenes.find(s => s.id === Number(sceneId));
+      items.push({
+        id: `audio-${sceneId}`,
+        name: `Scene_${sceneId}_narration${scene ? `_${scene.narration?.slice(0, 20).replace(/\s+/g, "_")}` : ""}.mp3`,
+        type: "audio",
+        url,
+        date: new Date().toLocaleDateString(),
+      });
+    });
+
+    // Add scene videos (AI-generated clips)
+    Object.entries(sceneVideoUrls).forEach(([sceneId, url]) => {
+      const scene = scriptData?.scenes.find(s => s.id === Number(sceneId));
+      items.push({
+        id: `video-${sceneId}`,
+        name: `Scene_${sceneId}_video${scene ? `_${scene.visual_prompt?.slice(0, 20).replace(/\s+/g, "_")}` : ""}.mp4`,
+        type: "video",
+        url,
+        date: new Date().toLocaleDateString(),
+      });
+    });
+
     // Add uploaded assets
     items.push(...uploadedAssets);
 
     return items;
-  }, [storyboardImages, scriptData, uploadedAssets]);
+  }, [storyboardImages, scriptData, sceneAudioUrls, sceneVideoUrls, uploadedAssets]);
 
   const filtered = assets.filter(a => {
     if (filter !== "all" && a.type !== filter) return false;

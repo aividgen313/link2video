@@ -12,6 +12,10 @@ export function generateTaskUUID(): string {
  * Accepts an array of task objects, returns the parsed JSON response.
  */
 export async function runwareRequest(tasks: any[]) {
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    throw new Error("runwareRequest requires a non-empty array of tasks");
+  }
+
   console.log("Runware API Request:", {
     url: RUNWARE_API_URL,
     taskTypes: tasks.map(t => t.taskType),
@@ -26,18 +30,25 @@ export async function runwareRequest(tasks: any[]) {
       Authorization: `Bearer ${RUNWARE_API_KEY}`,
     },
     body: JSON.stringify(tasks),
+    signal: AbortSignal.timeout(90000),
   });
 
-  const data = await response.json();
-
   if (!response.ok) {
+    let data: any = {};
+    try {
+      data = await response.json();
+    } catch {
+      // response body may not be valid JSON
+    }
     console.error("Runware API HTTP Error:", {
       status: response.status,
       statusText: response.statusText,
       errors: data.errors || data
     });
+    return data;
   }
 
+  const data = await response.json();
   return data;
 }
 
@@ -45,6 +56,9 @@ export async function runwareRequest(tasks: any[]) {
  * Text Inference via Runware LLMs (Llama 3.1, MiniMax, etc.)
  */
 export async function generateRunwareText(prompt: string, model: string = "minimax:m2.5@0") {
+  if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
+    throw new Error("generateRunwareText requires a non-empty prompt");
+  }
   console.log("generateRunwareText called with model:", model);
 
   const data = await runwareRequest([

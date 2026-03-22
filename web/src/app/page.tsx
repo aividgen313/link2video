@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useAppContext, VOICES, VIDEO_DIMENSIONS, QUALITY_TIERS, QualityTier, AppMode, CharacterProfile } from "@/context/AppContext";
+import { useAppContext, VOICES, VIDEO_DIMENSIONS, QUALITY_TIERS, QualityTier, AppMode, CharacterProfile, POLLEN_COSTS } from "@/context/AppContext";
 
 const DURATION_PRESETS = [
   { label: "1 min", value: 1 },
@@ -134,6 +134,7 @@ export default function Home() {
     setStoryboardImages,
     setFinalVideoUrl,
     setYoutubeStyleSuffix,
+    setGenerateRequested,
   } = useAppContext();
 
   const [inputValue, setInputValue] = useState(url || "");
@@ -143,6 +144,13 @@ export default function Home() {
   const [isExtractingChars, setIsExtractingChars] = useState(false);
   const [isAnalyzingAudio, setIsAnalyzingAudio] = useState(false);
   const audioInputRef = useRef<HTMLInputElement>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Pollinations balance
+  const [pollenBalance, setPollenBalance] = useState<number | null>(null);
+  const [pollenTier, setPollenTier] = useState<string | null>(null);
+  const [pollenResetAt, setPollenResetAt] = useState<string | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
 
   // YouTube Style Clone
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -155,11 +163,33 @@ export default function Home() {
   useEffect(() => { setHasMounted(true); }, []);
   useEffect(() => { if (hasMounted) { setRecentVideos(getHistory()); setSavedStyles(getSavedStyles()); } }, [hasMounted]);
 
+  // Fetch Pollinations balance on mount
+  useEffect(() => {
+    if (!hasMounted) return;
+    const fetchBalance = async () => {
+      setBalanceLoading(true);
+      try {
+        const res = await fetch("/api/balance");
+        if (!res.ok) throw new Error("Balance fetch failed");
+        const data = await res.json();
+        setPollenBalance(data.balance ?? 0);
+        setPollenTier(data.tier || null);
+        setPollenResetAt(data.nextResetAt || null);
+      } catch {
+        setPollenBalance(null);
+      } finally {
+        setBalanceLoading(false);
+      }
+    };
+    fetchBalance();
+  }, [hasMounted]);
+
   const handleGenerate = () => {
     // Reset previous generation state
     setScriptData(null);
     setStoryboardImages({});
     setFinalVideoUrl(null);
+    setGenerateRequested(true); // Signal that user explicitly requested generation
 
     if (mode === "link") {
       if (!inputValue.trim()) return;
@@ -180,6 +210,7 @@ export default function Home() {
   const handleExtractCharacters = async () => {
     if (!storyText.trim() || isExtractingChars) return;
     setIsExtractingChars(true);
+    setErrorMsg(null);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -189,12 +220,16 @@ export default function Home() {
           storyText: storyText.substring(0, 5000),
         }),
       });
+      if (!res.ok) {
+        throw new Error(`Character extraction failed (HTTP ${res.status})`);
+      }
       const data = await res.json();
       if (data.characters && Array.isArray(data.characters)) {
         setCharacterProfiles(data.characters);
       }
     } catch (err) {
       console.error("Character extraction error:", err);
+      setErrorMsg(err instanceof Error ? err.message : "Failed to extract characters. Please try again.");
     } finally {
       setIsExtractingChars(false);
     }
@@ -234,6 +269,7 @@ export default function Home() {
   const handleAnalyzeAudio = async () => {
     if (!audioDuration || isAnalyzingAudio) return;
     setIsAnalyzingAudio(true);
+    setErrorMsg(null);
     try {
       const res = await fetch("/api/analyze-audio", {
         method: "POST",
@@ -243,12 +279,14 @@ export default function Home() {
           durationSeconds: Math.round(audioDuration),
         }),
       });
+      if (!res.ok) throw new Error(`Audio analysis failed (HTTP ${res.status})`);
       const data = await res.json();
       if (data.segments) {
         setMusicSegments(data.segments);
       }
     } catch (err) {
       console.error("Audio analysis error:", err);
+      setErrorMsg(err instanceof Error ? err.message : "Failed to analyze audio");
     } finally {
       setIsAnalyzingAudio(false);
     }
@@ -259,12 +297,14 @@ export default function Home() {
     if (!youtubeUrl.trim() || isAnalyzingYT) return;
     setIsAnalyzingYT(true);
     setAnalyzedStyle(null);
+    setErrorMsg(null);
     try {
       const res = await fetch("/api/analyze-youtube", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ youtubeUrl }),
       });
+      if (!res.ok) throw new Error(`YouTube analysis failed (HTTP ${res.status})`);
       const data = await res.json();
       if (data.success && data.style) {
         const style: SavedStyle = {
@@ -275,11 +315,11 @@ export default function Home() {
         // Auto-apply the visual style
         applyStyle(style);
       } else {
-        alert(data.error || "Failed to analyze video");
+        setErrorMsg(data.error || "Failed to analyze video style");
       }
     } catch (err) {
       console.error("YouTube analysis error:", err);
-      alert("Failed to analyze video. Please check the URL and try again.");
+      setErrorMsg(err instanceof Error ? err.message : "Failed to analyze video. Check the URL and try again.");
     } finally {
       setIsAnalyzingYT(false);
     }
@@ -319,16 +359,19 @@ export default function Home() {
     : 0;
   const kenBurnsScenes = sceneCount - videoScenes;
 
-  // USD cost estimate (1 pollen = $1 USD)
-  // Images: nanobanana-pro = $0.00012/image (1 completion token each)
-  // Video: wan = $0.05/second × 8s = $0.40/video scene
-  // Text: openai free = ~$0.005/script (negligible)
-  // TTS: free via Pollinations
-  const imageCost = sceneCount * 0.00012;
-  const videoCost = videoScenes * 0.40;
-  const textCost = 0.005 * Math.max(1, Math.ceil(sceneCount / 25)); // per chunk
-  const totalUsd = imageCost + videoCost + textCost;
-  const estimatedUsd = totalUsd < 0.01 ? totalUsd.toFixed(4) : totalUsd.toFixed(2);
+  // Estimate number of scenes based on duration (~7 scenes per minute)
+  const estScenes = Math.max(1, Math.round(targetDurationMinutes * 7));
+
+  // Calculate pollen costs
+  const imageCostPollen = POLLEN_COSTS.imageGeneration * estScenes;
+  const ttsCostPollen = POLLEN_COSTS.ttsGeneration * estScenes;
+  const avgVideoDuration = POLLEN_COSTS.avgSceneDuration;
+  const videoScenesCount = qualityTier === "pro" ? estScenes
+    : qualityTier === "medium" ? Math.ceil(estScenes / 2)
+    : 0;
+  const videoCostPollen = videoScenesCount * avgVideoDuration * POLLEN_COSTS.videoPerSecond;
+  const musicCostPollen = musicEnabled ? POLLEN_COSTS.musicGeneration : 0;
+  const totalPollen = POLLEN_COSTS.textGeneration + imageCostPollen + ttsCostPollen + videoCostPollen + musicCostPollen;
 
   const canGenerate = mode === "link" ? inputValue.trim().length > 0
     : mode === "short-story" ? storyText.trim().length > 0
@@ -343,7 +386,56 @@ export default function Home() {
           <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-tertiary/8 rounded-full blur-[80px] pointer-events-none" />
 
           <div className="relative z-10 space-y-6">
-            <h3 className="font-headline text-2xl md:text-4xl font-extrabold tracking-tighter">Create New Video</h3>
+            <div className="flex items-start justify-between gap-4">
+              <h3 className="font-headline text-2xl md:text-4xl font-extrabold tracking-tighter">Create New Video</h3>
+
+              {/* Pollinations Balance Widget */}
+              {hasMounted && (
+                <div className="shrink-0">
+                  {balanceLoading ? (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl glass">
+                      <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                      <span className="text-[10px] text-outline">Loading...</span>
+                    </div>
+                  ) : pollenBalance !== null ? (
+                    <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all ${pollenBalance > 0 ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"}`}>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`material-symbols-outlined text-base ${pollenBalance > 0 ? "text-emerald-400" : "text-red-400"}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                          {pollenBalance > 0 ? "eco" : "warning"}
+                        </span>
+                        <div className="flex flex-col">
+                          <span className={`text-sm font-bold font-headline tabular-nums ${pollenBalance > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            {pollenBalance.toFixed(4)} <span className="text-[10px] font-normal opacity-70">pollen</span>
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {pollenTier && (
+                              <span className="text-[9px] uppercase font-bold tracking-wider text-outline/60">
+                                {pollenTier}
+                              </span>
+                            )}
+                            {pollenResetAt && (
+                              <span className="text-[9px] text-outline/40">
+                                · resets {new Date(pollenResetAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {pollenBalance === 0 && (
+                        <a
+                          href="https://pollinations.ai"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-bold text-primary hover:text-primary/80 transition-colors whitespace-nowrap"
+                        >
+                          Add Credits →
+                        </a>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
 
             {/* Mode Selector Tabs */}
             <div className="flex gap-2 p-1 bg-surface-container-lowest/50 border border-outline-variant/10 rounded-2xl">
@@ -363,6 +455,19 @@ export default function Home() {
                 </button>
               ))}
             </div>
+
+            {/* Error Banner */}
+            {errorMsg && (
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-error/10 border border-error/20 animate-in fade-in">
+                <span className="material-symbols-outlined text-error text-lg shrink-0 mt-0.5">error</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-error font-medium">{errorMsg}</p>
+                </div>
+                <button onClick={() => setErrorMsg(null)} className="text-error/60 hover:text-error transition-colors shrink-0">
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+              </div>
+            )}
 
             {/* ===== LINK/TOPIC MODE ===== */}
             {mode === "link" && (
@@ -641,22 +746,80 @@ export default function Home() {
                       className={`py-2.5 px-2 rounded-xl flex flex-col items-center gap-0.5 transition-all ${isActive ? `${info.bgColor} ${info.color} border ${info.borderColor}` : "text-outline hover:bg-surface-variant/30"}`}
                     >
                       <span className="font-bold text-sm">{info.label}</span>
-                      <span className="text-[10px] opacity-70 leading-tight text-center hidden sm:block">{t === "basic" ? "FREE" : t === "medium" ? "KEY SCENES" : "ALL SCENES"}</span>
+                      <span className="text-[10px] opacity-70 leading-tight text-center hidden sm:block">{t === "basic" ? "KEN BURNS" : t === "medium" ? "KEY SCENES" : "ALL SCENES"}</span>
                     </button>
                   );
                 })}
               </div>
               <p className="text-[11px] text-outline pl-1">{tier.description}</p>
-              <p className="text-[11px] text-outline pl-1">
-                {qualityTier === "basic" ? (
-                  <span className="font-bold text-emerald-400">FREE — Ken Burns animation</span>
-                ) : (
-                  <>
-                    {videoScenes > 0 && <>{videoScenes} AI video + {kenBurnsScenes} Ken Burns · </>}
-                    Est: <span className="font-bold text-on-surface">~${estimatedUsd}</span>
-                  </>
-                )}
-              </p>
+
+              {/* Cost Estimator */}
+              {hasMounted && (
+                <div className="p-4 rounded-2xl bg-surface-container-lowest/50 border border-outline-variant/10 space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="material-symbols-outlined text-primary text-sm">calculate</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-outline">Estimated Cost</span>
+                  </div>
+
+                  {/* Cost breakdown rows */}
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-outline">Script generation</span>
+                      <span className="text-on-surface font-mono">{POLLEN_COSTS.textGeneration.toFixed(4)} &#x2698;</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-outline">Images ({estScenes} scenes)</span>
+                      <span className="text-on-surface font-mono">{(POLLEN_COSTS.imageGeneration * estScenes).toFixed(4)} &#x2698;</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-outline">TTS narration ({estScenes} scenes)</span>
+                      <span className="text-on-surface font-mono">{(POLLEN_COSTS.ttsGeneration * estScenes).toFixed(4)} &#x2698;</span>
+                    </div>
+                    {/* Show AI video cost only for medium/pro */}
+                    {qualityTier !== "basic" && (
+                      <div className="flex justify-between">
+                        <span className="text-outline">AI video ({qualityTier === "pro" ? "all" : "~50%"} scenes)</span>
+                        <span className="text-on-surface font-mono">{videoCostPollen.toFixed(4)} &#x2698;</span>
+                      </div>
+                    )}
+                    {musicEnabled && (
+                      <div className="flex justify-between">
+                        <span className="text-outline">Background music</span>
+                        <span className="text-on-surface font-mono">{POLLEN_COSTS.musicGeneration.toFixed(4)} &#x2698;</span>
+                      </div>
+                    )}
+
+                    {/* Divider */}
+                    <div className="border-t border-outline-variant/10 pt-2 mt-2">
+                      <div className="flex justify-between font-bold">
+                        <span className="text-on-surface">Total estimated</span>
+                        <span className="text-primary font-mono">{totalPollen.toFixed(4)} &#x2698; <span className="text-outline font-normal">(&#8776; ${totalPollen.toFixed(4)})</span></span>
+                      </div>
+                    </div>
+
+                    {/* Balance after */}
+                    {pollenBalance !== null && (
+                      <div className="flex justify-between pt-1">
+                        <span className="text-outline">Balance after</span>
+                        <span className={`font-mono font-bold ${(pollenBalance - totalPollen) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          {(pollenBalance - totalPollen).toFixed(4)} &#x2698;
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Warning if insufficient */}
+                    {pollenBalance !== null && pollenBalance < totalPollen && (
+                      <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                        <span className="material-symbols-outlined text-red-400 text-sm">warning</span>
+                        <span className="text-[11px] text-red-400">
+                          Insufficient balance. You need {(totalPollen - pollenBalance).toFixed(4)} more pollen.
+                          <a href="https://pollinations.ai" target="_blank" rel="noopener noreferrer" className="ml-1 underline font-bold">Add credits &#8594;</a>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Duration — hide for music-video (duration comes from audio) */}
@@ -678,15 +841,11 @@ export default function Home() {
                   })}
                 </div>
                 <p className="text-[11px] text-outline pl-1">
-                  ~{sceneCount} scenes · {targetDurationMinutes >= 60 ? `${targetDurationMinutes / 60}h` : `${targetDurationMinutes}min`} video
-                  {qualityTier === "basic"
-                    ? <> · <span className="font-bold text-emerald-400">FREE</span></>
-                    : <> · Est <span className="font-bold text-on-surface">~${estimatedUsd}</span></>
-                  }
+                  ~{estScenes} scenes · {targetDurationMinutes >= 60 ? `${targetDurationMinutes / 60}h` : `${targetDurationMinutes}min`} video
                 </p>
-                {sceneCount > 50 && (
+                {estScenes > 50 && (
                   <p className="text-[10px] text-amber-400 pl-1">
-                    {sceneCount > 200 ? "⚡ Very long video — script will be generated in chapters to avoid timeouts" : "⚡ Long video — script will be generated in batches"}
+                    {estScenes > 200 ? "⚡ Very long video — script will be generated in chapters to avoid timeouts" : "⚡ Long video — script will be generated in batches"}
                   </p>
                 )}
               </div>
@@ -992,7 +1151,7 @@ export default function Home() {
                 const secs = totalRounded % 60;
                 const durationLabel = `${mins}:${String(secs).padStart(2, "0")}`;
                 return (
-                  <div key={v.id} className="group glass-card glass-card-hover rounded-[1.5rem] overflow-hidden flex flex-col transition-all hover:translate-y-[-3px] hover:shadow-xl hover:shadow-primary/5">
+                  <div key={v.id} onClick={() => router.push("/editor")} className="group glass-card glass-card-hover rounded-[1.5rem] overflow-hidden flex flex-col transition-all hover:translate-y-[-3px] hover:shadow-xl hover:shadow-primary/5 cursor-pointer hover:ring-2 ring-primary/30 hover:scale-[1.01]">
                     <div className="h-40 md:h-48 relative overflow-hidden bg-surface-container-high">
                       {v.thumbnailUrl ? (
                         <img alt={v.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src={v.thumbnailUrl} />
@@ -1005,7 +1164,7 @@ export default function Home() {
                         <span className="bg-black/40 backdrop-blur-md text-white px-2 py-0.5 rounded text-[10px] font-bold">{durationLabel}</span>
                       </div>
                       <button
-                        onClick={() => { deleteFromHistory(v.id); setRecentVideos(getHistory()); }}
+                        onClick={(e) => { e.stopPropagation(); deleteFromHistory(v.id); setRecentVideos(getHistory()); }}
                         className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-error/60"
                         title="Remove from history"
                       >
@@ -1021,7 +1180,7 @@ export default function Home() {
                         </div>
                       </div>
                       <button
-                        onClick={() => { setUrl(v.topic); router.push("/story"); }}
+                        onClick={(e) => { e.stopPropagation(); setUrl(v.topic); router.push("/story"); }}
                         className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-3 rounded-xl bg-primary/10 text-primary hover:bg-primary/15 transition-colors border border-primary/20"
                       >
                         <span className="material-symbols-outlined text-base">refresh</span>

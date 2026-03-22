@@ -3,10 +3,15 @@ import { generateGeminiText } from "@/lib/gemini";
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, durationMinutes = 3 } = await req.json();
+    const body = await req.json();
+    const { topic, durationMinutes = 3 } = body;
 
-    if (!topic) {
-      return NextResponse.json({ error: "Topic is required" }, { status: 400 });
+    if (!topic || typeof topic !== "string" || topic.trim().length === 0) {
+      return NextResponse.json({ error: "Topic must be a non-empty string" }, { status: 400 });
+    }
+
+    if (typeof durationMinutes !== "number" || !Number.isFinite(durationMinutes) || durationMinutes < 1 || durationMinutes > 120) {
+      return NextResponse.json({ error: "durationMinutes must be a number between 1 and 120" }, { status: 400 });
     }
 
     const prompt = `
@@ -48,10 +53,11 @@ Return ONLY the JSON array. No explanations, no markdown, no code blocks.
       anglesData = JSON.parse(jsonStr);
       console.log("Successfully parsed angles data");
     } catch (e) {
-      // Last resort: try to eval-parse with relaxed JSON
+      // Try removing trailing commas before closing brackets/braces and re-parse
       try {
-        anglesData = (new Function('return ' + jsonStr))();
-        console.log("Parsed angles via eval fallback");
+        const sanitized = jsonStr.replace(/,\s*([\]}])/g, '$1');
+        anglesData = JSON.parse(sanitized);
+        console.log("Parsed angles after removing trailing commas");
       } catch (e2) {
         console.error("JSON Parse failed for response:", responseText.substring(0, 500));
         throw new Error("Failed to parse AI response as JSON.");

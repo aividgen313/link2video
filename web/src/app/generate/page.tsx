@@ -68,6 +68,7 @@ export default function VideoGeneration() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
+  const [userStarted, setUserStarted] = useState(false);
   const ffmpegRef = useRef<FFmpeg | null>(null);
   const pipelineStartedRef = useRef(false); // prevent StrictMode double-run
 
@@ -88,7 +89,19 @@ export default function VideoGeneration() {
 
   useEffect(() => {
     ffmpegRef.current = new FFmpeg();
+    return () => {
+      try { ffmpegRef.current?.terminate(); } catch {}
+      ffmpegRef.current = null;
+    };
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (finalVideoUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(finalVideoUrl);
+      }
+    };
+  }, [finalVideoUrl]);
 
   const updateSceneStatus = useCallback((sceneId: number, update: Partial<SceneStatus>) => {
     setSceneStatuses(prev => ({
@@ -117,6 +130,7 @@ export default function VideoGeneration() {
           height: 768,
         }),
       });
+      if (!res.ok) throw new Error(`Image API error: ${res.status}`);
 
       const data = await res.json();
       if (data.success && data.images?.[0]) {
@@ -144,6 +158,7 @@ export default function VideoGeneration() {
           useEdgeTTS: qualityTier === "basic", // free mode uses Edge TTS
         }),
       });
+      if (!res.ok) throw new Error(`TTS API error: ${res.status}`);
       const data = await res.json();
       if (data.success && data.audioUrl) {
         updateSceneStatus(scene.id, { audioURL: data.audioUrl });
@@ -167,6 +182,7 @@ export default function VideoGeneration() {
           duration: 60,
         }),
       });
+      if (!res.ok) throw new Error(`Music API error: ${res.status}`);
       const data = await res.json();
       if (data.success && data.audioUrl) {
         setMusicUrl(data.audioUrl);
@@ -181,7 +197,7 @@ export default function VideoGeneration() {
 
   // Main generation pipeline
   useEffect(() => {
-    if (!scriptData || isGenerating || finalVideoUrl) return;
+    if (!scriptData || isGenerating || finalVideoUrl || !userStarted) return;
     // Prevent StrictMode double-invocation from causing duplicate saves
     if (pipelineStartedRef.current) return;
     pipelineStartedRef.current = true;
@@ -236,6 +252,24 @@ export default function VideoGeneration() {
       });
       if (Object.keys(audioMap).length > 0) setSceneAudioUrls(audioMap);
       if (Object.keys(durationMap).length > 0) setSceneDurations(durationMap);
+
+      // Save a draft history entry NOW — before FFmpeg stitching — so the user
+      // sees their project in Recent Videos even if stitching fails or page closes
+      const draftHistoryId = Date.now().toString();
+      const firstSceneImgDraft = imageAudioResults[0]?.image;
+      const totalSecsDraft = imageAudioResults.reduce((sum, a) => sum + (a.duration || 8), 0);
+      await saveToHistory({
+        id: draftHistoryId,
+        title: scriptData?.title || "Untitled Video",
+        topic: url || "",
+        angle: scriptData?.angle || "",
+        thumbnailUrl: firstSceneImgDraft,
+        quality: qualityTier,
+        dimensionId: dim.id,
+        dimensionLabel: dim.label,
+        totalSeconds: totalSecsDraft,
+        createdAt: new Date().toISOString(),
+      });
 
       // Step 2: Determine which scenes get AI video vs Ken Burns
       // "key_scenes" strategy: first scene (hook), middle scene (climax), last scene (ending)
@@ -300,6 +334,7 @@ export default function VideoGeneration() {
                   mode: "ai",
                 }),
               });
+              if (!videoRes.ok) throw new Error(`Video API error: ${videoRes.status}`);
               const videoData = await videoRes.json();
               if (videoData.success && videoData.videoUrl && !videoData.useKenBurns) {
                 aiVideoUrl = videoData.videoUrl;
@@ -357,10 +392,12 @@ export default function VideoGeneration() {
           if (!ffmpeg) throw new Error("FFmpeg not initialized");
 
           if (!ffmpeg.loaded) {
-            await ffmpeg.load({
+            const loadPromise = ffmpeg.load({
               coreURL: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js",
               wasmURL: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm"
             });
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("FFmpeg load timed out after 30s")), 30000));
+            await Promise.race([loadPromise, timeoutPromise]);
           }
 
           setProgress(80);
@@ -507,15 +544,14 @@ export default function VideoGeneration() {
           const creditsForThis = tier.usdPerScene * sceneAssets.length;
           setCreditsUsed(creditsUsed + creditsForThis);
 
-          // Save to history
-          const firstSceneImg = sceneAssets[0]?.image;
+          // Update draft history entry with final stats (reuse same ID so it overwrites)
           const totalSecs = sceneAssets.reduce((sum, a) => sum + (a.duration || 8), 0);
           await saveToHistory({
-            id: Date.now().toString(),
+            id: draftHistoryId,
             title: scriptData?.title || "Untitled Video",
             topic: url || "",
             angle: scriptData?.angle || "",
-            thumbnailUrl: firstSceneImg,
+            thumbnailUrl: sceneAssets[0]?.image || firstSceneImgDraft,
             quality: qualityTier,
             dimensionId: dim.id,
             dimensionLabel: dim.label,
@@ -533,9 +569,42 @@ export default function VideoGeneration() {
 
     runPipeline();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scriptData, finalVideoUrl]);
+  }, [scriptData, finalVideoUrl, userStarted]);
 
   if (!hasMounted) return null;
+
+  if (!scriptData) return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <span className="material-symbols-outlined text-6xl text-outline/30 mb-4">movie</span>
+      <h3 className="font-headline font-bold text-xl text-on-surface mb-2">No Video to Generate</h3>
+      <p className="text-outline text-sm max-w-md mb-6">Create a script first, then come here to generate your video.</p>
+      <a href="/" className="primary-gradient text-white px-6 py-3 rounded-xl font-headline font-bold flex items-center gap-2 shadow-md">
+        <span className="material-symbols-outlined">home</span>
+        Go to Dashboard
+      </a>
+    </div>
+  );
+
+  if (!isGenerating && !finalVideoUrl && !userStarted) return (
+    <>
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link href="/script" className="text-outline hover:text-primary transition-colors">Script Builder</Link>
+          <span className="material-symbols-outlined text-outline-variant text-sm">chevron_right</span>
+          <span className="font-headline font-bold text-on-surface">Video Generation</span>
+        </div>
+      </div>
+      <div className="flex flex-col items-center justify-center py-12 gap-4">
+        <span className="material-symbols-outlined text-5xl text-primary">movie</span>
+        <h3 className="font-headline font-bold text-xl">Ready to Generate</h3>
+        <p className="text-outline text-sm text-center max-w-md">{scriptData.scenes.length} scenes ready. Click below to start generating your video.</p>
+        <button onClick={() => setUserStarted(true)} className="primary-gradient text-white px-8 py-4 rounded-xl font-headline font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform">
+          <span className="material-symbols-outlined">play_arrow</span>
+          Start Generation
+        </button>
+      </div>
+    </>
+  );
 
   return (
     <>

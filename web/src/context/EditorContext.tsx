@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo, ReactNode } from "react";
 import { Scene, useAppContext } from "./AppContext";
 
 // ── Types ──
@@ -668,30 +668,54 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     }
   }, [scenes, tracks, addTrack, setScenesWithHistory]);
 
+  const contextValue = useMemo(() => ({
+    scenes, setScenes,
+    selectedSceneId, setSelectedSceneId,
+    selectedScene,
+    playheadPosition, setPlayheadPosition,
+    isPlaying, setIsPlaying,
+    musicTrack, setMusicTrack,
+    zoom, setZoom,
+    exportProgress, setExportProgress,
+    totalDuration,
+    tracks, addTrack, removeTrack, updateTrack, getTrackScenes,
+    selectedSceneIds, toggleSceneSelection, selectAllScenes, clearSelection,
+    reorderScene, updateScene, deleteScene, duplicateScene,
+    splitScene, insertScene, mergeScenes, importMedia,
+    addOverlay, updateOverlay, removeOverlay,
+    getSceneAtTime, getSceneStartTime,
+    isInitialized,
+    undo, redo, canUndo, canRedo,
+    applyToSelected, deleteSelected,
+    snapEnabled, setSnapEnabled,
+    showSafeZones, setShowSafeZones,
+    previewScale, setPreviewScale,
+  }), [
+    scenes, setScenes,
+    selectedSceneId, setSelectedSceneId,
+    selectedScene,
+    playheadPosition, setPlayheadPosition,
+    isPlaying, setIsPlaying,
+    musicTrack, setMusicTrack,
+    zoom, setZoom,
+    exportProgress, setExportProgress,
+    totalDuration,
+    tracks, addTrack, removeTrack, updateTrack, getTrackScenes,
+    selectedSceneIds, toggleSceneSelection, selectAllScenes, clearSelection,
+    reorderScene, updateScene, deleteScene, duplicateScene,
+    splitScene, insertScene, mergeScenes, importMedia,
+    addOverlay, updateOverlay, removeOverlay,
+    getSceneAtTime, getSceneStartTime,
+    isInitialized,
+    undo, redo, canUndo, canRedo,
+    applyToSelected, deleteSelected,
+    snapEnabled, setSnapEnabled,
+    showSafeZones, setShowSafeZones,
+    previewScale, setPreviewScale,
+  ]);
+
   return (
-    <EditorContext.Provider value={{
-      scenes, setScenes,
-      selectedSceneId, setSelectedSceneId,
-      selectedScene,
-      playheadPosition, setPlayheadPosition,
-      isPlaying, setIsPlaying,
-      musicTrack, setMusicTrack,
-      zoom, setZoom,
-      exportProgress, setExportProgress,
-      totalDuration,
-      tracks, addTrack, removeTrack, updateTrack, getTrackScenes,
-      selectedSceneIds, toggleSceneSelection, selectAllScenes, clearSelection,
-      reorderScene, updateScene, deleteScene, duplicateScene,
-      splitScene, insertScene, mergeScenes, importMedia,
-      addOverlay, updateOverlay, removeOverlay,
-      getSceneAtTime, getSceneStartTime,
-      isInitialized,
-      undo, redo, canUndo, canRedo,
-      applyToSelected, deleteSelected,
-      snapEnabled, setSnapEnabled,
-      showSafeZones, setShowSafeZones,
-      previewScale, setPreviewScale,
-    }}>
+    <EditorContext.Provider value={contextValue}>
       {children}
     </EditorContext.Provider>
   );

@@ -13,19 +13,14 @@ interface Angle {
 
 export default function StoryAngleGenerator() {
   const router = useRouter();
-  const { url, setAngle, globalScriptModel, targetDurationMinutes } = useAppContext();
+  const { url, setAngle, globalScriptModel, targetDurationMinutes, generateRequested, setGenerateRequested } = useAppContext();
   const [selectedAngle, setSelectedAngle] = useState("");
   const [angles, setAngles] = useState<Angle[]>([]);
   const [hasMounted, setHasMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Redirect if no URL/topic entered
-  useEffect(() => {
-    if (hasMounted && !url) {
-      router.push("/");
-    }
-  }, [hasMounted, url, router]);
+  // No longer auto-redirect — show empty state instead (see below)
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -53,6 +48,9 @@ export default function StoryAngleGenerator() {
         }),
         signal: controller.signal,
       });
+      if (!res.ok && res.status !== 402) {
+        throw new Error(`Angle generation failed (HTTP ${res.status})`);
+      }
       const data = await res.json();
 
       if (res.status === 402 && data.isCreditsError) {
@@ -82,19 +80,40 @@ export default function StoryAngleGenerator() {
   // Separate effect for fetching — use ref to prevent double-call in strict mode
   const fetchedRef = useRef(false);
   useEffect(() => {
-    if (url && angles.length === 0 && !fetchedRef.current) {
+    // Only auto-fetch if user explicitly clicked "Generate" from home page
+    if (url && generateRequested && angles.length === 0 && !fetchedRef.current) {
       fetchedRef.current = true;
+      setGenerateRequested(false); // Consume the intent signal
       fetchAngles();
+    } else if (!generateRequested) {
+      setIsLoading(false); // Not auto-generating, stop the spinner
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url]);
+  }, [url, generateRequested]);
 
   const handleGenerateScript = () => {
     setAngle(selectedAngle || angles[0]?.title || "General Story");
+    setGenerateRequested(true); // Signal script page to auto-generate
     router.push("/script");
   };
 
   if (!hasMounted) return null;
+
+  if (!url) {
+    return (
+      <>
+        <div className="flex flex-col items-center justify-center py-20 text-center max-w-md mx-auto">
+          <span className="material-symbols-outlined text-6xl text-outline/30 mb-4">auto_awesome_motion</span>
+          <h3 className="font-headline font-bold text-xl text-on-surface mb-2">No Topic Selected</h3>
+          <p className="text-outline text-sm mb-6">Enter a topic or paste a link on the dashboard to generate story angles.</p>
+          <a href="/" className="primary-gradient text-white px-6 py-3 rounded-xl font-headline font-bold flex items-center gap-2 shadow-md">
+            <span className="material-symbols-outlined">home</span>
+            Go to Dashboard
+          </a>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
