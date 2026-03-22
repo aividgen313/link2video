@@ -52,6 +52,7 @@ export default function VideoGeneration() {
     audioFile,
     setSceneAudioUrls,
     setSceneVideoUrls,
+    setSceneDurations,
   } = useAppContext();
   const router = useRouter();
   const isMusicVideo = mode === "music-video";
@@ -226,10 +227,15 @@ export default function VideoGeneration() {
         })
       );
 
-      // Save audio URLs to AppContext so editor can use them
+      // Save audio URLs and actual measured durations to AppContext so editor can use them
       const audioMap: Record<number, string> = {};
-      imageAudioResults.forEach(r => { if (r.audio) audioMap[r.scene.id] = r.audio; });
+      const durationMap: Record<number, number> = {};
+      imageAudioResults.forEach(r => {
+        if (r.audio) audioMap[r.scene.id] = r.audio;
+        durationMap[r.scene.id] = r.duration; // actual duration (audio length + 1.5s padding)
+      });
       if (Object.keys(audioMap).length > 0) setSceneAudioUrls(audioMap);
+      if (Object.keys(durationMap).length > 0) setSceneDurations(durationMap);
 
       // Step 2: Determine which scenes get AI video vs Ken Burns
       // "key_scenes" strategy: first scene (hook), middle scene (climax), last scene (ending)

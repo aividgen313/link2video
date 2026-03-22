@@ -168,6 +168,9 @@ interface AppContextType {
   setSceneAudioUrls: (urls: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
   sceneVideoUrls: Record<number, string>;
   setSceneVideoUrls: (urls: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
+  // Actual measured scene durations (from audio length + padding)
+  sceneDurations: Record<number, number>;
+  setSceneDurations: (durations: Record<number, number> | ((prev: Record<number, number>) => Record<number, number>)) => void;
   // YouTube style clone suffix (appended to every visual_prompt)
   youtubeStyleSuffix: string;
   setYoutubeStyleSuffix: (suffix: string) => void;
@@ -231,6 +234,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [referenceImages, setReferenceImages] = useState<Record<string, string[]>>(() => loadSaved("referenceImages", {}));
   const [sceneAudioUrls, setSceneAudioUrls] = useState<Record<number, string>>(() => loadSaved("sceneAudioUrls", {}));
   const [sceneVideoUrls, setSceneVideoUrls] = useState<Record<number, string>>(() => loadSaved("sceneVideoUrls", {}));
+  const [sceneDurations, setSceneDurations] = useState<Record<number, number>>(() => loadSaved("sceneDurations", {}));
   const [youtubeStyleSuffix, setYoutubeStyleSuffix] = useState(() => loadSaved("youtubeStyleSuffix", ""));
   const [globalScriptModel] = useState("pollinations");
   // Short Story Mode
@@ -250,7 +254,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         mode, url, angle, scriptData, qualityTier, globalVisualStyle,
         videoDimension, selectedVoice, musicEnabled, captionsEnabled,
         targetDurationMinutes, storyboardImages, referenceImages,
-        sceneAudioUrls, sceneVideoUrls,
+        sceneAudioUrls, sceneVideoUrls, sceneDurations,
         storyText, characterProfiles, audioFile, audioFileName,
         lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
       };
@@ -263,7 +267,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     mode, url, angle, scriptData, qualityTier, globalVisualStyle,
     videoDimension, selectedVoice, musicEnabled, captionsEnabled,
     targetDurationMinutes, storyboardImages, referenceImages,
-    sceneAudioUrls, sceneVideoUrls,
+    sceneAudioUrls, sceneVideoUrls, sceneDurations,
     storyText, characterProfiles, audioFile, audioFileName,
     lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
   ]);
@@ -293,6 +297,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       referenceImages, setReferenceImages,
       sceneAudioUrls, setSceneAudioUrls,
       sceneVideoUrls, setSceneVideoUrls,
+      sceneDurations, setSceneDurations,
       youtubeStyleSuffix, setYoutubeStyleSuffix,
       storyText, setStoryText,
       characterProfiles, setCharacterProfiles,

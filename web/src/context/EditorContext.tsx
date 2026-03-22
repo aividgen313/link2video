@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useState, useCallback, useRef, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from "react";
 import { Scene, useAppContext } from "./AppContext";
 
 // ── Types ──
@@ -187,7 +187,7 @@ const DEFAULT_TRACKS: EditorTrack[] = [
 ];
 
 export function EditorProvider({ children }: { children: ReactNode }) {
-  const { scriptData, storyboardImages, sceneAudioUrls, sceneVideoUrls } = useAppContext();
+  const { scriptData, storyboardImages, sceneAudioUrls, sceneVideoUrls, sceneDurations } = useAppContext();
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [scenes, setScenesRaw] = useState<EditorScene[]>([]);
@@ -225,7 +225,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       trackId: "v1",
       narration: s.narration || "",
       visual_prompt: s.visual_prompt || "",
-      duration: s.duration_estimate_seconds || 8,
+      duration: sceneDurations[s.id] || s.duration_estimate_seconds || 8,
       imageUrl: storyboardImages[s.id] || "",
       audioUrl: sceneAudioUrls[s.id] || null,
       aiVideoUrl: sceneVideoUrls[s.id] || null,
@@ -250,6 +250,44 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     }
     setIsInitialized(true);
   }
+
+  // Measure actual audio durations and adjust scene durations if they're too short
+  const audioMeasuredRef = useRef(false);
+  useEffect(() => {
+    if (!isInitialized || audioMeasuredRef.current || scenes.length === 0) return;
+    audioMeasuredRef.current = true;
+
+    const measureAndAdjust = async () => {
+      const updates: { id: number; duration: number }[] = [];
+
+      await Promise.all(scenes.map(scene => {
+        if (!scene.audioUrl) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+          const audio = new Audio(scene.audioUrl!);
+          audio.addEventListener("loadedmetadata", () => {
+            const audioDur = audio.duration;
+            // Scene should be at least audioDuration + 0.8s buffer
+            const needed = audioDur + 0.8;
+            if (isFinite(needed) && needed > scene.duration) {
+              updates.push({ id: scene.id, duration: Math.ceil(needed * 10) / 10 });
+            }
+            resolve();
+          });
+          audio.addEventListener("error", () => resolve());
+          setTimeout(() => resolve(), 3000); // timeout fallback
+        });
+      }));
+
+      if (updates.length > 0) {
+        setScenesRaw(prev => prev.map(s => {
+          const u = updates.find(up => up.id === s.id);
+          return u ? { ...s, duration: u.duration } : s;
+        }));
+      }
+    };
+
+    measureAndAdjust();
+  }, [isInitialized, scenes]);
 
   const setScenesWithHistory = useCallback((updater: EditorScene[] | ((prev: EditorScene[]) => EditorScene[])) => {
     setScenesRaw(prev => {
