@@ -39,7 +39,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Also try to scrape additional metadata from the YouTube page itself
-    let videoDescription = "";
     let thumbnailUrl = "";
     try {
       const pageRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {

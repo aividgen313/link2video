@@ -44,6 +44,8 @@ export default function PropertiesPanel() {
   const [tab, setTab] = useState<Tab>("scene");
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
   const [isRegeneratingNarration, setIsRegeneratingNarration] = useState(false);
+  const [isRegeneratingAudio, setIsRegeneratingAudio] = useState(false);
+  const [isRegeneratingVideo, setIsRegeneratingVideo] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   if (!selectedScene) {
@@ -97,6 +99,51 @@ export default function PropertiesPanel() {
       console.error("Narration regeneration failed:", err);
     } finally {
       setIsRegeneratingNarration(false);
+    }
+  };
+
+  const handleRegenerateAudio = async () => {
+    if (!selectedScene.narration) return;
+    setIsRegeneratingAudio(true);
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: selectedScene.narration, voice: "adam" }),
+      });
+      const data = await res.json();
+      if (data.success && data.audioUrl) {
+        updateScene(selectedScene.id, { audioUrl: data.audioUrl });
+      }
+    } catch (err) {
+      console.error("Audio regeneration failed:", err);
+    } finally {
+      setIsRegeneratingAudio(false);
+    }
+  };
+
+  const handleRegenerateVideo = async () => {
+    setIsRegeneratingVideo(true);
+    try {
+      const res = await fetch("/api/video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: selectedScene.visual_prompt,
+          duration: Math.min(Math.ceil(selectedScene.duration), 15),
+          mode: "ai",
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.videoUrl && !data.useKenBurns) {
+        updateScene(selectedScene.id, { aiVideoUrl: data.videoUrl });
+      } else {
+        alert("AI video unavailable for this scene. Ken Burns will be used.");
+      }
+    } catch (err) {
+      console.error("Video regeneration failed:", err);
+    } finally {
+      setIsRegeneratingVideo(false);
     }
   };
 
@@ -498,6 +545,32 @@ export default function PropertiesPanel() {
                   <span className="text-[10px] text-white/80 block">{isRegeneratingNarration ? "Rewriting..." : "Rewrite Narration"}</span>
                   <span className="text-[8px] text-outline/40">AI rewrites the narration text</span>
                 </div>
+              </button>
+
+              <button
+                onClick={handleRegenerateAudio}
+                disabled={isRegeneratingAudio || !selectedScene.narration}
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.07] hover:border-primary/20 transition-all disabled:opacity-40"
+              >
+                <span className="material-symbols-outlined text-sm text-blue-400">record_voice_over</span>
+                <div className="text-left flex-1">
+                  <span className="text-[10px] text-white/80 block">{isRegeneratingAudio ? "Generating TTS..." : selectedScene.audioUrl ? "Regenerate Audio" : "Generate Audio"}</span>
+                  <span className="text-[8px] text-outline/40">{selectedScene.audioUrl ? "Replace TTS voiceover" : "Create TTS voiceover for this scene"}</span>
+                </div>
+                {selectedScene.audioUrl && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
+              </button>
+
+              <button
+                onClick={handleRegenerateVideo}
+                disabled={isRegeneratingVideo}
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.07] hover:border-primary/20 transition-all disabled:opacity-40"
+              >
+                <span className="material-symbols-outlined text-sm text-purple-400">smart_display</span>
+                <div className="text-left flex-1">
+                  <span className="text-[10px] text-white/80 block">{isRegeneratingVideo ? "Generating video..." : selectedScene.aiVideoUrl ? "Regenerate AI Video" : "Generate AI Video"}</span>
+                  <span className="text-[8px] text-outline/40">{selectedScene.aiVideoUrl ? "Replace AI video clip" : "Create AI video from prompt"}</span>
+                </div>
+                {selectedScene.aiVideoUrl && <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />}
               </button>
 
               <button

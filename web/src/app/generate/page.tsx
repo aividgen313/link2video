@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useAppContext, Scene, QUALITY_TIERS, VIDEO_DIMENSIONS } from "@/context/AppContext";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
@@ -49,7 +50,10 @@ export default function VideoGeneration() {
     url,
     mode,
     audioFile,
+    setSceneAudioUrls,
+    setSceneVideoUrls,
   } = useAppContext();
+  const router = useRouter();
   const isMusicVideo = mode === "music-video";
   const tier = QUALITY_TIERS[qualityTier];
   const dim = videoDimension || VIDEO_DIMENSIONS[0];
@@ -218,6 +222,11 @@ export default function VideoGeneration() {
         })
       );
 
+      // Save audio URLs to AppContext so editor can use them
+      const audioMap: Record<number, string> = {};
+      imageAudioResults.forEach(r => { if (r.audio) audioMap[r.scene.id] = r.audio; });
+      if (Object.keys(audioMap).length > 0) setSceneAudioUrls(audioMap);
+
       // Step 2: Determine which scenes get AI video vs Ken Burns
       // "key_scenes" strategy: first scene (hook), middle scene (climax), last scene (ending)
       // "all" strategy: every scene gets AI video
@@ -318,6 +327,14 @@ export default function VideoGeneration() {
           sceneAssets.push({ image: result.image, audio: result.audio, duration: result.duration, narration: result.narration, aiVideoUrl: null });
         }
       }
+
+      // Save video URLs to AppContext so editor can use them
+      const videoMap: Record<number, string> = {};
+      sceneAssets.forEach((a, i) => {
+        const sceneId = scriptData.scenes[i]?.id;
+        if (sceneId != null && a.aiVideoUrl) videoMap[sceneId] = a.aiVideoUrl;
+      });
+      if (Object.keys(videoMap).length > 0) setSceneVideoUrls(videoMap);
 
       try {
         const resolvedMusicUrl = await musicPromise;
@@ -626,6 +643,13 @@ export default function VideoGeneration() {
                     className="px-6 py-3 rounded-xl bg-primary text-on-primary font-headline font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
                     <span className="material-symbols-outlined">download</span>
                     Download Video
+                  </button>
+                  <button
+                    onClick={() => router.push("/editor")}
+                    disabled={!finalVideoUrl}
+                    className="px-6 py-3 rounded-xl bg-secondary text-on-secondary font-headline font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                    <span className="material-symbols-outlined">movie_edit</span>
+                    Open in Editor
                   </button>
                   <button
                     onClick={() => {

@@ -187,7 +187,7 @@ const DEFAULT_TRACKS: EditorTrack[] = [
 ];
 
 export function EditorProvider({ children }: { children: ReactNode }) {
-  const { scriptData, storyboardImages } = useAppContext();
+  const { scriptData, storyboardImages, sceneAudioUrls, sceneVideoUrls } = useAppContext();
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [scenes, setScenesRaw] = useState<EditorScene[]>([]);
@@ -227,8 +227,8 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       visual_prompt: s.visual_prompt || "",
       duration: s.duration_estimate_seconds || 8,
       imageUrl: storyboardImages[s.id] || "",
-      audioUrl: null,
-      aiVideoUrl: null,
+      audioUrl: sceneAudioUrls[s.id] || null,
+      aiVideoUrl: sceneVideoUrls[s.id] || null,
       overlays: [],
       camera_angle: s.camera_angle,
       lighting: s.lighting,

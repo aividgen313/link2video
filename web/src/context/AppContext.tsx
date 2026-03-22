@@ -163,6 +163,11 @@ interface AppContextType {
   // Reference images for subjects (people, locations, brands)
   referenceImages: Record<string, string[]>; // { "Lorena Bobbitt": ["url1", "url2"], ... }
   setReferenceImages: (imgs: Record<string, string[]>) => void;
+  // Scene-level generated assets (transferred from generate page to editor)
+  sceneAudioUrls: Record<number, string>;
+  setSceneAudioUrls: (urls: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
+  sceneVideoUrls: Record<number, string>;
+  setSceneVideoUrls: (urls: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
   // YouTube style clone suffix (appended to every visual_prompt)
   youtubeStyleSuffix: string;
   setYoutubeStyleSuffix: (suffix: string) => void;
@@ -224,6 +229,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [targetDurationMinutes, setTargetDurationMinutes] = useState(() => loadSaved("targetDurationMinutes", 3));
   const [storyboardImages, setStoryboardImages] = useState<Record<number, string>>(() => loadSaved("storyboardImages", {}));
   const [referenceImages, setReferenceImages] = useState<Record<string, string[]>>(() => loadSaved("referenceImages", {}));
+  const [sceneAudioUrls, setSceneAudioUrls] = useState<Record<number, string>>(() => loadSaved("sceneAudioUrls", {}));
+  const [sceneVideoUrls, setSceneVideoUrls] = useState<Record<number, string>>(() => loadSaved("sceneVideoUrls", {}));
   const [youtubeStyleSuffix, setYoutubeStyleSuffix] = useState(() => loadSaved("youtubeStyleSuffix", ""));
   const [globalScriptModel] = useState("pollinations");
   // Short Story Mode
@@ -243,11 +250,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         mode, url, angle, scriptData, qualityTier, globalVisualStyle,
         videoDimension, selectedVoice, musicEnabled, captionsEnabled,
         targetDurationMinutes, storyboardImages, referenceImages,
+        sceneAudioUrls, sceneVideoUrls,
         storyText, characterProfiles, audioFile, audioFileName,
         lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      // Also keep sessionStorage for backward compat
       try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
     } catch {
       // localStorage full or unavailable — silently ignore
@@ -256,6 +263,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     mode, url, angle, scriptData, qualityTier, globalVisualStyle,
     videoDimension, selectedVoice, musicEnabled, captionsEnabled,
     targetDurationMinutes, storyboardImages, referenceImages,
+    sceneAudioUrls, sceneVideoUrls,
     storyText, characterProfiles, audioFile, audioFileName,
     lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
   ]);
@@ -283,6 +291,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       targetDurationMinutes, setTargetDurationMinutes,
       storyboardImages, setStoryboardImages,
       referenceImages, setReferenceImages,
+      sceneAudioUrls, setSceneAudioUrls,
+      sceneVideoUrls, setSceneVideoUrls,
       youtubeStyleSuffix, setYoutubeStyleSuffix,
       storyText, setStoryText,
       characterProfiles, setCharacterProfiles,

@@ -15,6 +15,7 @@ export interface SavedStyle {
   sourceVideoTitle?: string;
   sourceChannel?: string;
   sourceUrl?: string;
+  thumbnailUrl?: string;
   createdAt: string;
 }
 
