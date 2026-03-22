@@ -13,23 +13,22 @@ export async function generateGeminiText(prompt: string, _model?: string): Promi
   const geminiKey = process.env.GEMINI_API_KEY;
   const pollinationsKey = process.env.POLLINATIONS_API_KEY;
 
-  // Primary: Gemini API
-  if (geminiKey) {
+  // Primary: Pollinations
+  if (pollinationsKey) {
     try {
-      return await generateViaGemini(prompt, geminiKey);
+      return await generateViaPollinationsWithRetry(prompt, pollinationsKey);
     } catch (err: any) {
-      console.warn("Gemini failed, trying Pollinations fallback:", err.message);
+      console.warn("Pollinations failed, trying Gemini fallback:", err.message);
     }
   }
 
-  // Fallback: Pollinations (requires API key since March 2026)
-  if (pollinationsKey) {
-    return await generateViaPollinationsWithRetry(prompt, pollinationsKey);
+  // Fallback: Gemini API
+  if (geminiKey) {
+    return await generateViaGemini(prompt, geminiKey);
   }
 
   throw new Error(
-    "No AI API key configured. Please set GEMINI_API_KEY in your Render environment variables. " +
-    "Get a free key at https://aistudio.google.com/apikey"
+    "No AI API key configured. Please set POLLINATIONS_API_KEY or GEMINI_API_KEY in your Render environment variables."
   );
 }
 
