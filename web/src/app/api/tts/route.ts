@@ -52,7 +52,27 @@ export async function POST(req: NextRequest) {
     console.log("Using Edge TTS (free fallback)...");
     const { EdgeTTS } = await import("edge-tts-universal");
 
-    const edgeVoice = "en-US-ChristopherNeural"; // Deep male voice, good for documentaries
+    // Map Pollinations/ElevenLabs voice names to Edge TTS equivalents
+    const VOICE_MAP: Record<string, string> = {
+      adam: "en-US-ChristopherNeural",       // Deep male
+      alloy: "en-US-GuyNeural",              // Neutral male
+      echo: "en-US-EricNeural",              // Warm male
+      fable: "en-GB-RyanNeural",             // British male
+      onyx: "en-US-AndrewNeural",            // Deep authoritative male
+      nova: "en-US-JennyNeural",             // Warm female
+      shimmer: "en-US-AriaNeural",           // Bright female
+      rachel: "en-US-MichelleNeural",        // Professional female
+      drew: "en-US-DavisNeural",             // Casual male
+      clyde: "en-US-JasonNeural",            // Gruff male
+      paul: "en-US-TonyNeural",              // Friendly male
+      domi: "en-US-SaraNeural",              // Energetic female
+      elli: "en-US-JaneNeural",              // Soft female
+      josh: "en-US-BrandonNeural",           // Young male
+      arnold: "en-US-ChristopherNeural",     // Deep narrator
+      sam: "en-US-SteffanNeural",            // Neutral male
+      bella: "en-US-NancyNeural",            // Warm female
+    };
+    const edgeVoice = VOICE_MAP[voice.toLowerCase()] || "en-US-ChristopherNeural";
     const tts = new EdgeTTS(text, edgeVoice, {
       rate: "+0%",
       volume: "+0%",

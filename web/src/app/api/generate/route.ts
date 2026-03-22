@@ -27,7 +27,7 @@ function tryCompleteJson(str: string): string {
   return s;
 }
 
-function parseAndReturnScript(responseText: string): NextResponse {
+function parseScriptData(responseText: string): any {
   console.log("Raw AI response (first 500 chars):", responseText.substring(0, 500));
 
   let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
@@ -66,12 +66,16 @@ function parseAndReturnScript(responseText: string): NextResponse {
     duration_estimate_seconds: scene.duration_estimate_seconds || 8,
   }));
 
-  return NextResponse.json(scriptData);
+  return scriptData;
+}
+
+function parseAndReturnScript(responseText: string): NextResponse {
+  return NextResponse.json(parseScriptData(responseText));
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, url, angle, visualStyle = "Cinematic Documentary", durationMinutes = 3, continueFrom, endStory, existingTitle, mode, storyText, characterProfiles, lyrics, musicSegments } = await req.json();
+    const { topic, url, angle, visualStyle = "Cinematic Documentary", durationMinutes = 3, continueFrom, endStory, existingTitle, mode, storyText, characterProfiles, lyrics, musicSegments, youtubeStyleSuffix } = await req.json();
 
     // Short Story and Music Video modes don't need topic/url
     if (!topic && !url && mode !== "short-story" && mode !== "music-video" && mode !== "extract-characters" && mode !== "extract-subjects") {
@@ -370,7 +374,8 @@ Structure: HOOK → SETUP → RISING TENSION → CLIMAX → RESOLUTION → FINAL
     };
 
     const styleDesc = STYLE_MAP[visualStyle] || STYLE_MAP["Cinematic Documentary"];
-    const aestheticRules = `CRITICAL AESTHETIC: You must write visual_prompts in the style of: ${styleDesc}. Every scene's visual_prompt MUST reflect this aesthetic consistently.`;
+    const suffixRule = youtubeStyleSuffix ? `\nADDITIONAL STYLE SUFFIX — Append the following to EVERY visual_prompt: "${youtubeStyleSuffix}"` : "";
+    const aestheticRules = `CRITICAL AESTHETIC: You must write visual_prompts in the style of: ${styleDesc}. Every scene's visual_prompt MUST reflect this aesthetic consistently.${suffixRule}`;
 
     // ========== SHORT STORY MODE ==========
     if (mode === "short-story") {
@@ -390,21 +395,28 @@ Structure: HOOK → SETUP → RISING TENSION → CLIMAX → RESOLUTION → FINAL
       }
 
       const storyPrompt = `
-You are an elite cinematographer and screenwriter. Convert the following short story into a video script with scenes.
+You are an elite cinematographer and screenwriter who has directed award-winning short films. Convert the following short story into a cinematic video script.
 
 SHORT STORY:
 ${extractedText}
 
 INSTRUCTIONS:
-- Parse the story into a series of visual scenes following the narrative arc (beginning, rising action, climax, falling action, resolution)
+- Parse the story into a series of visual scenes following a clear dramatic arc: HOOK → Setup → Rising Tension → Climax → Resolution
+- Scene 1 MUST be a cold open — drop viewers into the most dramatic or intriguing moment
 - Each scene should be 6-12 seconds of narration
-- The narration should be adapted from the story text — rewrite it as compelling voiceover (not a word-for-word copy)
+- The narration should be adapted from the story — rewrite as compelling cinematic voiceover (not word-for-word copy)
+- Vary the emotional tempo: tense → reflective → explosive → quiet → revelation
+- Include "breathing room" — not every scene should be high-intensity
+- The final 2-3 scenes must build to a satisfying climax and memorable conclusion
 - Target approximately ${Math.ceil(durationMinutes * 60 / 8)} scenes for a ${durationMinutes}-minute video
 ${characterSheet}
 
 VISUAL PROMPT RULES:
-- Each visual_prompt describes exactly what appears on screen: camera angle, lighting, mood, characters, setting
-- Include camera_angle (e.g. "close-up", "wide shot", "tracking shot"), lighting (e.g. "golden hour", "harsh fluorescent"), and mood (e.g. "tense", "hopeful")
+- Each visual_prompt describes exactly what appears on screen: camera angle, lighting, mood, characters, setting, color palette
+- VARY camera angles across scenes: wide establishing → medium → close-up → extreme close-up → aerial → tracking → POV
+- NEVER use the same camera angle for 3+ consecutive scenes
+- Use camera movement to match emotion: slow push-in for tension, pull-back for revelation, handheld for chaos
+- Include specific lighting: "golden hour warmth", "harsh fluorescent", "neon-soaked", "candlelit intimacy", "overcast gray"
 - Maintain visual consistency for recurring characters and locations
 - Be specific about character appearances in EVERY scene they appear
 - visual_prompt must be a PURE CINEMATIC DESCRIPTION — NEVER include metadata like "Name:", "Height:", "Age:", "Role:", character stats, or text overlays
@@ -563,17 +575,33 @@ Angle: ${angle}
 ${narrativeInstructions}
 
 UNIVERSAL WRITING RULES:
-- Vary sentence length for rhythm and pacing
+- Vary sentence length for rhythm and pacing — SHORT. Then longer, more reflective beats.
 - Use short punchy lines during intense or dramatic moments
 - Use longer sentences for storytelling and atmosphere
 - Every 10-20 seconds must introduce new information, a question, or a twist
-- NEVER use filler words or generic phrasing
+- NEVER use filler words or generic phrasing ("In a world where...", "Little did he know...", "But that's not all...")
 - Use psychological triggers: curiosity, suspense, surprise, empathy, aspiration
 - ALWAYS write in English unless the topic specifically involves other languages
 - The narration must tell the ACTUAL STORY from the source material — stick to the REAL facts, events, and people
 - NEVER narrate physical descriptions of characters — that's what the visual_prompt is for
 - The narration should NEVER say things like "He stands 6 foot 2 with a muscular frame" — instead, TELL THE STORY
 - Narration = storytelling voiceover. Visual_prompt = what the camera sees. Keep them separate.
+
+PACING AND NARRATIVE ARC:
+- Scene 1 MUST be a cold open hook — drop the viewer into the most dramatic, surprising, or emotional moment FIRST
+- Follow a clear dramatic arc: Hook → Setup → Rising Tension → Climax → Resolution/Twist
+- Vary the emotional tempo: tense → reflective → explosive → quiet → revelation
+- Include "breathing room" scenes — not every scene should be high-intensity; quiet moments make loud ones hit harder
+- Plant questions early and answer them later — create micro-mysteries that keep viewers watching
+- Use cliffhanger transitions between scenes: end one scene with a question, start the next with a partial answer
+- The last 2-3 scenes must build to a climactic payoff or satisfying twist — NEVER let the ending fizzle out
+
+CAMERA AND CINEMATIC LANGUAGE:
+- Vary camera angles across scenes: wide establishing → medium → close-up → extreme close-up → aerial → tracking → POV
+- NEVER use the same camera angle for 3+ consecutive scenes
+- Use camera movement to match emotion: slow push-in for tension, pull-back for revelation, handheld for chaos, steady for authority
+- Include specific shot descriptions: "low angle looking up", "over-the-shoulder", "bird's-eye view", "Dutch angle"
+- Lighting should evolve with the story mood: warm golden for hope, cold blue for isolation, harsh contrast for conflict, soft diffused for intimacy
 
 VISUAL PROMPT RULES — EXTREME LIKENESS REQUIRED:
 - Each scene's visual_prompt must describe EXACTLY what should appear on screen
@@ -608,7 +636,7 @@ ${aestheticRules}
 
 SCRIPT OUTPUT:
 The target video duration is ${durationMinutes} minute(s) (${durationMinutes * 60} seconds total).
-Generate approximately ${Math.ceil(durationMinutes * 60 / 8)} scenes to fill this duration.
+Generate approximately ${"SCENE_COUNT_PLACEHOLDER"} scenes to fill this duration.
 Each scene should be roughly 6-12 seconds of narration.
 
 Each scene must have:
@@ -617,12 +645,15 @@ Each scene must have:
 - duration_estimate_seconds: Duration based on narration length (typically 6-12 seconds per scene)
 
 QUALITY CHECK BEFORE RESPONDING:
-- Does the HOOK make you stop scrolling?
-- Does the story have real emotional stakes?
-- Is there genuine tension and progression?
-- Does it feel like a Netflix documentary, not a Wikipedia article?
+- Does the HOOK make you stop scrolling? (If not, rewrite scene 1)
+- Does the story have real emotional stakes — can you FEEL something?
+- Is there genuine tension, escalation, and progression — not just a list of facts?
+- Does it feel like a Netflix documentary, not a Wikipedia article or school report?
+- Are camera angles varied? (No 3 consecutive scenes with same angle)
+- Does the emotional tempo shift — tense, then quiet, then explosive?
+- Is every scene visually distinct? Can you picture each one as a unique, striking image?
 - Would this realistically get millions of views?
-- Does the FINAL LINE leave a lasting impression?
+- Does the FINAL LINE leave a lasting impression — a mic-drop moment?
 
 Format your response as a JSON object with:
 {
@@ -630,9 +661,12 @@ Format your response as a JSON object with:
   "angle": "The narrative angle/hook",
   "scenes": [
     {
-      "narration": "The voiceover text",
-      "visual_prompt": "Detailed visual description with camera movement, mood, lighting",
-      "duration_estimate_seconds": 8
+      "narration": "The voiceover text — cinematic, emotionally engaging, tells the story",
+      "visual_prompt": "Detailed visual description: subject, action, setting, camera angle, lighting, mood, color palette",
+      "duration_estimate_seconds": 8,
+      "camera_angle": "e.g. wide establishing, close-up, tracking shot, aerial, low angle, over-the-shoulder",
+      "lighting": "e.g. golden hour, harsh fluorescent, neon-lit, candlelight, overcast",
+      "mood": "e.g. tense, hopeful, chaotic, melancholic, triumphant"
     }
   ]
 }
@@ -642,25 +676,94 @@ CRITICAL JSON RULES:
 - All strings must be valid JSON — escape double quotes with backslash (\\").
 - For heights, use feet-inches format without quote marks (e.g. "6 foot 6" not "6'6\\"").
 - Do NOT wrap the response in \`\`\`json or \`\`\` code blocks.
-${continueFrom ? `
-CONTINUATION MODE: You are continuing an existing script. The previous scenes ended with:
-"${continueFrom}"
-Continue the story naturally from where it left off. Generate new scenes that flow seamlessly.
-Keep the same title: "${existingTitle || "Untitled"}"
-` : ""}${endStory ? `
-ENDING MODE: You are writing the FINAL scene to conclude this story. The previous scenes ended with:
-"${continueFrom}"
-Write a powerful, memorable conclusion that wraps up the narrative. Make it emotionally resonant.
-Generate only 1-2 scenes maximum. Keep the same title: "${existingTitle || "Untitled"}"
-` : ""}
+${"CONTINUATION_PLACEHOLDER"}
 `;
 
-    // STEP 3: Generate the script
-    console.log("Generating script via Groq...");
-    const responseText = await generateGeminiText(prompt);
-    console.log("Raw AI response (first 500 chars):", responseText.substring(0, 500));
+    // STEP 3: Generate the script — chunked for long durations
+    const totalScenesTarget = Math.ceil(durationMinutes * 60 / 8);
+    const CHUNK_SIZE = 25; // max scenes per AI call — keeps response reliable
 
-    return parseAndReturnScript(responseText);
+    if (continueFrom || endStory) {
+      // Continuation/ending modes — single shot, small output
+      const continuationNote = endStory
+        ? `\nENDING MODE: You are writing the FINAL scene to conclude this story. The previous scenes ended with:\n"${continueFrom}"\nWrite a powerful, memorable conclusion. Generate only 1-2 scenes. Keep title: "${existingTitle || "Untitled"}"\n`
+        : `\nCONTINUATION MODE: Continuing an existing script. Previous scenes ended with:\n"${continueFrom}"\nContinue naturally. Keep title: "${existingTitle || "Untitled"}"\n`;
+      const singlePrompt = prompt
+        .replace("SCENE_COUNT_PLACEHOLDER", String(Math.min(totalScenesTarget, CHUNK_SIZE)))
+        .replace("CONTINUATION_PLACEHOLDER", continuationNote);
+      console.log("Generating continuation/ending...");
+      const responseText = await generateGeminiText(singlePrompt);
+      return parseAndReturnScript(responseText);
+    }
+
+    if (totalScenesTarget <= CHUNK_SIZE) {
+      // Short video — single generation call
+      const singlePrompt = prompt
+        .replace("SCENE_COUNT_PLACEHOLDER", String(totalScenesTarget))
+        .replace("CONTINUATION_PLACEHOLDER", "");
+      console.log(`Generating script (${totalScenesTarget} scenes, single call)...`);
+      const responseText = await generateGeminiText(singlePrompt);
+      return parseAndReturnScript(responseText);
+    }
+
+    // ========== CHUNKED GENERATION for long videos ==========
+    console.log(`Long video: ${totalScenesTarget} scenes total, generating in chunks of ${CHUNK_SIZE}...`);
+    const totalChunks = Math.ceil(totalScenesTarget / CHUNK_SIZE);
+    let allScenes: any[] = [];
+    let title = "";
+    let angleResult = "";
+
+    for (let chunk = 0; chunk < totalChunks; chunk++) {
+      const scenesRemaining = totalScenesTarget - allScenes.length;
+      const scenesThisChunk = Math.min(CHUNK_SIZE, scenesRemaining);
+      const isFirstChunk = chunk === 0;
+      const isLastChunk = chunk === totalChunks - 1;
+
+      let chunkNote = "";
+      if (!isFirstChunk) {
+        // Summarize previous scenes for continuity context
+        const lastFewScenes = allScenes.slice(-3);
+        const prevSummary = lastFewScenes.map(s => s.narration).join(" ... ");
+        chunkNote = `
+CONTINUATION — CHAPTER ${chunk + 1} of ${totalChunks}:
+You are writing scenes ${allScenes.length + 1}-${allScenes.length + scenesThisChunk} of a ${totalScenesTarget}-scene script.
+The story so far ended with: "${prevSummary.substring(0, 500)}"
+Continue the story seamlessly. Do NOT repeat the hook or introduction.
+Keep the same title: "${title}"
+${isLastChunk ? "This is the FINAL chapter — build to a powerful, memorable conclusion." : "Build tension and progress the narrative forward."}
+`;
+      } else {
+        chunkNote = `
+This is chapter 1 of ${totalChunks} (scenes 1-${scenesThisChunk} of ${totalScenesTarget} total).
+Write a gripping opening that hooks viewers immediately. Set up the story arc that will unfold across all chapters.
+`;
+      }
+
+      const chunkPrompt = prompt
+        .replace("SCENE_COUNT_PLACEHOLDER", String(scenesThisChunk))
+        .replace("CONTINUATION_PLACEHOLDER", chunkNote);
+
+      console.log(`Generating chunk ${chunk + 1}/${totalChunks} (${scenesThisChunk} scenes)...`);
+      const responseText = await generateGeminiText(chunkPrompt);
+      const chunkData = parseScriptData(responseText);
+
+      if (isFirstChunk) {
+        title = chunkData.title || "Untitled";
+        angleResult = chunkData.angle || angle;
+      }
+
+      // Re-number scenes to be sequential across chunks
+      const offset = allScenes.length;
+      for (const scene of chunkData.scenes) {
+        scene.id = offset + scene.id;
+        scene.scene_number = offset + scene.scene_number;
+      }
+
+      allScenes = allScenes.concat(chunkData.scenes);
+      console.log(`Chunk ${chunk + 1} done: ${chunkData.scenes.length} scenes (${allScenes.length}/${totalScenesTarget} total)`);
+    }
+
+    return NextResponse.json({ title, angle: angleResult, scenes: allScenes });
   } catch (error: any) {
     console.error("Script generation error:", error);
     return NextResponse.json({ error: error.message || "Failed to generate script" }, { status: 500 });

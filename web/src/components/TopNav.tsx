@@ -72,10 +72,21 @@ export default function TopNav() {
             </span>
           </button>
         )}
-        <button className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all">
+        <button
+          onClick={() => window.alert("Notifications coming soon!")}
+          title="Notifications"
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all"
+        >
           <span className="material-symbols-outlined text-lg">notifications</span>
         </button>
-        <button className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all">
+        <button
+          onClick={() => {
+            const q = window.prompt("Search your projects:");
+            if (q) window.location.href = `/?search=${encodeURIComponent(q)}`;
+          }}
+          title="Search"
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all"
+        >
           <span className="material-symbols-outlined text-lg">search</span>
         </button>
       </div>

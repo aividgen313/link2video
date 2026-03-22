@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || "";
-const XAI_API_KEY = process.env.XAI_API_KEY || "";
 
 const NEGATIVE_PROMPT = [
   // Anatomy / Body
@@ -59,106 +58,8 @@ function sanitizePrompt(prompt: string, maxLen: number): string {
 }
 
 /**
- * Generate image via xAI Grok Imagine API
- * If referenceImageUrl is provided, uses the edits endpoint for better likeness
- */
-async function generateViaGrok(prompt: string, referenceImageUrl?: string): Promise<{ dataUrl: string; id: string } | null> {
-  if (!XAI_API_KEY) return null;
-
-  try {
-    // If we have a reference image, use the edits endpoint for better likeness
-    if (referenceImageUrl) {
-      console.log("Trying xAI Grok Imagine with reference image...");
-      const editResponse = await fetch("https://api.x.ai/v1/images/edits", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${XAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "grok-imagine-image",
-          prompt: prompt,
-          image_url: referenceImageUrl,
-          n: 1,
-          response_format: "url",
-        }),
-        signal: AbortSignal.timeout(60000),
-      });
-
-      if (editResponse.ok) {
-        const editData = await editResponse.json();
-        const editUrl = editData?.data?.[0]?.url;
-        if (editUrl) {
-          const result = await downloadImage(editUrl);
-          if (result) {
-            console.log("xAI Grok Imagine (with reference) success");
-            return result;
-          }
-        }
-      } else {
-        const errText = await editResponse.text().catch(() => "");
-        console.warn(`xAI edits failed: ${editResponse.status}`, errText.substring(0, 200));
-        // Fall through to standard generation
-      }
-    }
-
-    // Standard generation without reference
-    console.log("Trying xAI Grok Imagine (standard)...");
-    const response = await fetch("https://api.x.ai/v1/images/generations", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${XAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "grok-imagine-image",
-        prompt: prompt,
-        n: 1,
-        response_format: "url",
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => "");
-      console.warn(`xAI Grok Imagine failed: ${response.status}`, errText.substring(0, 200));
-      return null;
-    }
-
-    const data = await response.json();
-    const imageUrl = data?.data?.[0]?.url;
-    if (!imageUrl) {
-      console.warn("xAI Grok returned no image URL");
-      return null;
-    }
-
-    return await downloadImage(imageUrl);
-  } catch (err: any) {
-    console.warn("xAI Grok Imagine error:", err.message);
-    return null;
-  }
-}
-
-/** Download an image URL and convert to base64 data URL */
-async function downloadImage(imageUrl: string): Promise<{ dataUrl: string; id: string } | null> {
-  try {
-    const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });
-    if (!imgRes.ok) {
-      console.warn(`Failed to download image: ${imgRes.status}`);
-      return null;
-    }
-    const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
-    const contentType = imgRes.headers.get("content-type") || "image/png";
-    const dataUrl = `data:${contentType};base64,${imgBuffer.toString("base64")}`;
-    return { dataUrl, id: `grok-${Date.now()}` };
-  } catch (err: any) {
-    console.warn("Image download error:", err.message);
-    return null;
-  }
-}
-
-/**
- * Image generation — tries xAI Grok first (if useGrok), then Pollinations fallback
+ * Image generation via Pollinations only
+ * Models: nanobanana-pro, seedream-pro, seedream5
  */
 export async function POST(req: NextRequest) {
   try {
@@ -167,8 +68,6 @@ export async function POST(req: NextRequest) {
       width = 1280,
       height = 768,
       model,
-      useGrok = false,
-      referenceImageUrl,
     } = await req.json();
 
     if (!prompt) {
@@ -180,11 +79,8 @@ export async function POST(req: NextRequest) {
     const maxPromptLen = 900;
     const negativeEncoded = encodeURIComponent(NEGATIVE_PROMPT);
 
-    // Skip Grok for images — use Pollinations models which produce cleaner results
-    // Grok images have artifacts: gibberish text, merged subjects, distorted faces
-
-    // Pollinations.ai — flux and nanobanana-pro produce the best photorealistic results
-    const MODELS_TO_TRY = model ? [model] : ["flux", "nanobanana-pro"];
+    // Pollinations.ai — nanobanana-pro + seedream-pro for best photorealistic results (NO flux)
+    const MODELS_TO_TRY = model ? [model] : ["nanobanana-pro", "seedream-pro"];
 
     // Build retry attempts: each model with progressively simpler prompts
     type Attempt = { prompt: string; model: string };
@@ -193,15 +89,15 @@ export async function POST(req: NextRequest) {
     for (const m of MODELS_TO_TRY) {
       attempts.push({ prompt: sanitizePrompt(prompt, maxPromptLen) + suffix, model: m });
     }
-    // Shorter prompt (first 6 comma segments) with flux
+    // Shorter prompt (first 6 comma segments) with nanobanana-pro
     attempts.push({
       prompt: sanitizePrompt(prompt.split(",").slice(0, 6).join(","), 600) + ", cinematic, photorealistic, 8k",
-      model: "flux",
+      model: "nanobanana-pro",
     });
-    // Ultra-simple prompt (first 3 comma segments) with flux — last resort
+    // Ultra-simple prompt (first 3 comma segments) with seedream5 — last resort
     attempts.push({
       prompt: sanitizePrompt(prompt.split(",").slice(0, 3).join(","), 300) + ", photorealistic",
-      model: "flux",
+      model: "seedream5",
     });
 
     for (let i = 0; i < attempts.length; i++) {
@@ -211,52 +107,61 @@ export async function POST(req: NextRequest) {
       const encodedPrompt = encodeURIComponent(currentPrompt);
       const seed = Math.floor(Math.random() * 1000000);
 
-      let imageURL = `https://gen.pollinations.ai/image/${encodedPrompt}?model=${currentModel}&width=${width}&height=${height}&seed=${seed}&nologo=true&negative=${negativeEncoded}`;
+      let imageURL = `https://gen.pollinations.ai/image/${encodedPrompt}?model=${currentModel}&width=${width}&height=${height}&seed=${seed}&nologo=true&quality=high&enhance=true&negative=${negativeEncoded}`;
       if (POLLINATIONS_API_KEY) {
         imageURL += `&key=${POLLINATIONS_API_KEY}`;
       }
 
       try {
         const response = await fetch(imageURL, {
-          signal: AbortSignal.timeout(60000),
+          signal: AbortSignal.timeout(90000),
         });
 
         if (!response.ok) {
-          const errorText = await response.text().catch(() => "");
-          console.warn(`Pollinations attempt ${i + 1} failed: ${response.status}`, errorText.substring(0, 200));
-          if (i < attempts.length - 1) continue; // retry with simpler prompt
-          throw new Error(`Pollinations returned ${response.status}: ${response.statusText}`);
+          console.warn(`Pollinations ${currentModel} failed: ${response.status}`);
+          if (response.status === 402) {
+            return NextResponse.json({
+              error: "Insufficient Pollinations credits.",
+              isCreditsError: true,
+            }, { status: 402 });
+          }
+          continue;
         }
 
         const contentType = response.headers.get("content-type") || "";
-        console.log(`Image response: ${response.status}, type: ${contentType}`);
+        if (!contentType.includes("image")) {
+          console.warn(`Pollinations ${currentModel} returned non-image: ${contentType}`);
+          continue;
+        }
 
         const imageBuffer = Buffer.from(await response.arrayBuffer());
-        const base64Image = imageBuffer.toString("base64");
-        const mimeType = contentType.includes("png") ? "image/png" : "image/jpeg";
-        const dataUrl = `data:${mimeType};base64,${base64Image}`;
+        if (imageBuffer.length < 1000) {
+          console.warn(`Pollinations ${currentModel} returned empty image`);
+          continue;
+        }
 
+        const mimeType = contentType.includes("png") ? "image/png" : "image/jpeg";
+        const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
+
+        console.log(`Pollinations ${currentModel} success (${imageBuffer.length} bytes)`);
         return NextResponse.json({
           success: true,
-          images: [
-            {
-              imageURL: dataUrl,
-              imageUUID: `poll-${seed}`,
-              seed,
-              cost: 0,
-            },
-          ],
+          images: [{ imageURL: dataUrl, imageUUID: `pollinations-${Date.now()}` }],
         });
       } catch (err: any) {
-        if (err.name === "AbortError") {
-          console.warn(`Pollinations attempt ${i + 1} timed out`);
-          if (i < attempts.length - 1) continue;
+        if (err.name === "AbortError" || err.message?.includes("timeout")) {
+          console.warn(`Pollinations ${currentModel} timed out`);
+        } else {
+          console.warn(`Pollinations ${currentModel} error:`, err.message);
         }
-        if (i === attempts.length - 1) throw err;
+        continue;
       }
     }
 
-    throw new Error("All image generation attempts failed");
+    return NextResponse.json(
+      { error: "All Pollinations image models failed. Try again.", retryable: true },
+      { status: 500 }
+    );
   } catch (error) {
     console.error("Image generation error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";

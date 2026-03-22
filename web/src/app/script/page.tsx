@@ -25,6 +25,7 @@ export default function ScriptBuilder() {
     musicSegments,
     audioFile,
     audioDuration,
+    youtubeStyleSuffix,
   } = useAppContext();
   const [isLoading, setIsLoading] = useState(!scriptData);
   const [hasMounted, setHasMounted] = useState(false);
@@ -40,6 +41,15 @@ export default function ScriptBuilder() {
     setHasMounted(true);
   }, []);
 
+  // Redirect if no input data
+  useEffect(() => {
+    if (!hasMounted) return;
+    const hasInput = url || storyText || audioFile;
+    if (!hasInput && !scriptData) {
+      router.push("/");
+    }
+  }, [hasMounted, url, storyText, audioFile, scriptData, router]);
+
   const tier = QUALITY_TIERS[qualityTier];
   const estimatedTotalCost = scriptData
     ? (tier.usdPerScene * scriptData.scenes.length).toFixed(4)
@@ -51,7 +61,7 @@ export default function ScriptBuilder() {
 
     setGeneratingImages(prev => ({ ...prev, [scene.id]: true }));
     try {
-      // All tiers use Pollinations (flux/nanobanana-pro) for images — cleaner results
+      // All tiers use Pollinations (nanobanana-pro/seedream-pro) for images — NO flux
       const res = await fetch("/api/runware/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -149,6 +159,7 @@ export default function ScriptBuilder() {
           visualStyle: globalVisualStyle,
           durationMinutes: targetDurationMinutes,
           mode,
+          ...(youtubeStyleSuffix ? { youtubeStyleSuffix } : {}),
         };
         if (mode === "short-story") {
           requestBody.storyText = storyText;

@@ -13,6 +13,7 @@ const DURATION_PRESETS = [
   { label: "120 min", value: 120 },
 ];
 import { getHistory, deleteFromHistory, type VideoHistoryItem } from "@/lib/videoHistory";
+import { getSavedStyles, saveStyle, deleteStyle, type SavedStyle } from "@/lib/savedStyles";
 
 function formatTimeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -132,6 +133,7 @@ export default function Home() {
     setScriptData,
     setStoryboardImages,
     setFinalVideoUrl,
+    setYoutubeStyleSuffix,
   } = useAppContext();
 
   const [inputValue, setInputValue] = useState(url || "");
@@ -142,8 +144,16 @@ export default function Home() {
   const [isAnalyzingAudio, setIsAnalyzingAudio] = useState(false);
   const audioInputRef = useRef<HTMLInputElement>(null);
 
+  // YouTube Style Clone
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [isAnalyzingYT, setIsAnalyzingYT] = useState(false);
+  const [analyzedStyle, setAnalyzedStyle] = useState<SavedStyle | null>(null);
+  const [savedStyles, setSavedStyles] = useState<SavedStyle[]>([]);
+  const [showStyleClone, setShowStyleClone] = useState(false);
+  const [appliedStyleId, setAppliedStyleId] = useState<string | null>(null);
+
   useEffect(() => { setHasMounted(true); }, []);
-  useEffect(() => { if (hasMounted) setRecentVideos(getHistory()); }, [hasMounted]);
+  useEffect(() => { if (hasMounted) { setRecentVideos(getHistory()); setSavedStyles(getSavedStyles()); } }, [hasMounted]);
 
   const handleGenerate = () => {
     // Reset previous generation state
@@ -244,17 +254,81 @@ export default function Home() {
     }
   };
 
+  // Analyze YouTube video style
+  const handleAnalyzeYouTube = async () => {
+    if (!youtubeUrl.trim() || isAnalyzingYT) return;
+    setIsAnalyzingYT(true);
+    setAnalyzedStyle(null);
+    try {
+      const res = await fetch("/api/analyze-youtube", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ youtubeUrl }),
+      });
+      const data = await res.json();
+      if (data.success && data.style) {
+        const style: SavedStyle = {
+          id: `yt_${Date.now()}`,
+          ...data.style,
+        };
+        setAnalyzedStyle(style);
+        // Auto-apply the visual style
+        applyStyle(style);
+      } else {
+        alert(data.error || "Failed to analyze video");
+      }
+    } catch (err) {
+      console.error("YouTube analysis error:", err);
+      alert("Failed to analyze video. Please check the URL and try again.");
+    } finally {
+      setIsAnalyzingYT(false);
+    }
+  };
+
+  const applyStyle = (style: SavedStyle) => {
+    // Find closest matching visual style or set directly
+    const match = VISUAL_STYLES.find(v => v.value.toLowerCase() === style.visualStyle?.toLowerCase());
+    if (match) {
+      setGlobalVisualStyle(match.value);
+    } else if (style.visualStyle) {
+      setGlobalVisualStyle(style.visualStyle);
+    }
+    // Set the visual prompt suffix so it gets appended to every scene
+    setYoutubeStyleSuffix(style.visualPromptSuffix || "");
+    setAppliedStyleId(style.id);
+  };
+
+  const handleSaveStyle = (style: SavedStyle) => {
+    saveStyle(style);
+    setSavedStyles(getSavedStyles());
+  };
+
+  const handleDeleteStyle = (id: string) => {
+    deleteStyle(id);
+    setSavedStyles(getSavedStyles());
+    if (appliedStyleId === id) setAppliedStyleId(null);
+  };
+
   const tier = QUALITY_TIERS[qualityTier];
   const sceneCount = Math.ceil(targetDurationMinutes * 60 / 8);
-  // Calculate accurate cost based on video strategy
-  const videoScenes = tier.videoSceneStrategy === "all" ? sceneCount
-    : tier.videoSceneStrategy === "key_scenes" ? Math.min((tier as any).maxVideoScenes || 3, sceneCount)
+  // Calculate video scene breakdown
+  const strat: string = tier.videoSceneStrategy;
+  const videoScenes = strat === "all" ? sceneCount
+    : strat === "alternating" ? Math.ceil(sceneCount / 2)
+    : strat === "key_scenes" ? Math.min((tier as any).maxVideoScenes || 3, sceneCount)
     : 0;
   const kenBurnsScenes = sceneCount - videoScenes;
-  const videoCost = videoScenes * 0.40; // $0.05/s × 8s
-  const textCost = 0.01; // amortized Grok text
-  const totalUsd = qualityTier === "basic" ? 0 : (videoCost + textCost);
-  const estimatedUsd = totalUsd.toFixed(2);
+
+  // USD cost estimate (1 pollen = $1 USD)
+  // Images: nanobanana-pro = $0.00012/image (1 completion token each)
+  // Video: wan = $0.05/second × 8s = $0.40/video scene
+  // Text: openai free = ~$0.005/script (negligible)
+  // TTS: free via Pollinations
+  const imageCost = sceneCount * 0.00012;
+  const videoCost = videoScenes * 0.40;
+  const textCost = 0.005 * Math.max(1, Math.ceil(sceneCount / 25)); // per chunk
+  const totalUsd = imageCost + videoCost + textCost;
+  const estimatedUsd = totalUsd < 0.01 ? totalUsd.toFixed(4) : totalUsd.toFixed(2);
 
   const canGenerate = mode === "link" ? inputValue.trim().length > 0
     : mode === "short-story" ? storyText.trim().length > 0
@@ -567,7 +641,7 @@ export default function Home() {
                       className={`py-2.5 px-2 rounded-xl flex flex-col items-center gap-0.5 transition-all ${isActive ? `${info.bgColor} ${info.color} border ${info.borderColor}` : "text-outline hover:bg-surface-variant/30"}`}
                     >
                       <span className="font-bold text-sm">{info.label}</span>
-                      <span className="text-[10px] opacity-70 leading-tight text-center hidden sm:block">{t === "basic" ? "FREE" : `~$${info.usdPerScene.toFixed(3)}/scene`}</span>
+                      <span className="text-[10px] opacity-70 leading-tight text-center hidden sm:block">{t === "basic" ? "FREE" : t === "medium" ? "KEY SCENES" : "ALL SCENES"}</span>
                     </button>
                   );
                 })}
@@ -575,11 +649,11 @@ export default function Home() {
               <p className="text-[11px] text-outline pl-1">{tier.description}</p>
               <p className="text-[11px] text-outline pl-1">
                 {qualityTier === "basic" ? (
-                  <span className="font-bold text-emerald-400">FREE</span>
+                  <span className="font-bold text-emerald-400">FREE — Ken Burns animation</span>
                 ) : (
                   <>
-                    Est: <span className="font-bold text-on-surface">~${estimatedUsd}</span> for {sceneCount} scenes
-                    {videoScenes > 0 && <> ({videoScenes} video + {kenBurnsScenes} Ken Burns)</>}
+                    {videoScenes > 0 && <>{videoScenes} AI video + {kenBurnsScenes} Ken Burns · </>}
+                    Est: <span className="font-bold text-on-surface">~${estimatedUsd}</span>
                   </>
                 )}
               </p>
@@ -603,7 +677,18 @@ export default function Home() {
                     );
                   })}
                 </div>
-                <p className="text-[11px] text-outline pl-1">~{Math.ceil(targetDurationMinutes * 60 / 8)} scenes · {targetDurationMinutes >= 60 ? `${targetDurationMinutes / 60}h` : `${targetDurationMinutes}min`} video</p>
+                <p className="text-[11px] text-outline pl-1">
+                  ~{sceneCount} scenes · {targetDurationMinutes >= 60 ? `${targetDurationMinutes / 60}h` : `${targetDurationMinutes}min`} video
+                  {qualityTier === "basic"
+                    ? <> · <span className="font-bold text-emerald-400">FREE</span></>
+                    : <> · Est <span className="font-bold text-on-surface">~${estimatedUsd}</span></>
+                  }
+                </p>
+                {sceneCount > 50 && (
+                  <p className="text-[10px] text-amber-400 pl-1">
+                    {sceneCount > 200 ? "⚡ Very long video — script will be generated in chapters to avoid timeouts" : "⚡ Long video — script will be generated in batches"}
+                  </p>
+                )}
               </div>
             )}
 
@@ -635,6 +720,179 @@ export default function Home() {
                   <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-lg">expand_more</span>
                 </div>
               </div>
+            </div>
+
+            {/* YouTube Style Clone */}
+            <div className="space-y-3">
+              <button
+                onClick={() => setShowStyleClone(!showStyleClone)}
+                className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition-all text-sm font-medium bg-surface-container-lowest/50 border-outline-variant/10 text-on-surface hover:bg-primary/5"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base text-primary">content_copy</span>
+                  <span className="text-xs font-semibold">Clone YouTube Style</span>
+                  {appliedStyleId && <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />}
+                </div>
+                <span className={`material-symbols-outlined text-base text-outline transition-transform ${showStyleClone ? "rotate-180" : ""}`}>expand_more</span>
+              </button>
+
+              {showStyleClone && (
+                <div className="space-y-3 p-3 rounded-xl bg-surface-container-lowest/30 border border-outline-variant/10">
+                  {/* URL Input + Analyze */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={youtubeUrl}
+                      onChange={(e) => setYoutubeUrl(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleAnalyzeYouTube()}
+                      placeholder="Paste YouTube video URL..."
+                      className="flex-1 bg-surface-container-lowest/50 border border-outline-variant/10 rounded-xl py-2.5 px-3 text-on-surface text-sm focus:ring-2 focus:ring-primary/40 focus:outline-none placeholder:text-outline/40"
+                    />
+                    <button
+                      onClick={handleAnalyzeYouTube}
+                      disabled={!youtubeUrl.trim() || isAnalyzingYT}
+                      className="px-4 py-2.5 rounded-xl bg-primary text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors flex items-center gap-1.5 shrink-0"
+                    >
+                      {isAnalyzingYT ? (
+                        <>
+                          <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined text-sm">analytics</span>
+                          Analyze
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Analyzed Style Preview */}
+                  {analyzedStyle && (
+                    <div className="space-y-3 p-3 rounded-xl bg-primary/5 border border-primary/15">
+                      {/* Header with thumbnail */}
+                      <div className="flex gap-3">
+                        {analyzedStyle.thumbnailUrl && (
+                          <img src={analyzedStyle.thumbnailUrl} alt="" className="w-28 h-16 rounded-lg object-cover shrink-0 border border-outline-variant/10" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="material-symbols-outlined text-primary text-base">style</span>
+                            <span className="text-sm font-bold text-on-surface truncate">{analyzedStyle.styleName}</span>
+                          </div>
+                          {analyzedStyle.sourceVideoTitle && (
+                            <p className="text-[10px] text-outline truncate">{analyzedStyle.sourceVideoTitle}</p>
+                          )}
+                          {analyzedStyle.sourceChannel && (
+                            <p className="text-[10px] text-outline/60">{analyzedStyle.sourceChannel}</p>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-1 shrink-0">
+                          <button
+                            onClick={() => { handleSaveStyle(analyzedStyle); }}
+                            className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-bold hover:bg-primary/20 transition-colors flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-xs">bookmark_add</span>
+                            Save
+                          </button>
+                          <button
+                            onClick={() => { applyStyle(analyzedStyle); }}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors flex items-center gap-1 ${appliedStyleId === analyzedStyle.id ? "bg-primary text-white" : "bg-primary/10 text-primary hover:bg-primary/20"}`}
+                          >
+                            <span className="material-symbols-outlined text-xs">check_circle</span>
+                            {appliedStyleId === analyzedStyle.id ? "Applied" : "Apply"}
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-outline leading-relaxed">{analyzedStyle.description}</p>
+
+                      {/* Tone tags */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {analyzedStyle.toneKeywords?.map((kw: string) => (
+                          <span key={kw} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">{kw}</span>
+                        ))}
+                      </div>
+
+                      {/* Detailed breakdown grid */}
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[10px] text-outline">
+                        <div><span className="font-semibold text-on-surface">Pacing:</span> {analyzedStyle.pacing} {(analyzedStyle as any).sceneDuration && `(~${(analyzedStyle as any).sceneDuration}s/scene)`}</div>
+                        <div><span className="font-semibold text-on-surface">Hook:</span> {analyzedStyle.hookStyle}</div>
+                        <div><span className="font-semibold text-on-surface">Narration:</span> {analyzedStyle.narrationStyle}</div>
+                        <div><span className="font-semibold text-on-surface">Transitions:</span> {analyzedStyle.transitionStyle}</div>
+                        {(analyzedStyle as any).colorGrading && (
+                          <div><span className="font-semibold text-on-surface">Color:</span> {(analyzedStyle as any).colorGrading}</div>
+                        )}
+                        {(analyzedStyle as any).lightingStyle && (
+                          <div><span className="font-semibold text-on-surface">Lighting:</span> {(analyzedStyle as any).lightingStyle}</div>
+                        )}
+                        {(analyzedStyle as any).cameraWork && (
+                          <div className="col-span-2"><span className="font-semibold text-on-surface">Camera:</span> {(analyzedStyle as any).cameraWork}</div>
+                        )}
+                        {(analyzedStyle as any).soundDesign && (
+                          <div className="col-span-2"><span className="font-semibold text-on-surface">Sound:</span> {(analyzedStyle as any).soundDesign}</div>
+                        )}
+                        {(analyzedStyle as any).textOnScreen && (
+                          <div className="col-span-2"><span className="font-semibold text-on-surface">On-screen text:</span> {(analyzedStyle as any).textOnScreen}</div>
+                        )}
+                      </div>
+
+                      {/* Scene structure */}
+                      {analyzedStyle.sceneStructure && (
+                        <div className="text-[10px] text-outline pt-1 border-t border-primary/10">
+                          <span className="font-semibold text-on-surface">Structure:</span> {analyzedStyle.sceneStructure}
+                        </div>
+                      )}
+
+                      {/* Hook example */}
+                      {(analyzedStyle as any).hookExample && (
+                        <div className="text-[10px] italic text-outline/70 bg-primary/5 rounded-lg px-2.5 py-1.5">
+                          &ldquo;{(analyzedStyle as any).hookExample}&rdquo;
+                        </div>
+                      )}
+
+                      {/* Visual prompt suffix preview */}
+                      {analyzedStyle.visualPromptSuffix && (
+                        <div className="text-[9px] text-outline/50 border-t border-primary/10 pt-1.5">
+                          <span className="font-semibold text-outline/70">Prompt suffix:</span> {analyzedStyle.visualPromptSuffix}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Saved Styles */}
+                  {savedStyles.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-bold text-outline uppercase tracking-widest">Saved Styles</p>
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                        {savedStyles.map((s) => (
+                          <div
+                            key={s.id}
+                            className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-all cursor-pointer text-xs ${appliedStyleId === s.id ? "bg-primary/10 border-primary/20" : "bg-surface-container-lowest/50 border-outline-variant/10 hover:bg-primary/5"}`}
+                            onClick={() => applyStyle(s)}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-on-surface truncate">{s.styleName}</span>
+                                {s.sourceChannel && <span className="text-[10px] text-outline shrink-0">· {s.sourceChannel}</span>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0 ml-2">
+                              {appliedStyleId === s.id && <span className="material-symbols-outlined text-primary text-sm">check_circle</span>}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteStyle(s.id); }}
+                                className="w-5 h-5 rounded flex items-center justify-center text-outline hover:text-error hover:bg-error/10 transition-colors"
+                              >
+                                <span className="material-symbols-outlined text-xs">close</span>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Voiceover + Music + Captions — hide voice for music-video mode */}

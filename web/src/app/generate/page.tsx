@@ -101,7 +101,7 @@ export default function VideoGeneration() {
       }
 
       updateSceneStatus(scene.id, { phase: "image", progress: 20 });
-      // All tiers use Pollinations (flux/nanobanana-pro) for images — cleaner results
+      // All tiers use Pollinations (nanobanana-pro/seedream-pro) for images — NO flux
       const res = await fetch("/api/runware/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -222,20 +222,27 @@ export default function VideoGeneration() {
       // "key_scenes" strategy: first scene (hook), middle scene (climax), last scene (ending)
       // "all" strategy: every scene gets AI video
       // "none" strategy: all Ken Burns
-      const videoStrategy = tier.videoSceneStrategy || "none";
+      const videoStrategy: string = tier.videoSceneStrategy || "none";
       const maxVideoScenes = (tier as any).maxVideoScenes || imageAudioResults.length;
       let videoSceneIndices: Set<number> = new Set();
 
       if (videoStrategy === "all") {
         // All scenes get video
         for (let i = 0; i < imageAudioResults.length; i++) videoSceneIndices.add(i);
+      } else if (videoStrategy === "alternating" && imageAudioResults.length > 0) {
+        // Alternating pattern: 3 AI video, 3 Ken Burns, repeating
+        const groupSize = (tier as any).alternatingGroupSize || 3;
+        for (let i = 0; i < imageAudioResults.length; i++) {
+          const groupIndex = Math.floor(i / groupSize);
+          // Even groups (0, 2, 4...) = AI video, odd groups (1, 3, 5...) = Ken Burns
+          if (groupIndex % 2 === 0) videoSceneIndices.add(i);
+        }
       } else if (videoStrategy === "key_scenes" && imageAudioResults.length > 0) {
         // Pick the most impactful scenes: first (hook), climax (middle), last (ending)
         const total = imageAudioResults.length;
-        videoSceneIndices.add(0); // Hook — first scene
-        if (total > 2) videoSceneIndices.add(Math.floor(total / 2)); // Climax — middle
-        if (total > 1) videoSceneIndices.add(total - 1); // Ending — last scene
-        // If we have budget for more, add scenes around the climax
+        videoSceneIndices.add(0);
+        if (total > 2) videoSceneIndices.add(Math.floor(total / 2));
+        if (total > 1) videoSceneIndices.add(total - 1);
         while (videoSceneIndices.size < Math.min(maxVideoScenes, total)) {
           const climax = Math.floor(total / 2);
           for (let offset = 1; offset < total; offset++) {
@@ -250,7 +257,7 @@ export default function VideoGeneration() {
       console.log(`Video strategy: ${videoStrategy}, video scenes: [${[...videoSceneIndices].join(",")}] of ${imageAudioResults.length} total`);
 
       // Step 3: Generate AI videos SEQUENTIALLY for selected scenes
-      const sceneAssets: { image: string; audio: string | null; duration: number; narration: string; grokVideoUrl: string | null }[] = [];
+      const sceneAssets: { image: string; audio: string | null; duration: number; narration: string; aiVideoUrl: string | null }[] = [];
       if (tier.useAIVideo && videoSceneIndices.size > 0) {
         const videoCount = videoSceneIndices.size;
         let videosCompleted = 0;
@@ -259,7 +266,7 @@ export default function VideoGeneration() {
         for (let i = 0; i < imageAudioResults.length; i++) {
           const result = imageAudioResults[i];
           const scene = result.scene;
-          let grokVideoUrl: string | null = null;
+          let aiVideoUrl: string | null = null;
 
           if (videoSceneIndices.has(i)) {
             // This scene gets AI video
@@ -271,34 +278,34 @@ export default function VideoGeneration() {
                 body: JSON.stringify({
                   prompt: scene.visual_prompt,
                   duration: Math.min(Math.ceil(result.duration), 15),
-                  mode: "grok",
+                  mode: "ai",
                 }),
               });
               const videoData = await videoRes.json();
               if (videoData.success && videoData.videoUrl && !videoData.useKenBurns) {
-                grokVideoUrl = videoData.videoUrl;
-                console.log(`Scene ${i + 1}: Grok Video generated ✓`);
+                aiVideoUrl = videoData.videoUrl;
+                console.log(`Scene ${i + 1}: AI Video generated ✓`);
               } else {
-                console.warn(`Scene ${i + 1}: Grok Video unavailable, using Ken Burns`);
+                console.warn(`Scene ${i + 1}: AI Video unavailable, using Ken Burns`);
               }
             } catch (videoErr) {
-              console.warn(`Scene ${i + 1}: Grok Video error, using Ken Burns:`, videoErr);
+              console.warn(`Scene ${i + 1}: AI Video error, using Ken Burns:`, videoErr);
             }
             videosCompleted++;
           } else {
             // This scene uses Ken Burns (just image)
-            console.log(`Scene ${i + 1}: Ken Burns (saving $0.40)`);
+            console.log(`Scene ${i + 1}: Ken Burns`);
           }
 
           updateSceneStatus(scene.id, {
             phase: "complete",
             progress: 100,
-            videoURL: grokVideoUrl || undefined,
+            videoURL: aiVideoUrl || undefined,
             audioURL: result.audio || undefined,
           });
 
           setProgress(Math.round(40 + ((i + 1) / imageAudioResults.length) * 30));
-          sceneAssets.push({ image: result.image, audio: result.audio, duration: result.duration, narration: result.narration, grokVideoUrl });
+          sceneAssets.push({ image: result.image, audio: result.audio, duration: result.duration, narration: result.narration, aiVideoUrl });
         }
       } else {
         // No AI video — all Ken Burns, just mark complete
@@ -308,7 +315,7 @@ export default function VideoGeneration() {
             progress: 100,
             audioURL: result.audio || undefined,
           });
-          sceneAssets.push({ image: result.image, audio: result.audio, duration: result.duration, narration: result.narration, grokVideoUrl: null });
+          sceneAssets.push({ image: result.image, audio: result.audio, duration: result.duration, narration: result.narration, aiVideoUrl: null });
         }
       }
 
@@ -338,14 +345,14 @@ export default function VideoGeneration() {
             const mergedFile = `scene${index}.mp4`;
             // Use audio-driven duration so narration never cuts off
             const sceneDuration = Math.max(asset.duration || 8, 4);
-            const useGrokVideo = tier.useAIVideo;
+            const useAIVideo = tier.useAIVideo;
 
             let vidFile = `vid${index}.mp4`;
 
-            if (useGrokVideo && asset.grokVideoUrl) {
-              // Pro tier: use Grok Video clip
-              setStitchStatus(`Using Grok Video for scene ${index + 1}...`);
-              await ffmpeg.writeFile(vidFile, await fetchFile(asset.grokVideoUrl));
+            if (useAIVideo && asset.aiVideoUrl) {
+              // AI Video clip from Pollinations
+              setStitchStatus(`Using AI Video for scene ${index + 1}...`);
+              await ffmpeg.writeFile(vidFile, await fetchFile(asset.aiVideoUrl));
             } else {
               // Ken Burns: create video from image with zoom/pan effect
               const imgFile = `img${index}.jpg`;
@@ -654,8 +661,10 @@ export default function VideoGeneration() {
                     <p className="text-[10px] text-outline uppercase font-label tracking-widest">Est. Cost</p>
                     <p className="font-bold text-sm text-on-surface">{qualityTier === "basic" ? "FREE" : (() => {
                       const total = scriptData?.scenes.length || 0;
-                      const vidScenes = tier.videoSceneStrategy === "all" ? total
-                        : tier.videoSceneStrategy === "key_scenes" ? Math.min((tier as any).maxVideoScenes || 3, total) : 0;
+                      const strat: string = tier.videoSceneStrategy;
+                      const vidScenes = strat === "all" ? total
+                        : strat === "alternating" ? Math.ceil(total / 2)
+                        : strat === "key_scenes" ? Math.min((tier as any).maxVideoScenes || 3, total) : 0;
                       const cost = vidScenes * 0.40 + 0.01;
                       return vidScenes > 0 ? `~$${cost.toFixed(2)}` : "~$0.01";
                     })()}</p>
@@ -668,7 +677,7 @@ export default function VideoGeneration() {
             <div className="col-span-12 lg:col-span-4 space-y-4 h-[calc(100vh-280px)] flex flex-col">
               <div className="flex items-center justify-between px-2">
                 <h3 className="font-headline text-lg font-bold">Generated Scenes</h3>
-                <span className="text-tertiary bg-tertiary/10 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tighter">{qualityTier === "basic" ? "Pollinations AI" : "xAI Grok"}</span>
+                <span className="text-tertiary bg-tertiary/10 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tighter">Pollinations AI</span>
               </div>
               <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
 

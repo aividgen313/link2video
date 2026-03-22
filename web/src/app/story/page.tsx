@@ -20,6 +20,13 @@ export default function StoryAngleGenerator() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Redirect if no URL/topic entered
+  useEffect(() => {
+    if (hasMounted && !url) {
+      router.push("/");
+    }
+  }, [hasMounted, url, router]);
+
   const fetchAngles = async () => {
     if (!url) return;
     setIsLoading(true);

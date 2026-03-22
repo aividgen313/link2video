@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 export type AppMode = "link" | "short-story" | "music-video";
 
@@ -74,22 +74,11 @@ export const VOICES = [
 ];
 
 // ═══════════════════════════════════════════════════════════════
-// xAI Grok EXACT pricing (from docs.x.ai/developers/models):
-//
-// TEXT: grok-4-1-fast-non-reasoning
-//   Input:  $0.20 / 1M tokens (cached: $0.05)
-//   Output: $0.50 / 1M tokens
-//   Per script gen (~3K in + 2K out): ~$0.0016
-//   Per scene (amortized across 8): ~$0.001
-//
-// IMAGE: grok-imagine-image = $0.02 per image
-//
-// VIDEO: grok-imagine-video = $0.05 per SECOND
-//   8-second scene = $0.40  ← THIS IS EXPENSIVE
-//   15-second scene = $0.75
-//
-// TTS: ElevenLabs via Pollinations (free with API key)
-// Edge TTS: free (basic tier)
+// All services via Pollinations (enter.pollinations.ai):
+// TEXT: Free models (openai, deepseek, mistral, openai-fast, claude-fast)
+// IMAGE: nanobanana-pro, seedream-pro (via gen.pollinations.ai/image/)
+// VIDEO: wan, seedance-pro, seedance, ltx-2 (via gen.pollinations.ai/video/)
+// TTS: ElevenLabs via Pollinations (free with API key) / Edge TTS (basic)
 // ═══════════════════════════════════════════════════════════════
 
 export const QUALITY_TIERS = {
@@ -109,24 +98,24 @@ export const QUALITY_TIERS = {
   },
   medium: {
     label: "Medium",
-    description: "Grok Text + Pollinations Images + Grok Video (key scenes)",
-    usdPerScene: 0.001, // base: $0.001 text + FREE images (video scenes add ~$0.40 each)
-    usdBreakdown: "Free images + $0.40 for 2-3 video scenes",
+    description: "Pollinations Text + Images + Alternating AI Video & Ken Burns",
+    usdPerScene: 0.00,
+    usdBreakdown: "3 AI video → 3 Ken Burns → repeating",
     color: "text-primary",
     bgColor: "bg-primary/10",
     borderColor: "border-primary/20",
     useAIVideo: true,
-    videoSceneStrategy: "key_scenes" as const, // only hook + climax + ending get video
-    maxVideoScenes: 3, // cap at 3 Grok Video scenes
+    videoSceneStrategy: "alternating" as const, // 3 AI video, 3 Ken Burns, repeating
+    alternatingGroupSize: 3, // group size for alternating pattern
     usePollsTTS: true,
     imageModel: "pollinations",
-    textModel: "grok",
+    textModel: "pollinations",
   },
   pro: {
     label: "Pro",
-    description: "Grok Text + Pollinations Images + Grok Video (all scenes)",
-    usdPerScene: 0.40, // $0.001 text + FREE images + $0.40 video (8s × $0.05/s)
-    usdBreakdown: "Free images + $0.40/video (all scenes)",
+    description: "Pollinations Text + Images + AI Video (all scenes)",
+    usdPerScene: 0.00,
+    usdBreakdown: "Pollinations credits for all video scenes",
     color: "text-tertiary",
     bgColor: "bg-tertiary/10",
     borderColor: "border-tertiary/20",
@@ -134,7 +123,7 @@ export const QUALITY_TIERS = {
     videoSceneStrategy: "all" as const, // every scene gets AI video
     usePollsTTS: true,
     imageModel: "pollinations",
-    textModel: "grok",
+    textModel: "pollinations",
   },
 };
 
@@ -174,6 +163,9 @@ interface AppContextType {
   // Reference images for subjects (people, locations, brands)
   referenceImages: Record<string, string[]>; // { "Lorena Bobbitt": ["url1", "url2"], ... }
   setReferenceImages: (imgs: Record<string, string[]>) => void;
+  // YouTube style clone suffix (appended to every visual_prompt)
+  youtubeStyleSuffix: string;
+  setYoutubeStyleSuffix: (suffix: string) => void;
   // Short Story Mode
   storyText: string;
   setStoryText: (text: string) => void;
@@ -200,37 +192,77 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const STORAGE_KEY = "link2video_state";
+
+function loadSaved<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    // Try localStorage first (persistent), fall back to sessionStorage (legacy)
+    const raw = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return key in parsed ? parsed[key] : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<AppMode>("link");
-  const [url, setUrl] = useState("");
-  const [angle, setAngle] = useState("");
-  const [scriptData, setScriptData] = useState<ScriptData | null>(null);
+  const [mode, setMode] = useState<AppMode>(() => loadSaved("mode", "link"));
+  const [url, setUrl] = useState(() => loadSaved("url", ""));
+  const [angle, setAngle] = useState(() => loadSaved("angle", ""));
+  const [scriptData, setScriptData] = useState<ScriptData | null>(() => loadSaved("scriptData", null));
   const [isGenerating, setIsGenerating] = useState(false);
   const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
-  const [qualityTier, setQualityTier] = useState<QualityTier>("basic");
-  const [globalVisualStyle, setGlobalVisualStyle] = useState("Cinematic Documentary");
-  const [videoDimension, setVideoDimension] = useState<VideoDimension>(VIDEO_DIMENSIONS[0]);
-  const [selectedVoice, setSelectedVoice] = useState("adam");
-  const [musicEnabled, setMusicEnabled] = useState(false);
-  const [captionsEnabled, setCaptionsEnabled] = useState(false);
+  const [qualityTier, setQualityTier] = useState<QualityTier>(() => loadSaved("qualityTier", "basic"));
+  const [globalVisualStyle, setGlobalVisualStyle] = useState(() => loadSaved("globalVisualStyle", "Cinematic Documentary"));
+  const [videoDimension, setVideoDimension] = useState<VideoDimension>(() => loadSaved("videoDimension", VIDEO_DIMENSIONS[0]));
+  const [selectedVoice, setSelectedVoice] = useState(() => loadSaved("selectedVoice", "adam"));
+  const [musicEnabled, setMusicEnabled] = useState(() => loadSaved("musicEnabled", false));
+  const [captionsEnabled, setCaptionsEnabled] = useState(() => loadSaved("captionsEnabled", false));
   const [creditsUsed, setCreditsUsed] = useState(0);
-  const [targetDurationMinutes, setTargetDurationMinutes] = useState(3);
-  const [storyboardImages, setStoryboardImages] = useState<Record<number, string>>({});
-  const [referenceImages, setReferenceImages] = useState<Record<string, string[]>>({});
-  const [globalScriptModel] = useState("groq");
+  const [targetDurationMinutes, setTargetDurationMinutes] = useState(() => loadSaved("targetDurationMinutes", 3));
+  const [storyboardImages, setStoryboardImages] = useState<Record<number, string>>(() => loadSaved("storyboardImages", {}));
+  const [referenceImages, setReferenceImages] = useState<Record<string, string[]>>(() => loadSaved("referenceImages", {}));
+  const [youtubeStyleSuffix, setYoutubeStyleSuffix] = useState(() => loadSaved("youtubeStyleSuffix", ""));
+  const [globalScriptModel] = useState("pollinations");
   // Short Story Mode
-  const [storyText, setStoryText] = useState("");
-  const [characterProfiles, setCharacterProfiles] = useState<CharacterProfile[]>([]);
+  const [storyText, setStoryText] = useState(() => loadSaved("storyText", ""));
+  const [characterProfiles, setCharacterProfiles] = useState<CharacterProfile[]>(() => loadSaved("characterProfiles", []));
   // Music Video Mode
-  const [audioFile, setAudioFile] = useState<string | null>(null);
-  const [audioFileName, setAudioFileName] = useState<string | null>(null);
-  const [lyrics, setLyrics] = useState("");
-  const [musicSegments, setMusicSegments] = useState<MusicSegment[]>([]);
-  const [audioDuration, setAudioDuration] = useState(0);
+  const [audioFile, setAudioFile] = useState<string | null>(() => loadSaved("audioFile", null));
+  const [audioFileName, setAudioFileName] = useState<string | null>(() => loadSaved("audioFileName", null));
+  const [lyrics, setLyrics] = useState(() => loadSaved("lyrics", ""));
+  const [musicSegments, setMusicSegments] = useState<MusicSegment[]>(() => loadSaved("musicSegments", []));
+  const [audioDuration, setAudioDuration] = useState(() => loadSaved("audioDuration", 0));
+
+  // Persist key state to sessionStorage
+  useEffect(() => {
+    try {
+      const state = {
+        mode, url, angle, scriptData, qualityTier, globalVisualStyle,
+        videoDimension, selectedVoice, musicEnabled, captionsEnabled,
+        targetDurationMinutes, storyboardImages, referenceImages,
+        storyText, characterProfiles, audioFile, audioFileName,
+        lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      // Also keep sessionStorage for backward compat
+      try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+    } catch {
+      // localStorage full or unavailable — silently ignore
+    }
+  }, [
+    mode, url, angle, scriptData, qualityTier, globalVisualStyle,
+    videoDimension, selectedVoice, musicEnabled, captionsEnabled,
+    targetDurationMinutes, storyboardImages, referenceImages,
+    storyText, characterProfiles, audioFile, audioFileName,
+    lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
+  ]);
 
   // Derived model values based on quality tier
   const globalVideoModel = qualityTier === "pro" ? "pollinations:wan" : "kenburns";
-  const globalImageModel = "pollinations:flux";
+  const globalImageModel = "pollinations:nanobanana-pro";
   const globalAudioModel = qualityTier === "basic" ? "edge-tts" : "pollinations:elevenlabs";
 
   return (
@@ -251,6 +283,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       targetDurationMinutes, setTargetDurationMinutes,
       storyboardImages, setStoryboardImages,
       referenceImages, setReferenceImages,
+      youtubeStyleSuffix, setYoutubeStyleSuffix,
       storyText, setStoryText,
       characterProfiles, setCharacterProfiles,
       audioFile, setAudioFile,

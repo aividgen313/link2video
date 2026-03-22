@@ -1,34 +1,130 @@
+"use client";
+import { useState, useRef, useMemo } from "react";
+import { useAppContext } from "@/context/AppContext";
+
+type AssetType = "all" | "image" | "audio" | "video";
+
+type Asset = {
+  id: string;
+  name: string;
+  type: "image" | "audio" | "video";
+  url: string;
+  size?: string;
+  date: string;
+};
+
 export default function AssetLibrary() {
+  const { storyboardImages, scriptData } = useAppContext();
+  const [filter, setFilter] = useState<AssetType>("all");
+  const [search, setSearch] = useState("");
+  const [uploadedAssets, setUploadedAssets] = useState<Asset[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Build assets from app state + uploads
+  const assets = useMemo(() => {
+    const items: Asset[] = [];
+
+    // Add storyboard images
+    Object.entries(storyboardImages).forEach(([sceneId, url]) => {
+      const scene = scriptData?.scenes.find(s => s.id === Number(sceneId));
+      items.push({
+        id: `img-${sceneId}`,
+        name: `Scene_${sceneId}_${scene?.visual_prompt?.slice(0, 20).replace(/\s+/g, "_") || "image"}.jpg`,
+        type: "image",
+        url,
+        date: new Date().toLocaleDateString(),
+      });
+    });
+
+    // Add uploaded assets
+    items.push(...uploadedAssets);
+
+    return items;
+  }, [storyboardImages, scriptData, uploadedAssets]);
+
+  const filtered = assets.filter(a => {
+    if (filter !== "all" && a.type !== filter) return false;
+    if (search && !a.name.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    Array.from(files).forEach(file => {
+      const url = URL.createObjectURL(file);
+      const type: Asset["type"] = file.type.startsWith("image") ? "image"
+        : file.type.startsWith("audio") ? "audio"
+        : "video";
+      setUploadedAssets(prev => [...prev, {
+        id: `upload-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: file.name,
+        type,
+        url,
+        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        date: new Date().toLocaleDateString(),
+      }]);
+    });
+    e.target.value = "";
+  };
+
+  const handleDelete = (id: string) => {
+    setUploadedAssets(prev => prev.filter(a => a.id !== id));
+  };
+
+  const handleDownload = (asset: Asset) => {
+    const a = document.createElement("a");
+    a.href = asset.url;
+    a.download = asset.name;
+    a.click();
+  };
+
+  const filterTabs: { label: string; value: AssetType }[] = [
+    { label: "All", value: "all" },
+    { label: "Images", value: "image" },
+    { label: "Videos", value: "video" },
+    { label: "Audio", value: "audio" },
+  ];
+
   return (
     <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/*,video/*,audio/*"
+        className="hidden"
+        onChange={handleUpload}
+      />
+
       <div className="mb-8 flex items-center justify-between gap-4">
         <div className="relative w-full max-w-xl">
           <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
-          <input className="w-full bg-surface-container-low border-none rounded-xl py-2.5 pl-12 pr-4 text-sm focus:ring-1 focus:ring-primary/40 placeholder:text-outline/60 font-body" placeholder="Search assets, tags, or projects..." type="text"/>
+          <input
+            className="w-full bg-surface-container-low border-none rounded-xl py-2.5 pl-12 pr-4 text-sm focus:ring-1 focus:ring-primary/40 placeholder:text-outline/60 font-body"
+            placeholder="Search assets, tags, or projects..."
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
         </div>
-        <div className="flex items-center gap-6 ml-8">
-          <div className="flex items-center gap-2">
-            <button className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high transition-all">
-              <span className="material-symbols-outlined">notifications</span>
-            </button>
-            <button className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high transition-all">
-              <span className="material-symbols-outlined">settings</span>
-            </button>
-          </div>
-          <div className="h-8 w-[1px] bg-outline-variant/20"></div>
-          <h1 className="font-headline font-bold text-lg text-on-surface">Asset Library</h1>
-        </div>
+        <h1 className="font-headline font-bold text-lg text-on-surface whitespace-nowrap">Asset Library</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto w-full custom-scrollbar">
         <section className="flex flex-col gap-10 max-w-7xl mx-auto">
-          {/* Header Section */}
+          {/* Header */}
           <div className="flex items-end justify-between">
             <div>
               <h2 className="text-on-surface font-headline font-extrabold text-5xl mb-4 tracking-tight">Media Assets</h2>
-              <p className="text-on-surface-variant font-body max-w-md">Manage and organize your cinematic production files. Drag and drop to upload new footage.</p>
+              <p className="text-on-surface-variant font-body max-w-md">
+                {assets.length} asset{assets.length !== 1 ? "s" : ""} from your projects. Upload or manage your media files.
+              </p>
             </div>
-            <button className="primary-gradient text-white px-8 py-4 rounded-xl font-headline font-bold flex items-center gap-3 shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="primary-gradient text-white px-8 py-4 rounded-xl font-headline font-bold flex items-center gap-3 shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            >
               <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>cloud_upload</span>
               Upload New Asset
             </button>
@@ -37,137 +133,135 @@ export default function AssetLibrary() {
           {/* Filter Tabs */}
           <div className="flex items-center justify-between">
             <div className="flex gap-2 p-1.5 bg-surface-container-low rounded-2xl w-fit">
-              <button className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-surface-container-highest text-primary shadow-sm">All</button>
-              <button className="px-6 py-2.5 rounded-xl text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors">Images</button>
-              <button className="px-6 py-2.5 rounded-xl text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors">Videos</button>
-              <button className="px-6 py-2.5 rounded-xl text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors">Audio</button>
+              {filterTabs.map(tab => (
+                <button
+                  key={tab.value}
+                  onClick={() => setFilter(tab.value)}
+                  className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    filter === tab.value
+                      ? "bg-surface-container-highest text-primary shadow-sm"
+                      : "text-on-surface-variant hover:text-on-surface"
+                  }`}
+                >
+                  {tab.label}
+                  {tab.value !== "all" && (
+                    <span className="ml-1.5 text-xs opacity-60">
+                      ({assets.filter(a => a.type === tab.value).length})
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-label text-on-surface-variant uppercase tracking-widest">Sort by: <span className="text-on-surface font-bold">Recent</span></span>
-              <button className="p-2.5 rounded-xl border border-outline-variant/15 text-on-surface-variant">
-                <span className="material-symbols-outlined">filter_list</span>
-              </button>
-            </div>
+            <span className="text-sm font-label text-on-surface-variant">
+              {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+            </span>
           </div>
 
-          {/* Bento Asset Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            
-            {/* Video Asset Card */}
-            <div className="group relative glass-card glass-card-hover rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
-              <div className="aspect-video relative overflow-hidden">
-                <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Cinematic landscape drone shot thumbnail" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDQ0no70lpuO-eG65LHEr2a_WscivvY9rIjd8vQJvJ0JxY7gEskFyTfD7dMmBe2p5mHMWNcyQbepHrvfesBxmgW4ei_ywXorCfXfbkhUtQ-87qg0Xh9YKpoSC9DRapgG9GEt98wLXETFMe_Z610ECLxSVzEFk65kLnOeoJaqulZCZjUUFcjcFwzddedUZodhwXLfxdFf8qT0e81EOY7yxfehdrOOlprAc7ArsaieDF1GLpxFU6Nv-OQEBOC2w8RZcBH_qwFZYDFqA0"/>
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all"></div>
-                <div className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-md rounded text-[10px] font-bold font-headline text-white uppercase tracking-wider">0:45</div>
-                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/20">
-                    <span className="material-symbols-outlined text-sm">more_vert</span>
-                  </button>
-                </div>
-              </div>
-              <div className="p-5">
-                <h3 className="font-headline font-bold text-on-surface mb-1 truncate">Mountain_Drone_4K.mp4</h3>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-label text-on-surface-variant uppercase tracking-widest">124.5 MB</span>
-                  <span className="text-[11px] font-body text-outline">Oct 24, 2023</span>
-                </div>
-              </div>
-            </div>
+          {/* Asset Grid */}
+          {filtered.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filtered.map(asset => (
+                <div key={asset.id} className="group relative glass-card glass-card-hover rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
+                  <div className="aspect-video relative overflow-hidden">
+                    {asset.type === "image" ? (
+                      <img
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        src={asset.url}
+                        alt={asset.name}
+                      />
+                    ) : asset.type === "audio" ? (
+                      <div className="w-full h-full bg-surface-container-highest flex items-center justify-center">
+                        <span className="material-symbols-outlined text-outline text-4xl opacity-40">music_note</span>
+                      </div>
+                    ) : (
+                      <div className="w-full h-full bg-surface-container-highest flex items-center justify-center">
+                        <span className="material-symbols-outlined text-outline text-4xl opacity-40">movie</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all" />
 
-            {/* Audio Asset Card */}
-            <div className="group relative glass-card glass-card-hover rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
-              <div className="aspect-video bg-surface-container-highest flex items-center justify-center relative">
-                <div className="flex items-end gap-1 h-12">
-                  <div className="w-1.5 h-6 bg-primary/40 rounded-full"></div>
-                  <div className="w-1.5 h-10 bg-primary/60 rounded-full"></div>
-                  <div className="w-1.5 h-12 primary-gradient rounded-full"></div>
-                  <div className="w-1.5 h-8 bg-primary/60 rounded-full"></div>
-                  <div className="w-1.5 h-5 bg-primary/40 rounded-full"></div>
-                </div>
-                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              </div>
-              <div className="p-5">
-                <h3 className="font-headline font-bold text-on-surface mb-1 truncate">Ambient_Synth_Wave.wav</h3>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-label text-on-surface-variant uppercase tracking-widest">12.2 MB</span>
-                  <span className="text-[11px] font-body text-outline">Oct 22, 2023</span>
-                </div>
-              </div>
-            </div>
+                    {/* Type badge */}
+                    <div className="absolute top-3 left-3">
+                      <span className={`px-2 py-1 rounded text-[10px] font-bold font-headline uppercase tracking-wider ${
+                        asset.type === "image" ? "bg-primary/80 text-white"
+                        : asset.type === "audio" ? "bg-tertiary text-on-tertiary"
+                        : "bg-emerald-500/80 text-white"
+                      }`}>
+                        {asset.type}
+                      </span>
+                    </div>
 
-            {/* Image Asset Card */}
-            <div className="group relative glass-card glass-card-hover rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
-              <div className="aspect-video relative overflow-hidden">
-                <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Abstract colorful neon gradient background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNynxcWSXgLv9KR3idQuDmF2q58VofDrgWzSBdhaca9CNKv-kOScXGaBUBZm7gRQRvGfCr86brms9I5hNaa-FdhO44pH9CSkELlhPUX7inVJ9TiHOCPU8WE9_uPE94HgmSSC8B0-9AhAFqYxVpwYhkKEe-5M_jwZVjsKikOYgq60-LF9fqpRxndLtjk2uhuPTAayyKIHIzFSucTpUvzAr7GdUN52dCGMh3I16zEkaKyffgx-d5scMMwh1iNDFzuhpnTBNR2eoCiO_N"/>
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all"></div>
-                <div className="absolute top-3 left-3">
-                  <span className="px-2 py-1 bg-tertiary text-on-tertiary rounded text-[10px] font-bold font-headline uppercase tracking-wider">AI Gen</span>
+                    {/* Action buttons on hover */}
+                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                      <button
+                        onClick={() => handleDownload(asset)}
+                        className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/20"
+                        title="Download"
+                      >
+                        <span className="material-symbols-outlined text-sm">download</span>
+                      </button>
+                      {asset.id.startsWith("upload-") && (
+                        <button
+                          onClick={() => handleDelete(asset.id)}
+                          className="w-8 h-8 rounded-full bg-red-500/20 backdrop-blur-md text-red-300 flex items-center justify-center hover:bg-red-500/40"
+                          title="Delete"
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    <h3 className="font-headline font-bold text-on-surface mb-1 truncate">{asset.name}</h3>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-label text-on-surface-variant uppercase tracking-widest">{asset.size || "AI Generated"}</span>
+                      <span className="text-[11px] font-body text-outline">{asset.date}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="p-5">
-                <h3 className="font-headline font-bold text-on-surface mb-1 truncate">Neon_Dream_01.jpg</h3>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-label text-on-surface-variant uppercase tracking-widest">4.8 MB</span>
-                  <span className="text-[11px] font-body text-outline">Oct 20, 2023</span>
-                </div>
-              </div>
+              ))}
             </div>
+          ) : (
+            <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-primary/10 rounded-3xl glass">
+              <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center text-outline mb-6">
+                <span className="material-symbols-outlined text-3xl">
+                  {search ? "search_off" : "add_photo_alternate"}
+                </span>
+              </div>
+              <h4 className="font-headline font-bold text-xl text-on-surface mb-2">
+                {search ? "No matching assets" : "No assets yet"}
+              </h4>
+              <p className="text-on-surface-variant font-body text-sm text-center max-w-xs leading-relaxed">
+                {search
+                  ? `No assets match "${search}". Try a different search term.`
+                  : "Generate a video to see your scene images here, or upload your own media files."
+                }
+              </p>
+              {!search && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-6 primary-gradient text-white px-6 py-3 rounded-xl font-headline font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                >
+                  <span className="material-symbols-outlined">upload</span>
+                  Upload Files
+                </button>
+              )}
+            </div>
+          )}
 
-            {/* Video Asset Card */}
-            <div className="group relative glass-card glass-card-hover rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
-              <div className="aspect-video relative overflow-hidden">
-                <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Cinematic movie theatre interior" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDd8tjawWjA4XdY4AlW_Mlr7sEldk58sxY1ZqJ8Z0XQAClWw89C1Hx0ppLAQH8_kDwQwB4e0WtunJLpUwRBxSwBD3B5KZozsohggUMg3te1C3YzT2yr-WcPg_cJw-dk-XM3LOIl2PlybFhRKbwAy2lLyWNAcuLJV-fWiJbOGrJCktTKrxcmrSjlGm063UflvTWW0XWvJ_H3385ATEmzybGPsu-A7buIx4gYzWe0Ti-Lxx6PtW61OuKEOzIFLTHhJhLYPOsZe016PHYr"/>
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all"></div>
-                <div className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-md rounded text-[10px] font-bold font-headline text-white uppercase tracking-wider">2:15</div>
+          {/* Drop zone */}
+          {filtered.length > 0 && (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-4 py-12 flex flex-col items-center justify-center border-2 border-dashed border-primary/10 rounded-3xl glass mb-8 cursor-pointer hover:border-primary/30 transition-colors"
+            >
+              <div className="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-outline mb-4">
+                <span className="material-symbols-outlined text-2xl">add_photo_alternate</span>
               </div>
-              <div className="p-5">
-                <h3 className="font-headline font-bold text-on-surface mb-1 truncate">Interview_B-Roll.mp4</h3>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-label text-on-surface-variant uppercase tracking-widest">452.1 MB</span>
-                  <span className="text-[11px] font-body text-outline">Oct 18, 2023</span>
-                </div>
-              </div>
+              <h4 className="font-headline font-bold text-lg text-on-surface mb-1">Upload more assets</h4>
+              <p className="text-on-surface-variant font-body text-sm">Supports MP4, MOV, PNG, JPG, and WAV formats</p>
             </div>
-
-            {/* Image Asset Card */}
-            <div className="group relative glass-card glass-card-hover rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
-              <div className="aspect-video relative overflow-hidden">
-                <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Dark abstract architectural stairs" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB__3EiCg2mqBqAkI6W3hpdWf8lIoO6k3z95PthiN5ZN9hpb9Vlo7917ifN3YgCpGkI8BsRTaUadkmOQpOk79z9KUUTEJ6GyMuzgvNM3ZKtyc1uCxZ0XMwVFKijG2sV27aUB-H6qUcYMZBqNDoO0Svo5QOyYgrGFmzcQVkpEegwymQJz8tke26Kq0trs0iAQAIYMIajuPZQNir0SP0r5impGsLuMmh41edYR1INqgBtqtrSNsParvPdfOftosxpjYsZJ8oH65Cvqjdr"/>
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all"></div>
-              </div>
-              <div className="p-5">
-                <h3 className="font-headline font-bold text-on-surface mb-1 truncate">Architecture_Still.png</h3>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-label text-on-surface-variant uppercase tracking-widest">15.5 MB</span>
-                  <span className="text-[11px] font-body text-outline">Oct 15, 2023</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Audio Asset Card */}
-            <div className="group relative glass-card glass-card-hover rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
-              <div className="aspect-video bg-surface-container-highest flex items-center justify-center relative">
-                <span className="material-symbols-outlined text-outline text-4xl opacity-40">mic</span>
-                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              </div>
-              <div className="p-5">
-                <h3 className="font-headline font-bold text-on-surface mb-1 truncate">Voiceover_Script_v2.mp3</h3>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-label text-on-surface-variant uppercase tracking-widest">3.1 MB</span>
-                  <span className="text-[11px] font-body text-outline">Oct 14, 2023</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Empty State / Footer Area */}
-          <div className="mt-8 py-16 flex flex-col items-center justify-center border-2 border-dashed border-primary/10 rounded-3xl glass mb-8">
-            <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center text-outline mb-6">
-              <span className="material-symbols-outlined text-3xl">add_photo_alternate</span>
-            </div>
-            <h4 className="font-headline font-bold text-xl text-on-surface mb-2">Drag more assets here</h4>
-            <p className="text-on-surface-variant font-body text-sm text-center max-w-xs leading-relaxed">Supports MP4, MOV, PNG, JPG, and WAV formats. Maximum file size 2GB.</p>
-          </div>
+          )}
         </section>
       </div>
     </>

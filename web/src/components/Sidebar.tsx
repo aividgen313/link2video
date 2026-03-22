@@ -14,6 +14,7 @@ export default function Sidebar() {
     { href: "/story", icon: "auto_awesome_motion", label: "Stories" },
     { href: "/script", icon: "edit_note", label: "Script" },
     { href: "/storyboard", icon: "view_comfy", label: "Storyboard" },
+    { href: "/editor", icon: "movie_edit", label: "Editor" },
     { href: "/generate", icon: "movie", label: "Generate" },
   ];
 
@@ -68,6 +69,7 @@ export default function Sidebar() {
       <div className="flex flex-col items-center gap-1 mt-auto">
         <button
           title="Settings"
+          onClick={() => window.alert("Settings coming soon! Currently all configuration is automatic.")}
           className="w-11 h-11 rounded-2xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all"
         >
           <span className="material-symbols-outlined text-xl">settings</span>

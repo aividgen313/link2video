@@ -13,20 +13,26 @@ export async function POST(req: NextRequest) {
 You are an elite viral content strategist who has produced Netflix documentaries and YouTube videos with 100M+ views.
 Topic: ${topic}
 
-Generate 4 unique story angles that would make viewers STOP SCROLLING and watch the entire video. Each angle should have a clear emotional hook, mystery, or controversy that creates instant curiosity.
+Generate 4 unique story angles that would make viewers STOP SCROLLING and watch the entire video. Each angle must have a different emotional strategy — do NOT repeat the same "shocking truth" formula four times.
 
 Think like a showrunner: What angle would make THIS topic go viral? What would make someone share this with everyone they know?
 
+The 4 angles should each use a DIFFERENT narrative strategy from this list:
+1. Mystery/Revelation — "The thing nobody knows about X" — builds curiosity through unanswered questions
+2. Emotional Journey — "How X changed everything" — follows a personal/human arc with stakes
+3. Conflict/Controversy — "Why X is more dangerous than you think" — creates tension and debate
+4. Behind-the-Scenes — "Inside the hidden world of X" — exclusive access, insider knowledge
+
 Format your response as a JSON array of objects, each with these keys:
-- "title": A compelling, clickable angle title that creates curiosity (NOT generic — make it feel like a Netflix episode title)
-- "description": 2-3 sentences explaining the narrative approach, the emotional hook, and why viewers would stay until the end
+- "title": A compelling, clickable angle title that creates curiosity (NOT generic — make it feel like a Netflix episode title, max 12 words)
+- "description": 2-3 sentences explaining: (1) the cold open moment, (2) the narrative arc, (3) the emotional payoff at the end
 - "type": The content type (e.g. "True Crime Documentary", "Investigative Expose", "Emotional Narrative", "Mind-Blowing Explainer", "Conspiracy Deep Dive")
 - "duration": "${durationMinutes} min" (the user wants a ${durationMinutes}-minute video)
 
 Return ONLY the JSON array. No explanations, no markdown, no code blocks.
 `;
 
-    console.log("Generating angles via Groq...");
+    console.log("Generating angles via Pollinations...");
     const responseText = await generateGeminiText(prompt);
     console.log("Raw angles response (first 300 chars):", responseText.substring(0, 300));
 
