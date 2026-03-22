@@ -319,30 +319,46 @@ export default function PreviewPlayer() {
             )}
 
             {/* Text overlays */}
-            {selectedScene!.overlays.map(overlay => (
-              <div
-                key={overlay.id}
-                className="absolute pointer-events-none select-none"
-                style={{
-                  left: `${overlay.x}%`,
-                  top: `${overlay.y}%`,
-                  transform: "translate(-50%, -50%)",
-                  fontSize: `${overlay.fontSize * 0.6}px`,
-                  color: overlay.color,
-                  fontWeight: overlay.fontWeight,
-                  fontStyle: overlay.fontStyle || "normal",
-                  textAlign: overlay.textAlign || "center",
-                  textShadow: "0 2px 8px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.9)",
-                  whiteSpace: "nowrap",
-                  opacity: overlay.opacity ?? 1,
-                  backgroundColor: overlay.backgroundColor || "transparent",
-                  padding: overlay.backgroundColor ? "2px 8px" : undefined,
-                  borderRadius: overlay.backgroundColor ? "4px" : undefined,
-                }}
-              >
-                {overlay.text}
-              </div>
-            ))}
+            {selectedScene!.overlays.map(overlay => {
+              const hasBg = !!overlay.backgroundColor;
+              const hasStroke = (overlay.strokeWidth ?? 0) > 0;
+              const hasBorder = (overlay.borderWidth ?? 0) > 0;
+              const shadowStyle = overlay.shadowEnabled
+                ? `${overlay.shadowX ?? 2}px ${overlay.shadowY ?? 2}px ${overlay.shadowBlur ?? 4}px ${overlay.shadowColor ?? "rgba(0,0,0,0.5)"}`
+                : "0 2px 8px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.9)";
+              return (
+                <div
+                  key={overlay.id}
+                  className="absolute pointer-events-none select-none"
+                  style={{
+                    left: `${overlay.x}%`,
+                    top: `${overlay.y}%`,
+                    transform: "translate(-50%, -50%)",
+                    fontFamily: overlay.fontFamily || "Inter",
+                    fontSize: `${overlay.fontSize * 0.6}px`,
+                    color: overlay.color,
+                    fontWeight: overlay.fontWeight,
+                    fontStyle: overlay.fontStyle || "normal",
+                    textAlign: overlay.textAlign || "center",
+                    textDecoration: overlay.textDecoration || "none",
+                    textTransform: (overlay.textTransform || "none") as any,
+                    letterSpacing: overlay.letterSpacing ? `${overlay.letterSpacing}px` : undefined,
+                    lineHeight: overlay.lineHeight ?? 1.2,
+                    textShadow: shadowStyle,
+                    whiteSpace: "pre-wrap",
+                    maxWidth: "90%",
+                    opacity: overlay.opacity ?? 1,
+                    backgroundColor: overlay.backgroundColor || "transparent",
+                    padding: `${Math.round((overlay.padding ?? 8) * 0.6)}px`,
+                    borderRadius: `${overlay.borderRadius ?? 0}px`,
+                    border: hasBorder ? `${overlay.borderWidth}px ${overlay.borderStyle ?? "solid"} ${overlay.borderColor ?? "#fff"}` : "none",
+                    WebkitTextStroke: hasStroke ? `${overlay.strokeWidth}px ${overlay.strokeColor ?? "#000"}` : undefined,
+                  }}
+                >
+                  {overlay.text}
+                </div>
+              );
+            })}
 
             {/* Safe zones overlay */}
             {showSafeZones && (
