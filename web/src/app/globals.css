@@ -348,6 +348,50 @@ body {
   box-shadow: 0 8px 32px rgba(167, 139, 250, 0.08);
 }
 
+/* ═══════════════════════════════════════════════════════════
+   EDITOR THEME TOKENS — replaces hardcoded DARK/LIGHT objects
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  --editor-bg: #f4f4f8;
+  --editor-panel: #ffffff;
+  --editor-panel-alt: #f0f0f5;
+  --editor-accent: var(--primary);
+  --editor-accent-dim: #6d28d9;
+  --editor-text: #1a1a2e;
+  --editor-text-dim: #6b6b80;
+  --editor-border: rgba(0, 0, 0, 0.08);
+  --editor-border-active: rgba(124, 58, 237, 0.4);
+  --editor-hover: rgba(124, 58, 237, 0.06);
+  --editor-track: #eeeef3;
+  --editor-clip: rgba(124, 58, 237, 0.12);
+  --editor-clip-active: rgba(124, 58, 237, 0.25);
+  --editor-playhead: #ec4899;
+  --editor-waveform: rgba(124, 58, 237, 0.5);
+  --editor-danger: #ef4444;
+  --editor-success: #22c55e;
+}
+
+.dark {
+  --editor-bg: #0c0c14;
+  --editor-panel: #161620;
+  --editor-panel-alt: #1c1c2a;
+  --editor-accent: var(--primary);
+  --editor-accent-dim: #7c3aed;
+  --editor-text: #e8e6f0;
+  --editor-text-dim: #8888a0;
+  --editor-border: rgba(255, 255, 255, 0.06);
+  --editor-border-active: rgba(167, 139, 250, 0.4);
+  --editor-hover: rgba(167, 139, 250, 0.08);
+  --editor-track: #1a1a28;
+  --editor-clip: rgba(167, 139, 250, 0.15);
+  --editor-clip-active: rgba(167, 139, 250, 0.3);
+  --editor-playhead: #f472b6;
+  --editor-waveform: rgba(167, 139, 250, 0.6);
+  --editor-danger: #f87171;
+  --editor-success: #4ade80;
+}
+
 /* Glow ring for active/selected elements */
 .glow-ring {
   box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.3), 0 0 20px rgba(167, 139, 250, 0.1);
@@ -502,6 +546,80 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   PAGE TRANSITIONS
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: page-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PREMIUM BUTTON EFFECTS
+   ═══════════════════════════════════════════════════════════ */
+
+/* Shimmer effect on primary buttons */
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.btn-shimmer:hover::after {
+  left: 120%;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EDITOR LAYOUT UTILITIES
+   ═══════════════════════════════════════════════════════════ */
+
+.editor-panel {
+  background: var(--editor-panel);
+  border: 1px solid var(--editor-border);
+}
+
+.editor-track-bg {
+  background: var(--editor-track);
+}
+
+.editor-clip {
+  background: var(--editor-clip);
+  border: 1px solid var(--editor-border);
+  transition: all 0.15s ease;
+}
+
+.editor-clip.active,
+.editor-clip:hover {
+  background: var(--editor-clip-active);
+  border-color: var(--editor-border-active);
+}
+
+/* ═══════════════════════════════════════════════════════════
    GHOST BORDER (backward compat)
    ═══════════════════════════════════════════════════════════ */
 
@@ -510,4 +628,24 @@ body {
 }
 :root .ghost-border {
   border-color: rgba(0, 0, 0, 0.08);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FOCUS RING UTILITY
+   ═══════════════════════════════════════════════════════════ */
+
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE CONTAINER
+   ═══════════════════════════════════════════════════════════ */
+
+.container-tight {
+  width: 100%;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
 }

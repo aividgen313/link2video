@@ -10,42 +10,28 @@ import ExportDialog from "@/components/editor/ExportDialog";
 import TextOverlayEditor from "@/components/editor/TextOverlayEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-// ── Theme system — softer, modern palette ──
+// ── Theme system — reads from CSS variables (set in globals.css) ──
+// This keeps the editor in sync with the global next-themes toggle.
 const DARK = {
-  bg: "#161618",
-  panel: "#1c1c20",
-  panelDark: "#141416",
-  border: "#2a2a30",
-  borderLight: "#3a3a42",
-  headerBg: "#1e1e24",
-  accent: "#5b9ef4",
-  accentDim: "#4080d0",
-  accentBg: "rgba(91, 158, 244, 0.10)",
-  text: "#e0e0e4",
-  textDim: "#9a9aa0",
-  textMuted: "#5a5a62",
-  danger: "#f06060",
-  success: "#4ade80",
+  bg: "var(--editor-bg)",
+  panel: "var(--editor-panel)",
+  panelDark: "var(--editor-panel-alt)",
+  border: "var(--editor-border)",
+  borderLight: "var(--editor-border)",
+  headerBg: "var(--editor-panel-alt)",
+  accent: "var(--editor-accent)",
+  accentDim: "var(--editor-accent-dim)",
+  accentBg: "var(--editor-hover)",
+  text: "var(--editor-text)",
+  textDim: "var(--editor-text-dim)",
+  textMuted: "var(--editor-text-dim)",
+  danger: "var(--editor-danger)",
+  success: "var(--editor-success)",
   warn: "#f0b040",
 };
 
-const LIGHT = {
-  bg: "#f4f5f7",
-  panel: "#ffffff",
-  panelDark: "#eef0f2",
-  border: "#dfe1e5",
-  borderLight: "#d0d2d6",
-  headerBg: "#f8f9fb",
-  accent: "#3b82f6",
-  accentDim: "#2563eb",
-  accentBg: "rgba(59, 130, 246, 0.08)",
-  text: "#1e1e2e",
-  textDim: "#64748b",
-  textMuted: "#94a3b8",
-  danger: "#ef4444",
-  success: "#22c55e",
-  warn: "#f59e0b",
-};
+// Light mode uses the same CSS vars — they auto-switch with .dark class
+const LIGHT = DARK;
 
 type EditorTheme = typeof DARK;
 const EditorThemeContext = createContext<{ theme: EditorTheme; isDark: boolean; toggle: () => void }>({ theme: DARK, isDark: true, toggle: () => {} });
@@ -140,7 +126,7 @@ function SourceMonitor() {
         <span className="text-[10px] font-mono pr-2" style={{ color: C.textMuted }}>{scenes.length} clips</span>
       </div>
       {/* Scene grid */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 gap-2" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", alignContent: "start" }}>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 gap-1.5" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", alignContent: "start" }}>
         {scenes.map((scene, index) => {
           const isSelected = selectedSceneId === scene.id;
           const isDragTarget = dragOver === index && dragFrom !== index;
@@ -164,7 +150,7 @@ function SourceMonitor() {
                 boxShadow: isSelected ? `0 0 12px ${C.accent}30` : "none",
               }}
             >
-              <div className="aspect-video relative" style={{ background: "rgba(255,255,255,0.02)" }}>
+              <div className="aspect-square relative" style={{ background: "rgba(255,255,255,0.02)" }}>
                 {scene.imageUrl ? (
                   <img src={scene.imageUrl} alt="" className="w-full h-full object-cover" draggable={false} />
                 ) : (
@@ -869,22 +855,39 @@ function EditorInner() {
 }
 
 function EditorThemeProvider({ children }: { children: React.ReactNode }) {
+  // Sync with next-themes: check for .dark class on <html>
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("editor-theme") !== "light";
+      return document.documentElement.classList.contains("dark");
     }
     return true;
   });
-  const theme = isDark ? DARK : LIGHT;
-  // Update the module-level C for components that read it outside context
-  C = theme;
-  const toggle = () => {
-    setIsDark(prev => {
-      const next = !prev;
-      localStorage.setItem("editor-theme", next ? "dark" : "light");
-      return next;
+
+  // Watch for theme changes from next-themes
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"));
     });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  const theme = isDark ? DARK : LIGHT;
+  C = theme;
+
+  const toggle = () => {
+    // Toggle the global theme via next-themes by dispatching to the ThemeProvider
+    const html = document.documentElement;
+    const isCurrentlyDark = html.classList.contains("dark");
+    if (isCurrentlyDark) {
+      html.classList.remove("dark");
+      html.style.colorScheme = "light";
+    } else {
+      html.classList.add("dark");
+      html.style.colorScheme = "dark";
+    }
   };
+
   return (
     <EditorThemeContext.Provider value={{ theme, isDark, toggle }}>
       {children}

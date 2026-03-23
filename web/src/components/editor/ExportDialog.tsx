@@ -29,11 +29,9 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
   };
 
   const handleStartExport = () => {
-    // Re-combine V1 and A1 tracks based on their orderIndex on the timeline
-    // This allows FFmpeg to process them as a single scene chunk 
     const videoScenes = visibleScenes.filter(s => s.trackId === "v1").sort((a, b) => a.orderIndex - b.orderIndex);
     const audioScenes = visibleScenes.filter(s => s.trackId === "a1");
-    
+
     const muxedScenes = videoScenes.map(vScene => {
       const matchingAudio = audioScenes.find(a => a.orderIndex === vScene.orderIndex);
       return {
@@ -55,74 +53,76 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#14142a] rounded-2xl p-6 w-full max-w-md border border-white/[0.08] shadow-2xl animate-scale-up">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="glass-elevated rounded-2xl p-6 w-full max-w-md shadow-2xl animate-fade-in-up"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="font-headline text-base font-bold text-white">Export Video</h2>
-            <p className="text-[10px] text-outline/40 mt-0.5">Start rendering in the background</p>
+            <h2 className="font-headline text-base font-bold text-on-surface">Export Video</h2>
+            <p className="text-[11px] text-on-surface-variant mt-0.5">Render in the background while you keep editing</p>
           </div>
           <button
             onClick={onClose}
-            className="text-outline/40 hover:text-white p-1 rounded-lg hover:bg-white/5"
+            className="text-on-surface-variant hover:text-on-surface p-1.5 rounded-lg hover:bg-surface-container-high transition-colors"
           >
-            <span className="material-symbols-outlined">close</span>
+            <span className="material-symbols-outlined text-lg">close</span>
           </button>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          <div className="bg-white/[0.03] rounded-lg p-2 text-center">
-            <span className="text-[9px] text-outline/40 block">Scenes</span>
-            <span className="text-sm font-bold text-white">{visibleScenes.length}</span>
-            {scenes.length !== visibleScenes.length && (
-              <span className="text-[8px] text-outline/30 block">({scenes.length - visibleScenes.length} hidden)</span>
-            )}
-          </div>
-          <div className="bg-white/[0.03] rounded-lg p-2 text-center">
-            <span className="text-[9px] text-outline/40 block">Duration</span>
-            <span className="text-sm font-bold text-white">{Math.floor(totalDuration / 60)}m {Math.floor(totalDuration % 60)}s</span>
-          </div>
-          <div className="bg-white/[0.03] rounded-lg p-2 text-center">
-            <span className="text-[9px] text-outline/40 block">Music</span>
-            <span className="text-sm font-bold text-white">{musicTrack ? "Yes" : "None"}</span>
-          </div>
+        <div className="grid grid-cols-3 gap-2 mb-5">
+          {[
+            { label: "Scenes", value: String(visibleScenes.length), sub: scenes.length !== visibleScenes.length ? `(${scenes.length - visibleScenes.length} hidden)` : undefined },
+            { label: "Duration", value: `${Math.floor(totalDuration / 60)}m ${Math.floor(totalDuration % 60)}s` },
+            { label: "Music", value: musicTrack ? "Yes" : "None" },
+          ].map(stat => (
+            <div key={stat.label} className="glass-subtle rounded-xl p-2.5 text-center">
+              <span className="text-[10px] text-on-surface-variant block">{stat.label}</span>
+              <span className="text-sm font-bold text-on-surface">{stat.value}</span>
+              {stat.sub && <span className="text-[9px] text-on-surface-variant/60 block">{stat.sub}</span>}
+            </div>
+          ))}
         </div>
 
         {/* Quality selector */}
         <div className="mb-6">
-          <label className="text-[9px] uppercase tracking-wider text-outline/50 block mb-2">Export Quality</label>
-          <div className="grid grid-cols-3 gap-1.5">
+          <label className="text-[10px] uppercase tracking-wider text-on-surface-variant font-semibold block mb-2">Export Quality</label>
+          <div className="grid grid-cols-3 gap-2">
             {(Object.entries(QUALITY_PRESETS) as [ExportQuality, typeof QUALITY_PRESETS.draft][]).map(([key, p]) => (
               <button
                 key={key}
                 onClick={() => setQuality(key)}
-                className={`flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl text-center transition-all ${
+                className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-center transition-all press-scale ${
                   quality === key
-                    ? "bg-primary/15 border border-primary/30 text-primary"
-                    : "bg-white/[0.03] border border-transparent text-outline/60 hover:bg-white/[0.06]"
+                    ? "bg-primary/15 border border-primary/30 text-primary shadow-sm shadow-primary/10"
+                    : "glass-subtle border border-transparent text-on-surface-variant hover:bg-surface-container-high"
                 }`}
               >
-                <span className="material-symbols-outlined text-sm">{p.icon}</span>
-                <span className="text-[10px] font-bold">{p.label}</span>
-                <span className="text-[8px] opacity-60">{p.fps}fps</span>
+                <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>{p.icon}</span>
+                <span className="text-[11px] font-bold">{p.label}</span>
+                <span className="text-[9px] opacity-60">{p.fps}fps</span>
               </button>
             ))}
           </div>
-          <p className="text-[9px] text-outline/40 mt-1.5">{preset.desc} · Estimated: {estimateTime()}</p>
+          <p className="text-[10px] text-on-surface-variant mt-2">{preset.desc} · Estimated: {estimateTime()}</p>
         </div>
 
         {/* Actions */}
         <div className="flex gap-2">
           <button
             onClick={handleStartExport}
-            className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white primary-gradient shadow-lg shadow-primary/20 hover:shadow-primary/30 flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white primary-gradient shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:brightness-110 press-scale flex items-center justify-center gap-2 transition-all"
           >
-            <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>movie</span>
-            Start Background Export
+            <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>movie</span>
+            Start Export
           </button>
-          <button onClick={onClose} className="px-4 py-2.5 rounded-xl text-sm text-outline/60 hover:text-white border border-white/[0.08] hover:bg-white/5">
+          <button
+            onClick={onClose}
+            className="px-4 py-2.5 rounded-xl text-sm text-on-surface-variant hover:text-on-surface glass-subtle hover:bg-surface-container-high transition-all"
+          >
             Cancel
           </button>
         </div>

@@ -47,7 +47,9 @@ export default function RootLayout({
               <main className="flex-1 flex flex-col overflow-hidden min-w-0 relative z-10">
                 <TopNav />
                 <section className="flex-1 overflow-y-auto pt-[72px] md:pt-0 p-4 md:p-8 space-y-6 md:space-y-8 custom-scrollbar">
-                  {children}
+                  <div className="page-enter">
+                    {children}
+                  </div>
                 </section>
               </main>
               <GlobalExportProgress />
