@@ -144,7 +144,7 @@ export default function VideoGeneration() {
       updateSceneStatus(scene.id, { phase: "error", error: errorMsg });
       return null;
     }
-  }, [updateSceneStatus]);
+  }, [updateSceneStatus, storyboardImages]);
 
   // Generate TTS voiceover for a scene via Pollinations
   const generateSceneAudio = useCallback(async (scene: Scene): Promise<string | null> => {

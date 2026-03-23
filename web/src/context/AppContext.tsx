@@ -272,29 +272,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [audioDuration, setAudioDuration] = useState(() => loadSaved("audioDuration", 0));
 
   // Persist key state to localStorage/sessionStorage.
-  // NOTE: audioFile is excluded because it can be a large base64 data URL.
-  // storyboardImages, sceneAudioUrls, and sceneVideoUrls are now persisted
-  // because they contain lightweight external URLs (not base64 blobs).
+  // NOTE: audioFile, sceneAudioUrls, and sceneVideoUrls are excluded because
+  // they contain large base64 data URLs that easily exceed the ~5 MB quota.
+  // storyboardImages is included but stripped on quota failure (fallback) so
+  // the rest of the state (scriptData, settings, etc.) is always preserved.
   useEffect(() => {
     try {
       const state = {
         mode, url, angle, scriptData, qualityTier, globalVisualStyle,
         videoDimension, selectedVoice, musicEnabled, captionsEnabled,
         targetDurationMinutes, referenceImages, sceneDurations,
-        storyboardImages, sceneAudioUrls, sceneVideoUrls,
+        storyboardImages,
         storyText, characterProfiles, audioFileName,
         lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
     } catch (e) {
-      console.warn("Failed to persist state to localStorage (quota may be exceeded):", e);
+      // Quota exceeded — retry without storyboardImages (they're the largest)
+      console.warn("localStorage quota exceeded, retrying without images:", e);
+      try {
+        const fallbackState = {
+          mode, url, angle, scriptData, qualityTier, globalVisualStyle,
+          videoDimension, selectedVoice, musicEnabled, captionsEnabled,
+          targetDurationMinutes, referenceImages, sceneDurations,
+          storyboardImages: {},
+          storyText, characterProfiles, audioFileName,
+          lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(fallbackState));
+      } catch { /* truly full — nothing we can do */ }
     }
   }, [
     mode, url, angle, scriptData, qualityTier, globalVisualStyle,
     videoDimension, selectedVoice, musicEnabled, captionsEnabled,
     targetDurationMinutes, referenceImages, sceneDurations,
-    storyboardImages, sceneAudioUrls, sceneVideoUrls,
+    storyboardImages,
     storyText, characterProfiles, audioFileName,
     lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
   ]);

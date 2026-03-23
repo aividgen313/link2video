@@ -380,14 +380,14 @@ export default function Home() {
 
   return (
     <>
-      <div className="max-w-3xl mx-auto w-full">
+      <div className="max-w-3xl mx-auto w-full animate-fade-in-up">
         <div className="glass-card rounded-[2rem] p-6 md:p-10 relative overflow-hidden shadow-2xl">
           <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
           <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-tertiary/8 rounded-full blur-[80px] pointer-events-none" />
 
           <div className="relative z-10 space-y-6">
             <div className="flex items-start justify-between gap-4">
-              <h3 className="font-headline text-2xl md:text-4xl font-extrabold tracking-tighter">Create New Video</h3>
+              <h3 className="font-headline text-2xl md:text-4xl font-extrabold tracking-tighter text-gradient">Create New Video</h3>
 
               {/* Pollinations Balance Widget */}
               {hasMounted && (
@@ -438,14 +438,14 @@ export default function Home() {
             </div>
 
             {/* Mode Selector Tabs */}
-            <div className="flex gap-2 p-1 bg-surface-container-lowest/50 border border-outline-variant/10 rounded-2xl">
+            <div className="flex gap-2 p-1.5 glass-subtle rounded-2xl">
               {MODE_TABS.map((tab) => (
                 <button
                   key={tab.mode}
                   onClick={() => setMode(tab.mode)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-sm font-bold transition-all ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-sm font-bold spring-transition press-scale ${
                     mode === tab.mode
-                      ? "bg-primary/15 text-primary border border-primary/30 shadow-sm"
+                      ? "glass-elevated text-primary"
                       : "text-outline hover:text-on-surface hover:bg-surface-variant/30"
                   }`}
                 >
@@ -499,7 +499,7 @@ export default function Home() {
                         <button
                           key={s.label}
                           onClick={() => { setInputValue(s.example); setActiveStyle(s.label); }}
-                          className={`flex flex-col items-start gap-1 p-3 rounded-xl border transition-all text-left ${isActive ? "bg-primary/10 border-primary/30 text-primary" : "glass border-outline-variant/10 text-outline hover:text-primary hover:border-primary/20"}`}
+                          className={`flex flex-col items-start gap-1 p-3 rounded-xl spring-transition press-scale text-left ${isActive ? "glass-elevated text-primary" : "glass-subtle text-outline hover:text-primary hover:border-primary/20"}`}
                         >
                           <div className="flex items-center gap-1.5">
                             <span className="material-symbols-outlined text-base">{s.icon}</span>
@@ -1115,7 +1115,7 @@ export default function Home() {
               <button
                 onClick={handleGenerate}
                 disabled={!canGenerate}
-                className="w-full primary-gradient text-white font-headline font-extrabold py-4 px-8 rounded-2xl text-lg flex items-center justify-center gap-3 transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/30"
+                className="w-full primary-gradient text-white font-headline font-extrabold py-4 px-8 rounded-2xl text-lg flex items-center justify-center gap-3 hover-lift press-scale disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/30 disabled:hover:transform-none"
               >
                 {mode === "link" ? "Generate Video" : mode === "short-story" ? "Create Story Video" : "Create Music Video"}
                 <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
@@ -1142,7 +1142,7 @@ export default function Home() {
               <p className="text-sm text-outline">Generate your first video above and it&apos;ll appear here.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 stagger-children">
               {recentVideos.map((v) => {
                 const date = new Date(v.createdAt);
                 const timeAgo = formatTimeAgo(date);
@@ -1151,7 +1151,7 @@ export default function Home() {
                 const secs = totalRounded % 60;
                 const durationLabel = `${mins}:${String(secs).padStart(2, "0")}`;
                 return (
-                  <div key={v.id} onClick={() => router.push("/editor")} className="group glass-card glass-card-hover rounded-[1.5rem] overflow-hidden flex flex-col transition-all hover:translate-y-[-3px] hover:shadow-xl hover:shadow-primary/5 cursor-pointer hover:ring-2 ring-primary/30 hover:scale-[1.01]">
+                  <div key={v.id} onClick={() => router.push("/editor")} className="group glass-card rounded-[1.5rem] overflow-hidden flex flex-col hover-lift cursor-pointer hover:ring-2 ring-primary/30 animate-fade-in-up">
                     <div className="h-40 md:h-48 relative overflow-hidden bg-surface-container-high">
                       {v.thumbnailUrl ? (
                         <img alt={v.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src={v.thumbnailUrl} />

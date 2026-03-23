@@ -25,7 +25,15 @@ async function generateViaPollinationsWithRetry(prompt: string): Promise<string>
       const msg = err.message || "";
       console.warn(`Model ${model} failed: ${msg}`);
 
-      if (msg.includes("429")) {
+      if (msg.includes("402")) {
+        console.warn(`Insufficient balance detected (402). Retrying ${model} without API key...`);
+        try {
+          return await callPollinationsChat(prompt, model, true);
+        } catch (fallbackErr: any) {
+          lastError = fallbackErr;
+          console.warn(`Free fallback for ${model} failed: ${fallbackErr.message}`);
+        }
+      } else if (msg.includes("429")) {
         await new Promise(r => setTimeout(r, 3000));
       } else if (msg.includes("502") || msg.includes("503") || msg.includes("504")) {
         await new Promise(r => setTimeout(r, 5000));
@@ -37,8 +45,8 @@ async function generateViaPollinationsWithRetry(prompt: string): Promise<string>
   throw new Error(`All Pollinations text models failed: ${lastError.message}`);
 }
 
-async function callPollinationsChat(prompt: string, model: string): Promise<string> {
-  const apiKey = process.env.POLLINATIONS_API_KEY || "";
+async function callPollinationsChat(prompt: string, model: string, omitApiKey: boolean = false): Promise<string> {
+  const apiKey = omitApiKey ? "" : (process.env.POLLINATIONS_API_KEY || "");
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (apiKey) {

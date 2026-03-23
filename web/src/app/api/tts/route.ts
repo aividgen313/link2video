@@ -8,7 +8,7 @@ const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || "";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { text, voice = "adam" } = body;
+    const { text, voice = "adam", useEdgeTTS = false } = body;
 
     if (!text || typeof text !== "string" || text.trim().length === 0) {
       return NextResponse.json({ error: "Text must be a non-empty string" }, { status: 400 });
@@ -20,10 +20,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Voice must be a non-empty string" }, { status: 400 });
     }
 
-    console.log(`TTS (voice=${voice}):`, text.substring(0, 50) + "...");
+    console.log(`TTS (voice=${voice}, edgeTTS=${useEdgeTTS}):`, text.substring(0, 50) + "...");
 
-    // Try Pollinations first
-    if (POLLINATIONS_API_KEY) {
+    // Try Pollinations (paid ElevenLabs) only when NOT explicitly using Edge TTS (free tier)
+    if (POLLINATIONS_API_KEY && !useEdgeTTS) {
       try {
         const url = `https://gen.pollinations.ai/v1/audio/speech?key=${POLLINATIONS_API_KEY}`;
         const response = await fetch(url, {

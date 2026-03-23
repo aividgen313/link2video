@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     const MODELS_TO_TRY = model ? [model] : ["nanobanana-pro", "seedream-pro"];
 
     // Build retry attempts: each model with progressively simpler prompts
-    type Attempt = { prompt: string; model: string };
+    type Attempt = { prompt: string; model: string; isFreeFallback?: boolean };
     const attempts: Attempt[] = [];
     // Full prompt with each model
     for (const m of MODELS_TO_TRY) {
@@ -105,6 +105,15 @@ export async function POST(req: NextRequest) {
       prompt: sanitizePrompt(prompt.split(",").slice(0, 3).join(","), 300) + ", photorealistic",
       model: "seedream5",
     });
+    
+    // Free standalone fallback — ignores API key to ensure it runs without billing
+    attempts.push({
+      prompt: sanitizePrompt(prompt.split(",").slice(0, 3).join(","), 300) + ", photorealistic",
+      model: "flux",
+      isFreeFallback: true
+    });
+
+    let got402 = false;
 
     for (let i = 0; i < attempts.length; i++) {
       const { prompt: currentPrompt, model: currentModel } = attempts[i];
@@ -114,7 +123,7 @@ export async function POST(req: NextRequest) {
       const seed = Math.floor(Math.random() * 1000000);
 
       let imageURL = `https://gen.pollinations.ai/image/${encodedPrompt}?model=${currentModel}&width=${width}&height=${height}&seed=${seed}&nologo=true&quality=high&enhance=true&negative=${negativeEncoded}`;
-      if (POLLINATIONS_API_KEY) {
+      if (POLLINATIONS_API_KEY && !attempts[i].isFreeFallback) {
         imageURL += `&key=${POLLINATIONS_API_KEY}`;
       }
 
@@ -126,10 +135,7 @@ export async function POST(req: NextRequest) {
         if (!response.ok) {
           console.warn(`Pollinations ${currentModel} failed: ${response.status}`);
           if (response.status === 402) {
-            return NextResponse.json({
-              error: "Insufficient Pollinations credits.",
-              isCreditsError: true,
-            }, { status: 402 });
+            got402 = true;
           }
           continue;
         }
@@ -140,12 +146,16 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
+        // Validate response has real content
         const imageBuffer = Buffer.from(await response.arrayBuffer());
         if (imageBuffer.length < 1000) {
           console.warn(`Pollinations ${currentModel} returned empty image`);
           continue;
         }
 
+        // Return as base64 data URL (NOT the raw CDN URL) because:
+        // 1. The CDN URL contains our API key — must not leak to client
+        // 2. FFmpeg's fetchFile needs data URLs or blobs, not cross-origin URLs (CORS)
         const mimeType = contentType.includes("png") ? "image/png" : "image/jpeg";
         const dataUrl = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
 
@@ -162,6 +172,13 @@ export async function POST(req: NextRequest) {
         }
         continue;
       }
+    }
+
+    if (got402) {
+      return NextResponse.json({
+        error: "Insufficient Pollinations credits. Could not generate image.",
+        isCreditsError: true,
+      }, { status: 402 });
     }
 
     return NextResponse.json(

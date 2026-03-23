@@ -3,7 +3,6 @@
 import { useTheme } from "next-themes";
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
 
 export default function TopNav() {
   const [mounted, setMounted] = useState(false);
@@ -31,60 +30,36 @@ export default function TopNav() {
     }
   })();
 
-  const tabs = [
-    { label: "Recent", href: "/" },
-    { label: "All Videos", href: "/assets" },
-    { label: "Story", href: "/story" },
-    { label: "Script", href: "/script" },
-    { label: "Storyboard", href: "/storyboard" },
-    { label: "Generate", href: "/generate" },
-  ];
+  // Contextual subtitle based on current page
+  const pageSubtitle = (() => {
+    switch (pathname) {
+      case "/": return "Your creative workspace";
+      case "/assets": return "Media library";
+      case "/story": return "Choose your narrative";
+      case "/script": return "Write & refine";
+      case "/storyboard": return "Visual planning";
+      case "/editor": return "Fine-tune your video";
+      case "/generate": return "Bring it to life";
+      default: return "";
+    }
+  })();
 
   return (
-    <header className="h-16 shrink-0 hidden md:flex items-center justify-between px-8 border-b border-outline-variant/10 bg-surface/80 backdrop-blur-xl sticky top-0 z-10">
-      <div className="flex items-center gap-6">
-        <h2 className="font-headline font-bold text-lg tracking-tight text-on-surface">
-          {pageTitle}
-        </h2>
-        <nav className="hidden md:flex items-center gap-1">
-          {tabs.map((tab) => {
-            const isActive = pathname === tab.href;
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  isActive
-                    ? "bg-primary/15 text-primary border border-primary/20"
-                    : "text-outline hover:text-on-surface hover:bg-surface-variant/50"
-                }`}
-              >
-                {tab.label}
-              </Link>
-            );
-          })}
-        </nav>
+    <header className="h-[72px] shrink-0 hidden md:flex items-center justify-between px-8 topnav-island relative z-10">
+      <div className="flex items-center gap-4">
+        <div>
+          <h2 className="font-headline font-bold text-lg tracking-tight text-on-surface leading-tight">
+            {pageTitle}
+          </h2>
+          <p className="text-xs text-outline font-medium leading-tight mt-0.5">
+            {pageSubtitle}
+          </p>
+        </div>
       </div>
-      <div className="flex items-center gap-3">
-        {mounted && (
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all"
-            title="Toggle Theme"
-          >
-            <span className="material-symbols-outlined text-lg">
-              {theme === "dark" ? "light_mode" : "dark_mode"}
-            </span>
-          </button>
-        )}
-        <button
-          title="Notifications"
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all relative"
-        >
-          <span className="material-symbols-outlined text-lg">notifications</span>
-        </button>
+      <div className="flex items-center gap-2">
+        {/* Search */}
         {showSearch ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 animate-fade-in-up">
             <input
               ref={searchInputRef}
               type="text"
@@ -102,7 +77,7 @@ export default function TopNav() {
               }}
               onBlur={() => { setShowSearch(false); setSearchQuery(""); }}
               placeholder="Search projects..."
-              className="w-48 h-9 px-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-sm text-on-surface focus:ring-1 focus:ring-primary/40 focus:outline-none placeholder:text-outline/50"
+              className="w-52 h-9 px-4 rounded-2xl glass text-sm text-on-surface focus:ring-2 focus:ring-primary/30 focus:outline-none placeholder:text-outline/50 spring-transition"
               autoFocus
             />
           </div>
@@ -110,9 +85,30 @@ export default function TopNav() {
           <button
             onClick={() => { setShowSearch(true); setTimeout(() => searchInputRef.current?.focus(), 50); }}
             title="Search"
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/50 transition-all"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale"
           >
             <span className="material-symbols-outlined text-lg">search</span>
+          </button>
+        )}
+
+        {/* Notifications */}
+        <button
+          title="Notifications"
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale relative"
+        >
+          <span className="material-symbols-outlined text-lg">notifications</span>
+        </button>
+
+        {/* Theme Toggle */}
+        {mounted && (
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale"
+            title="Toggle Theme"
+          >
+            <span className="material-symbols-outlined text-lg">
+              {theme === "dark" ? "light_mode" : "dark_mode"}
+            </span>
           </button>
         )}
       </div>
