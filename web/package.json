@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p ${PORT:-3000}",
     "build": "NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS='--max_old_space_size=512' next build",
-    "start": "cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public 2>/dev/null; HOSTNAME=0.0.0.0 node .next/standalone/server.js",
+    "start": "if [ -f .next/standalone/server.js ]; then cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public 2>/dev/null; HOSTNAME=0.0.0.0 PORT=${PORT:-10000} node .next/standalone/server.js; else next start -H 0.0.0.0 -p ${PORT:-10000}; fi",
     "lint": "eslint"
   },
   "dependencies": {
