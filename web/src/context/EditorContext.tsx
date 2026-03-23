@@ -219,34 +219,70 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 
   // Initialize from AppContext on first render
   if (!isInitialized && scriptData?.scenes?.length) {
-    const editorScenes: EditorScene[] = scriptData.scenes.map((s: Scene, i: number) => ({
-      id: s.id,
-      orderIndex: i,
-      trackId: "v1",
-      narration: s.narration || "",
-      visual_prompt: s.visual_prompt || "",
-      duration: sceneDurations[s.id] || s.duration_estimate_seconds || 8,
-      imageUrl: storyboardImages[s.id] || "",
-      audioUrl: sceneAudioUrls[s.id] || null,
-      aiVideoUrl: sceneVideoUrls[s.id] || null,
-      overlays: [],
-      camera_angle: s.camera_angle,
-      lighting: s.lighting,
-      mood: s.mood,
-      transition: i === 0 ? "none" : "fade",
-      transitionDuration: 0.5,
-      filter: "none",
-      kenBurns: "zoom-in",
-      playbackSpeed: 1,
-      volume: 1,
-      isMuted: false,
-      isLocked: false,
-      isHidden: false,
-    }));
+    const editorScenes: EditorScene[] = [];
+    scriptData.scenes.forEach((s: Scene, i: number) => {
+      const dur = sceneDurations[s.id] || s.duration_estimate_seconds || 8;
+      
+      // 1. Video Clip (V1)
+      editorScenes.push({
+        id: s.id * 10,
+        orderIndex: i,
+        trackId: "v1",
+        narration: s.narration || "",
+        visual_prompt: s.visual_prompt || "",
+        duration: dur,
+        imageUrl: storyboardImages[s.id] || "",
+        audioUrl: null,
+        aiVideoUrl: sceneVideoUrls[s.id] || null,
+        overlays: [],
+        camera_angle: s.camera_angle,
+        lighting: s.lighting,
+        mood: s.mood,
+        transition: i === 0 ? "none" : "fade",
+        transitionDuration: 0.5,
+        filter: "none",
+        kenBurns: "zoom-in",
+        playbackSpeed: 1,
+        volume: 0, // Video clips default to muted as narration is separate
+        isMuted: false,
+        isLocked: false,
+        isHidden: false,
+      });
+
+      // 2. Audio Clip (A1)
+      if (sceneAudioUrls[s.id]) {
+        editorScenes.push({
+          id: s.id * 10 + 1,
+          orderIndex: i,
+          trackId: "a1",
+          narration: s.narration || "",
+          visual_prompt: "",
+          duration: dur,
+          imageUrl: "",
+          audioUrl: sceneAudioUrls[s.id],
+          aiVideoUrl: null,
+          overlays: [],
+          transition: "none",
+          transitionDuration: 0,
+          filter: "none",
+          kenBurns: "zoom-in",
+          playbackSpeed: 1,
+          volume: 1,
+          isMuted: false,
+          isLocked: false,
+          isHidden: false,
+          sourceFileName: `Narration ${i + 1}`,
+        });
+      }
+    });
+
     setScenesRaw(editorScenes);
     if (editorScenes.length > 0) {
-      setSelectedSceneId(editorScenes[0].id);
-      setSelectedSceneIds(new Set([editorScenes[0].id]));
+      const firstVid = editorScenes.find(s => s.trackId === "v1");
+      if (firstVid) {
+        setSelectedSceneId(firstVid.id);
+        setSelectedSceneIds(new Set([firstVid.id]));
+      }
     }
     setIsInitialized(true);
   }

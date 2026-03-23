@@ -3,6 +3,7 @@ import { Manrope, Inter } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import TopNav from "@/components/TopNav";
+import GlobalExportProgress from "@/components/GlobalExportProgress";
 import { AppProvider } from "@/context/AppContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -49,6 +50,7 @@ export default function RootLayout({
                   {children}
                 </section>
               </main>
+              <GlobalExportProgress />
             </AppProvider>
           </ErrorBoundary>
         </ThemeProvider>

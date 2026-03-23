@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
 const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || "";
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "";
+const ELEVENLABS_CUSTOM_VOICE_ID = process.env.ELEVENLABS_CUSTOM_VOICE_ID || "";
 
 /**
  * Text-to-Speech — tries Pollinations first, falls back to Edge TTS (free)
@@ -21,6 +24,44 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`TTS (voice=${voice}, edgeTTS=${useEdgeTTS}):`, text.substring(0, 50) + "...");
+
+    // Custom Voice via Official ElevenLabs SDK
+    if (voice === "custom") {
+      if (ELEVENLABS_API_KEY && ELEVENLABS_CUSTOM_VOICE_ID) {
+        console.log("Using official ElevenLabs SDK for Custom Voice");
+        try {
+          const elevenlabs = new ElevenLabsClient({ apiKey: ELEVENLABS_API_KEY });
+          const audioStream = await elevenlabs.textToSpeech.convert(ELEVENLABS_CUSTOM_VOICE_ID, {
+            text,
+            model_id: "eleven_multilingual_v2",
+            output_format: "mp3_44100_128",
+          } as any);
+
+          // Convert stream to Buffer
+          const chunks: Buffer[] = [];
+          for await (const chunk of audioStream as any) {
+            chunks.push(Buffer.from(chunk));
+          }
+          const audioBuffer = Buffer.concat(chunks);
+          
+          if (audioBuffer.length > 100) {
+            console.log(`ElevenLabs Custom TTS: ${audioBuffer.length} bytes`);
+            const base64Audio = audioBuffer.toString("base64");
+            return NextResponse.json({
+              success: true,
+              audioUrl: `data:audio/mp3;base64,${base64Audio}`,
+              audioUUID: `tts-custom-${Date.now()}`,
+              cost: 0,
+            });
+          }
+        } catch (err) {
+          console.error("ElevenLabs Custom Voice Error:", err);
+          console.log("Falling back to Edge TTS");
+        }
+      } else {
+        console.warn("Custom voice requested but ELEVENLABS_API_KEY or ELEVENLABS_CUSTOM_VOICE_ID not set. Falling back to Edge TTS.");
+      }
+    }
 
     // Try Pollinations (paid ElevenLabs) only when NOT explicitly using Edge TTS (free tier)
     if (POLLINATIONS_API_KEY && !useEdgeTTS) {

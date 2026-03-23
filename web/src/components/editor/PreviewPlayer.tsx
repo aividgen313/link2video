@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useEditorContext, FilterType, EditorScene } from "@/context/EditorContext";
 
 const FILTER_CSS: Record<FilterType, string> = {
@@ -42,9 +42,11 @@ export default function PreviewPlayer() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
+
+  const audioScenes = useMemo(() => scenes.filter(s => !!s.audioUrl), [scenes]);
+  const audioRefs = useRef<{ [id: number]: HTMLAudioElement | null }>({});
   const currentPlayingSceneRef = useRef<number | null>(null);
 
   const v1Scenes = scenes.filter(s => s.trackId === "v1");
@@ -65,7 +67,6 @@ export default function PreviewPlayer() {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       // Pause video/audio
       videoRef.current?.pause();
-      audioRef.current?.pause();
       return;
     }
 
@@ -126,33 +127,45 @@ export default function PreviewPlayer() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying, selectedScene?.id]);
 
-  // ── Audio playback sync ──
+  // ── Audio playback sync (Multi-Track) ──
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !selectedScene?.audioUrl) return;
+    // Stop all audio if paused
+    if (!isPlaying) {
+      Object.values(audioRefs.current).forEach(el => {
+        if (el && !el.paused) el.pause();
+      });
+      return;
+    }
 
-    const sceneId = selectedScene.id;
-    if (isPlaying) {
-      // Only restart audio when we switch to a new scene
-      if (currentPlayingSceneRef.current !== sceneId) {
-        currentPlayingSceneRef.current = sceneId;
-        audio.currentTime = Math.max(0, sceneLocalTime);
-        audio.volume = selectedScene.isMuted ? 0 : selectedScene.volume;
-        audio.play().catch(() => {});
+    // Play/Pause intersecting audio clips
+    audioScenes.forEach((scene: EditorScene) => {
+      const audioEl = audioRefs.current[scene.id];
+      if (!audioEl) return;
+      
+      const start = getSceneStartTime(scene.id);
+      const end = start + scene.duration;
+      
+      // Is playhead inside this scene's exact time window?
+      if (playheadPosition >= start && playheadPosition < end) {
+        const localTime = playheadPosition - start;
+        if (Math.abs(audioEl.currentTime - localTime) > 0.3) {
+           audioEl.currentTime = Math.max(0, localTime);
+        }
+        if (audioEl.paused) {
+           audioEl.volume = scene.isMuted ? 0 : scene.volume;
+           audioEl.play().catch(() => {});
+        } else {
+           // Live volume update
+           audioEl.volume = scene.isMuted ? 0 : scene.volume;
+        }
+      } else {
+        if (!audioEl.paused) {
+          audioEl.pause();
+        }
       }
-    } else {
-      audio.pause();
-      currentPlayingSceneRef.current = null;
-    }
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, selectedScene?.id]);
-
-  // ── Update audio volume when scene settings change ──
-  useEffect(() => {
-    if (audioRef.current && selectedScene) {
-      audioRef.current.volume = selectedScene.isMuted ? 0 : selectedScene.volume;
-    }
-  }, [selectedScene?.isMuted, selectedScene?.volume, selectedScene]);
+  }, [isPlaying, playheadPosition, audioScenes, getSceneStartTime]);
 
   const goPrev = () => {
     if (sceneIndex > 0) {
@@ -251,14 +264,15 @@ export default function PreviewPlayer() {
               />
             )}
 
-            {/* Scene narration audio (hidden element) */}
-            {selectedScene?.audioUrl && (
+            {/* Scene narration audio streams (Hidden) */}
+            {audioScenes.map((scene: EditorScene) => (
               <audio
-                ref={audioRef}
-                src={selectedScene.audioUrl}
+                key={scene.id}
+                ref={el => { audioRefs.current[scene.id] = el; }}
+                src={scene.audioUrl!}
                 preload="auto"
               />
-            )}
+            ))}
 
             {/* Playing indicator */}
             {isPlaying && (

@@ -4,6 +4,7 @@ import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useS
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { useEditorContext, TrackType } from "@/context/EditorContext";
 import TimelineScene from "./TimelineScene";
+import TimelineAudioScene from "./TimelineAudioScene";
 
 // Modern dark theme colors
 const C = {
@@ -458,37 +459,33 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                   }}
                 >
                   {!track.isCollapsed && (
-                    <div className="flex gap-0.5 p-0.5 h-full items-stretch">
-                      {trackScenes.map(scene => {
-                        const w = Math.max(scene.duration * zoom, 50);
-                        return (
-                          <div
-                            key={scene.id}
-                            className="h-full rounded cursor-pointer flex items-center px-2 overflow-hidden"
-                            style={{
-                              width: w, flexShrink: 0,
-                              background: "rgba(91, 158, 244, 0.12)",
-                              border: `1px solid rgba(91, 158, 244, 0.25)`,
-                            }}
-                            onClick={() => setSelectedSceneId(scene.id)}
-                            onContextMenu={(e) => handleSceneContextMenu(e, scene.id)}
-                          >
-                            <span className="material-symbols-outlined text-[10px] mr-1" style={{ color: C.accent }}>graphic_eq</span>
-                            <span className="text-[8px] truncate" style={{ color: C.textDim }}>
-                              {scene.sourceFileName || `Audio ${scene.id}`}
-                            </span>
-                          </div>
-                        );
-                      })}
-                      {trackScenes.length === 0 && (
-                        <div
-                          className="flex items-center justify-center h-full w-full opacity-40"
-                          style={{ border: `1px dashed ${C.border}`, borderRadius: 4 }}
-                        >
-                          <span className="text-[9px]" style={{ color: C.textMuted }}>Drop audio here</span>
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                      <SortableContext items={trackScenes.map(s => s.id)} strategy={horizontalListSortingStrategy}>
+                        <div className="flex gap-0.5 p-0.5 h-full items-stretch">
+                          {trackScenes.map(scene => {
+                            const w = Math.max(scene.duration * zoom, 50);
+                            return (
+                              <div
+                                key={scene.id}
+                                style={{ width: w, flexShrink: 0 }}
+                                onContextMenu={(e) => handleSceneContextMenu(e, scene.id)}
+                              >
+                                <TimelineAudioScene scene={scene} width={w} trackHeight={trackH} />
+                              </div>
+                            );
+                          })}
+                          {/* Empty drop zone at end */}
+                          {trackScenes.length === 0 && (
+                            <div
+                              className="flex items-center justify-center h-full w-full opacity-40"
+                              style={{ border: `1px dashed ${C.border}`, borderRadius: 4 }}
+                            >
+                              <span className="text-[9px]" style={{ color: C.textMuted }}>Drop audio here</span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
+                      </SortableContext>
+                    </DndContext>
                   )}
                 </div>
               );

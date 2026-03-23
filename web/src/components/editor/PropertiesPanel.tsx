@@ -43,9 +43,11 @@ export default function PropertiesPanel() {
   const { selectedScene, scenes, updateScene, deleteScene, duplicateScene, splitScene, insertScene } = useEditorContext();
   const [tab, setTab] = useState<Tab>("scene");
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
+  const [isRegeneratingGenericImage, setIsRegeneratingGenericImage] = useState(false);
   const [isRegeneratingNarration, setIsRegeneratingNarration] = useState(false);
   const [isRegeneratingAudio, setIsRegeneratingAudio] = useState(false);
   const [isRegeneratingVideo, setIsRegeneratingVideo] = useState(false);
+  const [isRegeneratingGenericVideo, setIsRegeneratingGenericVideo] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -101,6 +103,23 @@ export default function PropertiesPanel() {
       showStatus(message, "error");
     } finally {
       setIsRegeneratingImage(false);
+    }
+  };
+
+  const handleRegenerateGenericImage = async () => {
+    setIsRegeneratingGenericImage(true);
+    try {
+      const seed = Math.floor(Math.random() * 100000);
+      const encodedPrompt = encodeURIComponent(selectedScene.visual_prompt);
+      const url = `https://gen.pollinations.ai/image/${encodedPrompt}?model=nanobanana-pro&width=1280&height=768&seed=${seed}&nologo=true`;
+      
+      // Update scene directly (browser will handle streaming the image bits over)
+      updateScene(selectedScene.id, { imageUrl: url });
+      showStatus("Generic photo generated successfully", "success");
+    } catch (err) {
+      showStatus("Failed to generate generic photo", "error");
+    } finally {
+      setIsRegeneratingGenericImage(false);
     }
   };
 
@@ -204,6 +223,22 @@ export default function PropertiesPanel() {
       showStatus(message, "error");
     } finally {
       setIsRegeneratingVideo(false);
+    }
+  };
+
+  const handleRegenerateGenericVideo = async () => {
+    setIsRegeneratingGenericVideo(true);
+    try {
+      const seed = Math.floor(Math.random() * 100000);
+      const encodedPrompt = encodeURIComponent(selectedScene.visual_prompt);
+      const url = `https://gen.pollinations.ai/video/${encodedPrompt}?model=wan&aspectRatio=16:9&seed=${seed}&nologo=true`;
+      
+      updateScene(selectedScene.id, { aiVideoUrl: url });
+      showStatus("Generic AI Video generated successfully", "success");
+    } catch (err) {
+      showStatus("Failed to generate generic video", "error");
+    } finally {
+      setIsRegeneratingGenericVideo(false);
     }
   };
 
@@ -615,8 +650,20 @@ export default function PropertiesPanel() {
               >
                 <span className="material-symbols-outlined text-sm text-primary">image</span>
                 <div className="text-left flex-1">
-                  <span className="text-[10px] text-white/80 block">{isRegeneratingImage ? "Generating..." : "Regenerate Image"}</span>
-                  <span className="text-[8px] text-outline/40">New image from visual prompt</span>
+                  <span className="text-[10px] text-white/80 block">{isRegeneratingImage ? "Generating..." : "Regenerate Image (Premium)"}</span>
+                  <span className="text-[8px] text-outline/40">Cost: 1 Image Credit — Runware</span>
+                </div>
+              </button>
+
+              <button
+                onClick={handleRegenerateGenericImage}
+                disabled={isRegeneratingGenericImage}
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 hover:border-green-500/40 transition-all disabled:opacity-40"
+              >
+                <span className="material-symbols-outlined text-sm text-green-400">image</span>
+                <div className="text-left flex-1">
+                  <span className="text-[10px] text-green-100 block">{isRegeneratingGenericImage ? "Generating..." : "Regenerate Generic Photo (Free)"}</span>
+                  <span className="text-[8px] text-green-400/60">Free fallback using Pollinations</span>
                 </div>
               </button>
 
@@ -652,10 +699,23 @@ export default function PropertiesPanel() {
               >
                 <span className="material-symbols-outlined text-sm text-purple-400">smart_display</span>
                 <div className="text-left flex-1">
-                  <span className="text-[10px] text-white/80 block">{isRegeneratingVideo ? "Generating video..." : selectedScene.aiVideoUrl ? "Regenerate AI Video" : "Generate AI Video"}</span>
-                  <span className="text-[8px] text-outline/40">{selectedScene.aiVideoUrl ? "Replace AI video clip" : "Create AI video from prompt"}</span>
+                  <span className="text-[10px] text-white/80 block">{isRegeneratingVideo ? "Generating video..." : selectedScene.aiVideoUrl ? "Regenerate Premium AI Video" : "Generate Premium AI Video"}</span>
+                  <span className="text-[8px] text-outline/40">{selectedScene.aiVideoUrl ? "Replace AI video clip (Costs $0.05)" : "Create AI video from prompt (Costs $0.05)"}</span>
                 </div>
                 {selectedScene.aiVideoUrl && <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />}
+              </button>
+
+              <button
+                onClick={handleRegenerateGenericVideo}
+                disabled={isRegeneratingGenericVideo}
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 hover:border-green-500/40 transition-all disabled:opacity-40"
+              >
+                <span className="material-symbols-outlined text-sm text-green-400">smart_display</span>
+                <div className="text-left flex-1">
+                  <span className="text-[10px] text-green-100 block">{isRegeneratingGenericVideo ? "Generating video..." : selectedScene.aiVideoUrl ? "Regenerate Generic Video (Free)" : "Generate Generic Video (Free)"}</span>
+                  <span className="text-[8px] text-green-400/60">Free fallback using Pollinations</span>
+                </div>
+                {selectedScene.aiVideoUrl && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
               </button>
 
               <button

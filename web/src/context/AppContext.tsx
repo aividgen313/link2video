@@ -71,6 +71,7 @@ export const VOICES = [
   { id: "domi", name: "Domi", gender: "Female", description: "Strong & Confident" },
   { id: "bella", name: "Bella", gender: "Female", description: "Warm & Friendly" },
   { id: "elli", name: "Elli", gender: "Female", description: "Young & Energetic" },
+  { id: "custom", name: "My Custom Voice", gender: "Custom", description: "ElevenLabs API" },
 ];
 
 // ═══════════════════════════════════════════════════════════════
