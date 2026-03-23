@@ -299,6 +299,12 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 
   // Measure actual audio durations and adjust scene durations if they're too short
   const audioMeasuredRef = useRef(false);
+
+  // Reset audioMeasuredRef when a new project loads so durations are re-measured
+  useEffect(() => {
+    audioMeasuredRef.current = false;
+  }, [scriptData]);
+
   useEffect(() => {
     if (!isInitialized || audioMeasuredRef.current || scenes.length === 0) return;
     audioMeasuredRef.current = true;

@@ -272,9 +272,10 @@ export default function VideoGeneration() {
       const totalScenes = scriptData.scenes.length;
       let completedScenes = 0;
 
-      // Step 1: Generate images + TTS for all scenes in parallel (these are fast)
+      // Step 1: Generate images + TTS — use allSettled so one failed scene
+      // doesn't abort everything. Partial results still go to the editor.
       setStitchStatus("Generating images & voiceovers...");
-      const imageAudioResults = await Promise.all(
+      const settledResults = await Promise.allSettled(
         scriptData.scenes.map(async (scene, index) => {
           setActiveSceneIndex(index);
           const audioPromise = isMusicVideo ? Promise.resolve(null) : generateSceneAudio(scene);
@@ -287,13 +288,26 @@ export default function VideoGeneration() {
             actualDuration = Math.max(audioDur + 1.5, scene.duration_estimate_seconds);
             console.log(`Scene ${index + 1}: estimated=${scene.duration_estimate_seconds}s, audio=${audioDur.toFixed(1)}s, using=${actualDuration.toFixed(1)}s`);
           }
-
           completedScenes++;
           setProgress(Math.round(10 + (completedScenes / totalScenes) * 30));
-
           return { image: imageResult.imageURL, audio: audioUrl, duration: actualDuration, narration: scene.narration, scene };
         })
       );
+
+      // Collect successful results; mark failed scenes as errored
+      const imageAudioResults = settledResults
+        .map((r, i) => {
+          if (r.status === "fulfilled") return r.value;
+          console.warn(`Scene ${i + 1} failed:`, (r as PromiseRejectedResult).reason);
+          const sceneId = scriptData.scenes[i]?.id;
+          if (sceneId != null) setSceneStatuses(prev => ({ ...prev, [sceneId]: { phase: "error", progress: 0, error: String((r as PromiseRejectedResult).reason) } }));
+          return null;
+        })
+        .filter((r): r is NonNullable<typeof r> => r !== null);
+
+      if (imageAudioResults.length === 0) {
+        throw new Error("Every scene failed to generate. Check your internet connection and try again.");
+      }
 
       // Save audio URLs and actual measured durations to AppContext so editor can use them
       const audioMap: Record<number, string> = {};

@@ -68,13 +68,13 @@ export default function TopNav() {
   };
 
   return (
-    <header className="h-[72px] shrink-0 hidden md:flex items-center justify-between px-6 topnav-island relative z-10">
-      <div className="flex items-center gap-4">
+    <header className="h-[56px] md:h-[72px] shrink-0 flex items-center justify-between px-4 md:px-6 topnav-island relative z-10">
+      <div className="flex items-center gap-3">
         <div>
-          <h2 className="font-headline font-bold text-lg tracking-tight text-on-surface leading-tight">
+          <h2 className="font-headline font-bold text-base md:text-lg tracking-tight text-on-surface leading-tight">
             {pageTitle}
           </h2>
-          <p className="text-xs text-outline font-medium leading-tight mt-0.5">
+          <p className="text-[11px] text-outline font-medium leading-tight mt-0.5 hidden md:block">
             {pageSubtitle}
           </p>
         </div>
@@ -84,7 +84,7 @@ export default function TopNav() {
         {/* ── Credits Pill ─────────────────────────────────── */}
         {mounted && (
           <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-300 ${balanceBg()}`}
+            className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-300 ${balanceBg()}`}
             title={`Total spent this session: $${pollenUsed.toFixed(4)}`}
           >
             <span
@@ -103,63 +103,78 @@ export default function TopNav() {
               <span className="text-outline">Credits</span>
             )}
             {pollenUsed > 0 && (
-              <span className="text-outline/60 font-normal">
+              <span className="text-outline/60 font-normal hidden sm:inline">
                 {" "}−${pollenUsed.toFixed(4)}
               </span>
             )}
           </div>
         )}
 
-        {/* ── Search ───────────────────────────────────────── */}
-        {showSearch ? (
-          <div className="flex items-center gap-2 animate-fade-in-up">
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && searchQuery.trim()) {
-                  router.push(`/?search=${encodeURIComponent(searchQuery.trim())}`);
-                  setShowSearch(false);
-                  setSearchQuery("");
-                } else if (e.key === "Escape") {
-                  setShowSearch(false);
-                  setSearchQuery("");
-                }
-              }}
-              onBlur={() => { setShowSearch(false); setSearchQuery(""); }}
-              placeholder="Search projects..."
-              className="w-52 h-9 px-5 rounded-full glass text-sm text-on-surface focus:ring-2 focus:ring-primary/40 focus:outline-none placeholder:text-outline/50 spring-transition"
-              autoFocus
-            />
-          </div>
-        ) : (
+        {/* ── Search ─────────────────────────── desktop only */}
+        <div className="hidden md:flex items-center gap-2">
+          {showSearch ? (
+            <div className="flex items-center gap-2 animate-fade-in-up">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && searchQuery.trim()) {
+                    router.push(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+                    setShowSearch(false);
+                    setSearchQuery("");
+                  } else if (e.key === "Escape") {
+                    setShowSearch(false);
+                    setSearchQuery("");
+                  }
+                }}
+                onBlur={() => { setShowSearch(false); setSearchQuery(""); }}
+                placeholder="Search projects..."
+                className="w-52 h-9 px-5 rounded-full glass text-sm text-on-surface focus:ring-2 focus:ring-primary/40 focus:outline-none placeholder:text-outline/50 spring-transition"
+                autoFocus
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => { setShowSearch(true); setTimeout(() => searchInputRef.current?.focus(), 50); }}
+              title="Search"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale"
+            >
+              <span className="material-symbols-outlined text-lg">search</span>
+            </button>
+          )}
+
+          {/* ── Notifications ── */}
           <button
-            onClick={() => { setShowSearch(true); setTimeout(() => searchInputRef.current?.focus(), 50); }}
-            title="Search"
-            className="w-9 h-9 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale"
+            title="Notifications"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale relative"
           >
-            <span className="material-symbols-outlined text-lg">search</span>
+            <span className="material-symbols-outlined text-lg">notifications</span>
           </button>
-        )}
 
-        {/* ── Notifications ────────────────────────────────── */}
-        <button
-          title="Notifications"
-          className="w-9 h-9 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale relative"
-        >
-          <span className="material-symbols-outlined text-lg">notifications</span>
-        </button>
+          {/* ── Theme Toggle ── */}
+          {mounted && (
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale"
+              title="Toggle Theme"
+            >
+              <span className="material-symbols-outlined text-lg">
+                {theme === "dark" ? "light_mode" : "dark_mode"}
+              </span>
+            </button>
+          )}
+        </div>
 
-        {/* ── Theme Toggle ─────────────────────────────────── */}
+        {/* ── Theme Toggle mobile only ── */}
         {mounted && (
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-outline hover:text-on-surface md:hidden"
             title="Toggle Theme"
           >
-            <span className="material-symbols-outlined text-lg">
+            <span className="material-symbols-outlined text-base">
               {theme === "dark" ? "light_mode" : "dark_mode"}
             </span>
           </button>

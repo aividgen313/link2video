@@ -405,6 +405,17 @@ export default function Home() {
 
   return (
     <>
+      {/* ── Error Toast ─────────────────────────────────── */}
+      {errorMsg && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl bg-red-500/10 border border-red-500/30 backdrop-blur-md animate-fade-in-up max-w-sm w-full mx-4">
+          <span className="material-symbols-outlined text-red-400 text-lg shrink-0">error</span>
+          <p className="text-sm text-red-400 flex-1 leading-snug">{errorMsg}</p>
+          <button onClick={() => setErrorMsg(null)} className="text-red-400/60 hover:text-red-400 transition-colors shrink-0">
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
+      )}
+
       <div className="max-w-3xl mx-auto w-full animate-fade-in-up">
         <div className="glass-card rounded-[2rem] p-6 md:p-10 relative overflow-hidden shadow-2xl">
           <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
