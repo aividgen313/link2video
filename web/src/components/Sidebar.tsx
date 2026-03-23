@@ -23,7 +23,7 @@ export default function Sidebar() {
       {/* Logo */}
       <button
         onClick={() => { router.push("/"); setMobileOpen(false); }}
-        className="w-11 h-11 rounded-2xl primary-gradient flex items-center justify-center mb-4 shadow-lg shadow-primary/20 hover:scale-110 press-scale transition-all duration-300"
+        className="w-11 h-11 rounded-full glass-elevated flex items-center justify-center mb-4 hover:scale-110 press-scale transition-all duration-300"
       >
         <span className="material-symbols-outlined text-white text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
           play_arrow
@@ -40,7 +40,7 @@ export default function Sidebar() {
               href={item.href}
               onClick={() => setMobileOpen(false)}
               title={item.label}
-              className={`w-11 h-11 rounded-2xl flex items-center justify-center spring-transition group relative ${
+              className={`w-11 h-11 rounded-full flex items-center justify-center spring-transition group relative ${
                 isActive
                   ? "glass-elevated text-primary"
                   : "text-outline hover:text-on-surface hover:bg-surface-variant/30"
@@ -70,7 +70,7 @@ export default function Sidebar() {
         <button
           title="Settings"
           onClick={() => router.push("/")}
-          className="w-11 h-11 rounded-2xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition"
+          className="w-11 h-11 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition"
         >
           <span className="material-symbols-outlined text-xl">settings</span>
         </button>
@@ -92,7 +92,7 @@ export default function Sidebar() {
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 h-14 glass border-b border-outline-variant/10 flex items-center justify-between px-4">
         <button
           onClick={() => { router.push("/"); }}
-          className="w-9 h-9 rounded-xl primary-gradient flex items-center justify-center shadow-lg shadow-primary/20 press-scale"
+          className="w-9 h-9 rounded-full glass-elevated flex items-center justify-center press-scale"
         >
           <span className="material-symbols-outlined text-white text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
             play_arrow
@@ -101,7 +101,7 @@ export default function Sidebar() {
         <span className="font-headline font-bold text-gradient">Link2Video</span>
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition"
         >
           <span className="material-symbols-outlined">{mobileOpen ? "close" : "menu"}</span>
         </button>
@@ -125,7 +125,7 @@ export default function Sidebar() {
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-2xl spring-transition animate-fade-in-up ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-full spring-transition animate-fade-in-up ${
                   isActive
                     ? "glass-elevated text-primary"
                     : "text-outline hover:text-on-surface hover:bg-surface-variant/30"

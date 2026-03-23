@@ -77,7 +77,7 @@ export default function TopNav() {
               }}
               onBlur={() => { setShowSearch(false); setSearchQuery(""); }}
               placeholder="Search projects..."
-              className="w-52 h-9 px-4 rounded-2xl glass text-sm text-on-surface focus:ring-2 focus:ring-primary/30 focus:outline-none placeholder:text-outline/50 spring-transition"
+              className="w-52 h-9 px-5 rounded-full glass text-sm text-on-surface focus:ring-2 focus:ring-primary/40 focus:outline-none placeholder:text-outline/50 spring-transition"
               autoFocus
             />
           </div>
@@ -85,7 +85,7 @@ export default function TopNav() {
           <button
             onClick={() => { setShowSearch(true); setTimeout(() => searchInputRef.current?.focus(), 50); }}
             title="Search"
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale"
           >
             <span className="material-symbols-outlined text-lg">search</span>
           </button>
@@ -94,7 +94,7 @@ export default function TopNav() {
         {/* Notifications */}
         <button
           title="Notifications"
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale relative"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale relative"
         >
           <span className="material-symbols-outlined text-lg">notifications</span>
         </button>
@@ -103,7 +103,7 @@ export default function TopNav() {
         {mounted && (
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale"
             title="Toggle Theme"
           >
             <span className="material-symbols-outlined text-lg">

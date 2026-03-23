@@ -30,7 +30,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={`
-          rounded-2xl
+          rounded-[32px]
           ${variantStyles[variant]}
           ${paddingStyles[padding]}
           ${hover ? "hover-lift cursor-pointer" : ""}

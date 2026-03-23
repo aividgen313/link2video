@@ -16,22 +16,22 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    "primary-gradient text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:brightness-110",
+    "glass-elevated text-white hover:brightness-110",
   secondary:
-    "glass-card text-on-surface hover:border-primary/30",
+    "glass-card text-on-surface hover:border-white/40",
   ghost:
-    "bg-transparent text-on-surface-variant hover:bg-surface-container-high",
+    "bg-transparent text-on-surface hover:bg-white/10",
   danger:
-    "bg-error/10 text-error border border-error/20 hover:bg-error/20",
+    "bg-error/20 text-error border border-error/30 hover:bg-error/30 backdrop-blur-md",
   glass:
-    "glass text-on-surface hover:bg-white/[0.06]",
+    "glass text-on-surface hover:bg-white/[0.08]",
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-xs gap-1.5 rounded-lg",
-  md: "h-10 px-4 text-sm gap-2 rounded-xl",
-  lg: "h-12 px-6 text-base gap-2.5 rounded-xl",
-  icon: "h-10 w-10 rounded-xl justify-center",
+  sm: "h-8 px-4 text-xs gap-1.5 rounded-full",
+  md: "h-10 px-5 text-sm gap-2 rounded-full",
+  lg: "h-12 px-6 text-base gap-2.5 rounded-full",
+  icon: "h-10 w-10 rounded-full justify-center",
 };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(

@@ -21,8 +21,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           className={`
             w-full h-10 bg-surface-container/60 text-on-surface
-            border border-outline-variant/30 rounded-xl
-            px-3 ${icon ? "pl-10" : ""} ${suffix ? "pr-10" : ""}
+            border border-outline-variant/30 rounded-full
+            px-4 ${icon ? "pl-11" : ""} ${suffix ? "pr-11" : ""}
             text-sm placeholder:text-on-surface-variant/40
             focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40
             transition-all duration-200
@@ -57,8 +57,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           className={`
             w-full bg-surface-container/60 text-on-surface
-            border border-outline-variant/30 rounded-xl
-            px-3 py-2.5 text-sm placeholder:text-on-surface-variant/40
+            border border-outline-variant/30 rounded-[20px]
+            px-4 py-3 text-sm placeholder:text-on-surface-variant/40
             focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40
             transition-all duration-200 resize-none
             ${error ? "border-error/60 focus:ring-error/40" : ""}
