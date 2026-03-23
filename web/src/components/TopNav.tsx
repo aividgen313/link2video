@@ -3,6 +3,7 @@
 import { useTheme } from "next-themes";
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useAppContext } from "@/context/AppContext";
 
 export default function TopNav() {
   const [mounted, setMounted] = useState(false);
@@ -12,6 +13,7 @@ export default function TopNav() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const { pollenBalance, isFetchingBalance, pollenUsed } = useAppContext();
 
   useEffect(() => {
     setMounted(true);
@@ -30,7 +32,6 @@ export default function TopNav() {
     }
   })();
 
-  // Contextual subtitle based on current page
   const pageSubtitle = (() => {
     switch (pathname) {
       case "/": return "Your creative workspace";
@@ -44,8 +45,30 @@ export default function TopNav() {
     }
   })();
 
+  // Format balance: show 4 sig-figs for small amounts
+  const formatBalance = (bal: number) => {
+    if (bal >= 10) return bal.toFixed(2);
+    if (bal >= 1) return bal.toFixed(3);
+    return bal.toFixed(4);
+  };
+
+  // Colour based on how low balance is
+  const balanceColor = () => {
+    if (pollenBalance === null) return "text-outline";
+    if (pollenBalance < 0.05) return "text-red-500 dark:text-red-400";
+    if (pollenBalance < 0.20) return "text-amber-500 dark:text-amber-400";
+    return "text-emerald-600 dark:text-emerald-400";
+  };
+
+  const balanceBg = () => {
+    if (pollenBalance === null) return "bg-surface-container";
+    if (pollenBalance < 0.05) return "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25";
+    if (pollenBalance < 0.20) return "bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/25";
+    return "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/25";
+  };
+
   return (
-    <header className="h-[72px] shrink-0 hidden md:flex items-center justify-between px-8 topnav-island relative z-10">
+    <header className="h-[72px] shrink-0 hidden md:flex items-center justify-between px-6 topnav-island relative z-10">
       <div className="flex items-center gap-4">
         <div>
           <h2 className="font-headline font-bold text-lg tracking-tight text-on-surface leading-tight">
@@ -57,7 +80,37 @@ export default function TopNav() {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {/* Search */}
+
+        {/* ── Credits Pill ─────────────────────────────────── */}
+        {mounted && (
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-300 ${balanceBg()}`}
+            title={`Total spent this session: $${pollenUsed.toFixed(4)}`}
+          >
+            <span
+              className={`material-symbols-outlined text-sm leading-none ${balanceColor()}`}
+              style={{ fontVariationSettings: "'FILL' 1", fontSize: "14px" }}
+            >
+              toll
+            </span>
+            {isFetchingBalance ? (
+              <span className="text-outline animate-pulse">···</span>
+            ) : pollenBalance !== null ? (
+              <span className={balanceColor()}>
+                ${formatBalance(pollenBalance)}
+              </span>
+            ) : (
+              <span className="text-outline">Credits</span>
+            )}
+            {pollenUsed > 0 && (
+              <span className="text-outline/60 font-normal">
+                {" "}−${pollenUsed.toFixed(4)}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* ── Search ───────────────────────────────────────── */}
         {showSearch ? (
           <div className="flex items-center gap-2 animate-fade-in-up">
             <input
@@ -91,7 +144,7 @@ export default function TopNav() {
           </button>
         )}
 
-        {/* Notifications */}
+        {/* ── Notifications ────────────────────────────────── */}
         <button
           title="Notifications"
           className="w-9 h-9 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/30 spring-transition press-scale relative"
@@ -99,7 +152,7 @@ export default function TopNav() {
           <span className="material-symbols-outlined text-lg">notifications</span>
         </button>
 
-        {/* Theme Toggle */}
+        {/* ── Theme Toggle ─────────────────────────────────── */}
         {mounted && (
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

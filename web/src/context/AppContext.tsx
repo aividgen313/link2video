@@ -200,6 +200,8 @@ interface AppContextType {
   setCaptionsEnabled: (enabled: boolean) => void;
   pollenUsed: number;
   setPollenUsed: (pollen: number) => void;
+  pollenBalance: number | null;
+  isFetchingBalance: boolean;
   targetDurationMinutes: number;
   setTargetDurationMinutes: (min: number) => void;
   storyboardImages: Record<number, string>;
@@ -277,6 +279,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [musicEnabled, setMusicEnabled] = useState(() => loadSaved("musicEnabled", false));
   const [captionsEnabled, setCaptionsEnabled] = useState(() => loadSaved("captionsEnabled", false));
   const [pollenUsed, setPollenUsed] = useState(0);
+  const [pollenBalance, setPollenBalance] = useState<number | null>(null);
+  const [isFetchingBalance, setIsFetchingBalance] = useState(false);
+
+  // Fetch Pollinations balance on mount and whenever pollen is consumed
+  useEffect(() => {
+    let cancelled = false;
+    const fetchBalance = async () => {
+      setIsFetchingBalance(true);
+      try {
+        const res = await fetch("/api/balance");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && typeof data.balance === "number") {
+          setPollenBalance(data.balance);
+        }
+      } catch {
+        // silently fail — balance is cosmetic
+      } finally {
+        if (!cancelled) setIsFetchingBalance(false);
+      }
+    };
+    fetchBalance();
+    return () => { cancelled = true; };
+  }, [pollenUsed]); // re-fetch every time credits are spent
   const [targetDurationMinutes, setTargetDurationMinutes] = useState(() => loadSaved("targetDurationMinutes", 3));
   const [storyboardImages, setStoryboardImages] = useState<Record<number, string>>(() => loadSaved("storyboardImages", {}));
   const [referenceImages, setReferenceImages] = useState<Record<string, string[]>>(() => loadSaved("referenceImages", {}));
@@ -357,6 +383,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       musicEnabled, setMusicEnabled,
       captionsEnabled, setCaptionsEnabled,
       pollenUsed, setPollenUsed,
+      pollenBalance, isFetchingBalance,
       targetDurationMinutes, setTargetDurationMinutes,
       storyboardImages, setStoryboardImages,
       referenceImages, setReferenceImages,
