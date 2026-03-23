@@ -23,9 +23,9 @@ export default function Sidebar() {
       {/* Logo */}
       <button
         onClick={() => { router.push("/"); setMobileOpen(false); }}
-        className="w-11 h-11 rounded-full glass-elevated flex items-center justify-center mb-4 hover:scale-110 press-scale transition-all duration-300"
+        className="w-11 h-11 rounded-full bg-zinc-900 dark:bg-amber-500 flex items-center justify-center mb-4 hover:scale-110 press-scale transition-all duration-300 shadow-md"
       >
-        <span className="material-symbols-outlined text-white text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+        <span className="material-symbols-outlined text-amber-400 dark:text-zinc-900 text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
           play_arrow
         </span>
       </button>

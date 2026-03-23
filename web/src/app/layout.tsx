@@ -35,7 +35,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
       <body className={`${manrope.variable} ${inter.variable} min-h-screen flex bg-background text-on-surface antialiased transition-colors duration-300`}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           {/* Atmospheric gradient orbs */}
           <div className="atmosphere">
             <div className="orb-accent" />
