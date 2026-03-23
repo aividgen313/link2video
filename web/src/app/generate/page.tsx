@@ -69,7 +69,9 @@ export default function VideoGeneration() {
   const [stitchStatus, setStitchStatus] = useState<string>("");
   const [previewSceneId, setPreviewSceneId] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const progressHistoryRef = useRef<{ time: number; progress: number }[]>([]);
   const [hasMounted, setHasMounted] = useState(false);
   const [userStarted, setUserStarted] = useState(false);
   const ffmpegRef = useRef<FFmpeg | null>(null);
@@ -83,12 +85,49 @@ export default function VideoGeneration() {
   useEffect(() => {
     if (isGenerating && !finalVideoUrl) {
       setElapsedSeconds(0);
+      progressHistoryRef.current = [];
       timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
     } else if (timerRef.current) {
       clearInterval(timerRef.current);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isGenerating, finalVideoUrl]);
+
+  // ETA calculation based on progress rate
+  useEffect(() => {
+    if (!isGenerating || finalVideoUrl || progress <= 0) {
+      setEtaSeconds(null);
+      return;
+    }
+    // Record progress snapshots
+    const now = elapsedSeconds;
+    const history = progressHistoryRef.current;
+    if (history.length === 0 || history[history.length - 1].progress !== progress) {
+      history.push({ time: now, progress });
+      // Keep last 10 entries
+      if (history.length > 10) history.shift();
+    }
+    // Need at least 2 data points
+    if (history.length < 2 || progress >= 100) {
+      // Provide rough estimates based on scene count and tier
+      const scenes = scriptData?.scenes?.length || 5;
+      const hasAIVideo = tier.useAIVideo;
+      const roughTotal = hasAIVideo ? scenes * 35 + 60 : scenes * 8 + 30; // seconds
+      const remaining = Math.max(5, roughTotal - now);
+      setEtaSeconds(remaining);
+      return;
+    }
+    // Calculate rate from recent history
+    const oldest = history[0];
+    const latest = history[history.length - 1];
+    const timeDelta = latest.time - oldest.time;
+    const progressDelta = latest.progress - oldest.progress;
+    if (timeDelta > 0 && progressDelta > 0) {
+      const rate = progressDelta / timeDelta; // percent per second
+      const remaining = (100 - progress) / rate;
+      setEtaSeconds(Math.max(5, Math.round(remaining)));
+    }
+  }, [elapsedSeconds, progress, isGenerating, finalVideoUrl, scriptData?.scenes?.length, tier.useAIVideo]);
 
   useEffect(() => {
     ffmpegRef.current = new FFmpeg();
@@ -708,9 +747,16 @@ export default function VideoGeneration() {
                   <span className="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-tighter">{tier.label}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm text-outline tabular-nums">
-                    {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')}
-                  </span>
+                  <div className="text-right">
+                    <span className="font-mono text-sm text-outline tabular-nums block">
+                      {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')}
+                    </span>
+                    {etaSeconds != null && progress < 100 && progress > 0 && (
+                      <span className="font-mono text-[10px] text-primary/70 tabular-nums block">
+                        ~{etaSeconds >= 60 ? `${Math.floor(etaSeconds / 60)}m ${etaSeconds % 60}s` : `${etaSeconds}s`} left
+                      </span>
+                    )}
+                  </div>
                   <span className="font-headline text-2xl font-bold">{progress}%</span>
                 </div>
               </div>
@@ -750,7 +796,7 @@ export default function VideoGeneration() {
                     </div>
 
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="flex flex-col items-center gap-4 text-center">
+                      <div className="flex flex-col items-center gap-4 text-center max-w-xs">
                         <div className="relative">
                           <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
                           <span className="material-symbols-outlined absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary">auto_fix_high</span>
@@ -760,11 +806,19 @@ export default function VideoGeneration() {
                             const activeStatus = scriptData?.scenes[activeSceneIndex]
                               ? sceneStatuses[scriptData.scenes[activeSceneIndex].id]
                               : undefined;
-                            if (activeStatus?.phase === "image") return `Generating image for scene ${activeSceneIndex + 1}...`;
-                            if (activeStatus?.phase === "video") return `Creating video for scene ${activeSceneIndex + 1}...`;
-                            return `Processing scene ${activeSceneIndex + 1}...`;
+                            if (activeStatus?.phase === "image") return `Generating image for scene ${activeSceneIndex + 1}/${scriptData?.scenes.length}...`;
+                            if (activeStatus?.phase === "video") return `Creating AI video for scene ${activeSceneIndex + 1}/${scriptData?.scenes.length}...`;
+                            return `Processing scene ${activeSceneIndex + 1}/${scriptData?.scenes.length}...`;
                           })()}
                         </p>
+                        {etaSeconds != null && progress < 100 && progress > 0 && (
+                          <div className="bg-black/60 backdrop-blur-sm rounded-full px-4 py-1.5 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-primary text-sm">timer</span>
+                            <span className="text-white/90 text-xs font-mono tabular-nums">
+                              {etaSeconds >= 60 ? `~${Math.floor(etaSeconds / 60)}m ${etaSeconds % 60}s remaining` : `~${etaSeconds}s remaining`}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </>

@@ -33,6 +33,8 @@ export default function ScriptBuilder() {
   const [activeScene, setActiveScene] = useState<Scene | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isExtending, setIsExtending] = useState(false);
+  const [loadingElapsed, setLoadingElapsed] = useState(0);
+  const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
   // Track which scenes are currently generating images
   const [generatingImages, setGeneratingImages] = useState<Record<number, boolean>>({});
   // Track per-scene image generation errors
@@ -43,6 +45,17 @@ export default function ScriptBuilder() {
   useEffect(() => {
     setHasMounted(true);
   }, []);
+
+  // Loading timer for ETA
+  useEffect(() => {
+    if (isLoading && !scriptData) {
+      setLoadingElapsed(0);
+      loadingTimerRef.current = setInterval(() => setLoadingElapsed(s => s + 1), 1000);
+    } else {
+      if (loadingTimerRef.current) clearInterval(loadingTimerRef.current);
+    }
+    return () => { if (loadingTimerRef.current) clearInterval(loadingTimerRef.current); };
+  }, [isLoading, scriptData]);
 
   // Redirect if no input data
   useEffect(() => {
@@ -208,7 +221,8 @@ export default function ScriptBuilder() {
         const res = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody)
+          body: JSON.stringify(requestBody),
+          signal: AbortSignal.timeout(90000), // 90s max — fail rather than hang forever
         });
         if (!res.ok) throw new Error(`Script generation failed (HTTP ${res.status})`);
         const data = await res.json();
@@ -224,9 +238,13 @@ export default function ScriptBuilder() {
           // Search for reference images of key subjects in the background
           searchReferenceImages(data);
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error(e);
-        setErrorMessage("Failed to generate script. Check your internet connection and try again.");
+        if (e?.name === "TimeoutError" || e?.message?.includes("timeout") || e?.message?.includes("abort")) {
+          setErrorMessage("Script generation timed out — the AI servers may be busy. Please try again.");
+        } else {
+          setErrorMessage("Failed to generate script. Check your internet connection and try again.");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -382,11 +400,43 @@ export default function ScriptBuilder() {
         </div>
       )}
 
-      {/* Loading State */}
+      {/* Loading State with ETA */}
       {isLoading && !scriptData && (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
-          <p className="font-headline font-bold text-xl animate-pulse">Generating Script...</p>
+        <div className="flex flex-col items-center justify-center py-20 gap-5">
+          <div className="relative">
+            <div className="w-20 h-20 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+            <span className="material-symbols-outlined absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary text-2xl">auto_fix_high</span>
+          </div>
+          <div className="text-center space-y-2">
+            <p className="font-headline font-bold text-xl">Generating Script...</p>
+            <p className="text-sm text-outline">
+              {loadingElapsed < 5
+                ? "Connecting to AI model..."
+                : loadingElapsed < 15
+                ? "AI is writing your scenes..."
+                : loadingElapsed < 30
+                ? "Crafting narrations and visual prompts..."
+                : loadingElapsed < 60
+                ? "Almost there — finalizing script..."
+                : "Taking longer than usual — trying backup model..."}
+            </p>
+            <div className="flex items-center justify-center gap-3 mt-3">
+              <span className="font-mono text-sm text-outline tabular-nums">
+                {Math.floor(loadingElapsed / 60)}:{String(loadingElapsed % 60).padStart(2, '0')}
+              </span>
+              <span className="text-xs text-outline/60">•</span>
+              <span className="text-xs text-outline/60">
+                ETA ~{loadingElapsed < 10 ? "20-30s" : loadingElapsed < 25 ? `${Math.max(5, 30 - loadingElapsed)}s` : loadingElapsed < 60 ? "10-20s" : "15-30s"}
+              </span>
+            </div>
+            {/* Progress bar */}
+            <div className="w-64 mx-auto h-1.5 bg-surface-container-highest rounded-full overflow-hidden mt-2">
+              <div
+                className="h-full bg-gradient-to-r from-primary to-primary-container rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${Math.min(95, loadingElapsed < 5 ? 5 : loadingElapsed < 15 ? 30 : loadingElapsed < 30 ? 60 : loadingElapsed < 60 ? 80 : 90)}%` }}
+              />
+            </div>
+          </div>
         </div>
       )}
 

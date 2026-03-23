@@ -14,9 +14,12 @@ export async function generateGeminiText(prompt: string, _model?: string): Promi
 async function generateViaPollinationsWithRetry(prompt: string): Promise<string> {
   let lastError: Error = new Error("Unknown error");
 
-  for (let i = 0; i < POLLINATIONS_FREE_MODELS.length; i++) {
-    const model = POLLINATIONS_FREE_MODELS[i];
-    console.log(`Pollinations text attempt ${i + 1}/${POLLINATIONS_FREE_MODELS.length} with model: ${model}`);
+  // Try max 3 models to avoid long waits (5 models × 60s = 5min is too long)
+  const modelsToTry = POLLINATIONS_FREE_MODELS.slice(0, 3);
+
+  for (let i = 0; i < modelsToTry.length; i++) {
+    const model = modelsToTry[i];
+    console.log(`Pollinations text attempt ${i + 1}/${modelsToTry.length} with model: ${model}`);
 
     try {
       return await callPollinationsChat(prompt, model);
@@ -34,9 +37,9 @@ async function generateViaPollinationsWithRetry(prompt: string): Promise<string>
           console.warn(`Free fallback for ${model} failed: ${fallbackErr.message}`);
         }
       } else if (msg.includes("429")) {
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 2000));
       } else if (msg.includes("502") || msg.includes("503") || msg.includes("504")) {
-        await new Promise(r => setTimeout(r, 5000));
+        await new Promise(r => setTimeout(r, 3000));
       }
       continue;
     }
@@ -66,7 +69,7 @@ async function callPollinationsChat(prompt: string, model: string, omitApiKey: b
       max_tokens: maxTokens,
       seed: Math.floor(Math.random() * 100000),
     }),
-    signal: AbortSignal.timeout(120000),
+    signal: AbortSignal.timeout(45000), // 45s per model — fail fast, try next
   });
 
   if (!response.ok) {

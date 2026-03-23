@@ -19,6 +19,8 @@ export default function StoryAngleGenerator() {
   const [hasMounted, setHasMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [loadingElapsed, setLoadingElapsed] = useState(0);
+  const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // No longer auto-redirect — show empty state instead (see below)
 
@@ -32,6 +34,8 @@ export default function StoryAngleGenerator() {
     abortRef.current = controller;
 
     setIsLoading(true);
+    setLoadingElapsed(0);
+    loadingTimerRef.current = setInterval(() => setLoadingElapsed(s => s + 1), 1000);
     try {
       const isRunware = globalScriptModel.startsWith("runware:");
       const provider = isRunware ? "runware" : "gemini";
@@ -69,6 +73,7 @@ export default function StoryAngleGenerator() {
       setErrorMessage("Network error: Unable to connect to the server.");
     } finally {
       setIsLoading(false);
+      if (loadingTimerRef.current) clearInterval(loadingTimerRef.current);
     }
   };
 
@@ -162,11 +167,31 @@ export default function StoryAngleGenerator() {
           </div>
         )}
 
-        {/* Loading State */}
+        {/* Loading State with ETA */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
-            <p className="font-headline font-bold text-xl animate-pulse">Brainstorming Angles...</p>
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="relative">
+              <div className="w-20 h-20 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+              <span className="material-symbols-outlined absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary text-2xl">psychology</span>
+            </div>
+            <div className="text-center space-y-2">
+              <p className="font-headline font-bold text-xl">Brainstorming Angles...</p>
+              <p className="text-sm text-outline">
+                {loadingElapsed < 5 ? "Analyzing your topic..." : loadingElapsed < 15 ? "AI is crafting unique story angles..." : "Almost ready..."}
+              </p>
+              <div className="flex items-center justify-center gap-3 mt-2">
+                <span className="font-mono text-sm text-outline tabular-nums">
+                  {Math.floor(loadingElapsed / 60)}:{String(loadingElapsed % 60).padStart(2, '0')}
+                </span>
+                <span className="text-xs text-outline/60">•</span>
+                <span className="text-xs text-outline/60">
+                  ETA ~{loadingElapsed < 5 ? "10-15s" : Math.max(3, 15 - loadingElapsed) + "s"}
+                </span>
+              </div>
+              <div className="w-48 mx-auto h-1 bg-surface-container-highest rounded-full overflow-hidden mt-2">
+                <div className="h-full bg-gradient-to-r from-primary to-primary-container rounded-full transition-all duration-1000" style={{ width: `${Math.min(95, loadingElapsed * 6)}%` }} />
+              </div>
+            </div>
           </div>
         ) : !errorMessage && (
           <div className="grid grid-cols-12 gap-8 mb-20">
