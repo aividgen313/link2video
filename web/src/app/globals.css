@@ -163,7 +163,7 @@
    ═══════════════════════════════════════════════════════════ */
 
 body {
-  background-color: var(--color-background);
+  background-color: var(--background);
   color: var(--color-on-background);
   font-family: var(--font-body);
 }
@@ -174,8 +174,7 @@ body {
 
 /* ═══════════════════════════════════════════════════════════
    ANIMATED ATMOSPHERIC BACKGROUND
-   A vivid, slow-moving mesh gradient behind all content
-   to make the frosted glass pop.
+   Rich, vivid orbs — glass is only beautiful over a lively bg
    ═══════════════════════════════════════════════════════════ */
 
 .atmosphere {
@@ -184,55 +183,59 @@ body {
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  background-color: #0c0914; /* Deep, dark spatial background */
-  /* Frosted noise texture to add realism */
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
 }
 
+/* Root orbs as pseudo-elements */
 .atmosphere::before,
-.atmosphere::after,
-.atmosphere .orb-accent {
+.atmosphere::after {
   content: "";
   position: absolute;
   border-radius: 50%;
-  filter: blur(140px);
-  opacity: 0.6;
-  animation: float-orb 30s ease-in-out infinite alternate;
+  will-change: transform;
+  animation: float-orb 28s ease-in-out infinite alternate;
+}
+
+/* Top-right — purple */
+.atmosphere::before {
+  width: 80vw;
+  height: 80vh;
+  top: -20%;
+  right: -15%;
+  background: radial-gradient(circle, hsla(262, 83%, 58%, 0.55) 0%, transparent 65%);
+  filter: blur(100px);
+}
+
+/* Bottom-left — pink */
+.atmosphere::after {
+  width: 70vw;
+  height: 70vh;
+  bottom: -25%;
+  left: -10%;
+  background: radial-gradient(circle, hsla(328, 86%, 52%, 0.45) 0%, transparent 65%);
+  filter: blur(100px);
+  animation-delay: -14s;
+  animation-duration: 36s;
+}
+
+/* Mid — cyan */
+.atmosphere .orb-accent {
+  position: absolute;
+  width: 60vw;
+  height: 60vh;
+  top: 25%;
+  left: 15%;
+  border-radius: 50%;
+  background: radial-gradient(circle, hsla(199, 89%, 48%, 0.35) 0%, transparent 65%);
+  filter: blur(90px);
+  animation: float-orb 22s ease-in-out infinite alternate-reverse;
+  animation-delay: -7s;
   will-change: transform;
 }
 
-.atmosphere::before {
-  width: 120vw;
-  height: 120vh;
-  top: -20%;
-  right: -20%;
-  background: radial-gradient(circle, rgba(124, 58, 237, 0.45) 0%, transparent 60%);
-}
-
-.atmosphere::after {
-  width: 100vw;
-  height: 100vh;
-  bottom: -30%;
-  left: -20%;
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.35) 0%, transparent 60%);
-  animation-delay: -15s;
-  animation-duration: 40s;
-}
-
-.atmosphere .orb-accent {
-  width: 80vw;
-  height: 80vh;
-  top: 30%;
-  left: 10%;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.4) 0%, transparent 70%);
-  animation: float-orb 25s ease-in-out infinite alternate-reverse;
-  animation-delay: -5s;
-}
-
 @keyframes float-orb {
-  0%   { transform: translate(0, 0) scale(1.1); }
-  50%  { transform: translate(-3vw, 4vh) scale(0.95); }
-  100% { transform: translate(5vw, -3vh) scale(1.05); }
+  0%   { transform: translate(0, 0) scale(1.05); }
+  50%  { transform: translate(-3vw, 5vh) scale(0.95); }
+  100% { transform: translate(4vw, -3vh) scale(1.08); }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -251,101 +254,93 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   GLASSMORPHISM  — Vision Pro Style Spatial Depth
-   Level 0: .glass-subtle    → almost transparent backdrop
-   Level 1: .glass / .glass-card → heavy blur, floating panel
-   Level 2: .glass-elevated  → highly active/focused, brighter edge
+   GLASSMORPHISM — Vision Pro spatial panels
+   These look great when background has vivid orbs behind them.
+   Key: enough fill opacity so text is readable, but still frosted.
    ═══════════════════════════════════════════════════════════ */
 
-/* Level 0 — Subtle */
+/* Level 0 — Subtle, barely-there accent */
 .glass-subtle {
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
 }
 
-/* Level 1 — Standard Floating Panel */
+/* Level 1 — Standard floating panel */
 .glass {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(48px) saturate(160%);
+  -webkit-backdrop-filter: blur(48px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.20),
+    0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* Level 2 — Card (primary content surface) */
+.glass-card {
+  background: rgba(20, 20, 35, 0.55);
   backdrop-filter: blur(64px) saturate(180%);
   -webkit-backdrop-filter: blur(64px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 
-    inset 0 1px 1px rgba(255, 255, 255, 0.25),
-    0 12px 32px rgba(0, 0, 0, 0.2);
-}
-
-.glass-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
-  backdrop-filter: blur(80px) saturate(200%);
-  -webkit-backdrop-filter: blur(80px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-top-color: rgba(255, 255, 255, 0.25);
-  box-shadow: 
-    inset 1px 1px 2px rgba(255, 255, 255, 0.3), 
-    0 16px 40px rgba(0, 0, 0, 0.3);
-  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-  border-radius: 32px; /* Vision Pro large radii */
+  border-top-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 20px 60px rgba(0, 0, 0, 0.45);
+  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .glass-card:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
-  border-top-color: rgba(255, 255, 255, 0.35);
-  box-shadow: 
-    inset 1px 1px 3px rgba(255, 255, 255, 0.4), 
-    0 24px 56px rgba(0, 0, 0, 0.4);
-  transform: translateY(-2px) scale(1.01);
+  background: rgba(25, 25, 45, 0.65);
+  border-top-color: rgba(255, 255, 255, 0.30);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 28px 80px rgba(0, 0, 0, 0.55);
+  transform: translateY(-2px);
 }
 
-/* Level 2 — Elevated (active/focused) */
+/* Level 3 — Elevated (active/selected) */
 .glass-elevated {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
-  backdrop-filter: blur(96px) saturate(220%);
-  -webkit-backdrop-filter: blur(96px) saturate(220%);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-top-color: rgba(255, 255, 255, 0.4);
-  box-shadow:
-    inset 1px 1px 2px rgba(255, 255, 255, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 24px 64px rgba(0, 0, 0, 0.5);
-  border-radius: 32px;
-}
-
-/* Base Light mode glass overrides (keeping support just in case, but styled for spatial) */
-:root .glass-subtle {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.5);
-}
-:root .glass {
-  background: rgba(255, 255, 255, 0.4);
-  border-color: rgba(255, 255, 255, 0.6);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 12px 32px rgba(0, 0, 0, 0.05);
-}
-:root .glass-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 100%);
-  border-color: rgba(255, 255, 255, 0.8);
-  box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 1), 0 16px 40px rgba(0, 0, 0, 0.08);
-}
-:root .glass-card:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.5) 100%);
-  border-color: rgba(255, 255, 255, 0.9);
-  box-shadow: inset 1px 1px 3px rgba(255, 255, 255, 1), 0 24px 56px rgba(0, 0, 0, 0.12);
-}
-:root .glass-elevated {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%);
-  border-color: rgba(255, 255, 255, 1);
-  box-shadow:
-    inset 1px 1px 2px rgba(255, 255, 255, 1),
-    0 24px 64px rgba(0, 0, 0, 0.15);
-}
-
-/* Old hover class (keep for backward compat) */
-.glass-card-hover:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(48px) saturate(180%);
+  -webkit-backdrop-filter: blur(48px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.20);
   border-top-color: rgba(255, 255, 255, 0.35);
-  box-shadow: inset 1px 1px 3px rgba(255, 255, 255, 0.4), 0 24px 56px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+/* Light mode — increase panel fill so text is still readable */
+:root:not(.dark) .glass-subtle {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+:root:not(.dark) .glass {
+  background: rgba(255, 255, 255, 0.45);
+  border-color: rgba(255, 255, 255, 0.65);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+:root:not(.dark) .glass-card {
+  background: rgba(255, 255, 255, 0.60);
+  border-color: rgba(255, 255, 255, 0.80);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 20px 60px rgba(0, 0, 0, 0.08);
+}
+:root:not(.dark) .glass-card:hover {
+  background: rgba(255, 255, 255, 0.70);
+  border-top-color: rgba(255, 255, 255, 0.95);
+}
+:root:not(.dark) .glass-elevated {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 8px 32px rgba(66, 30, 180, 0.10);
+}
+
+/* Backward compat */
+.glass-card-hover:hover {
+  background: rgba(25, 25, 45, 0.65);
+  border-top-color: rgba(255, 255, 255, 0.30);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -500,50 +495,38 @@ body {
 
 /* Sidebar island */
 .sidebar-island {
-  margin: 24px;
-  border-radius: 40px; /* Vision Pro large pill shape */
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(80px) saturate(200%);
-  -webkit-backdrop-filter: blur(80px) saturate(200%);
+  margin: 20px;
+  border-radius: 36px;
+  background: rgba(20, 20, 35, 0.50);
+  backdrop-filter: blur(64px) saturate(180%);
+  -webkit-backdrop-filter: blur(64px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-top-color: rgba(255, 255, 255, 0.25);
-  box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.3), 0 24px 64px rgba(0, 0, 0, 0.4);
+  border-top-color: rgba(255, 255, 255, 0.20);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 24px 64px rgba(0, 0, 0, 0.45);
 }
 
-:root .sidebar-island {
-  background: rgba(255, 255, 255, 0.5);
-  border-color: rgba(255, 255, 255, 0.8);
-  box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 1), 0 24px 64px rgba(0, 0, 0, 0.1);
-}
-
-.dark .sidebar-island {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.2), 0 24px 64px rgba(0, 0, 0, 0.5);
+:root:not(.dark) .sidebar-island {
+  background: rgba(255, 255, 255, 0.60);
+  border-color: rgba(255, 255, 255, 0.80);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 24px 64px rgba(0, 0, 0, 0.08);
 }
 
 /* TopNav island */
 .topnav-island {
-  margin: 24px 24px 0 0;
-  border-radius: 40px; /* Deep pill shape */
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(80px) saturate(200%);
-  -webkit-backdrop-filter: blur(80px) saturate(200%);
+  margin: 20px 20px 0 0;
+  border-radius: 36px;
+  background: rgba(20, 20, 35, 0.50);
+  backdrop-filter: blur(64px) saturate(180%);
+  -webkit-backdrop-filter: blur(64px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-top-color: rgba(255, 255, 255, 0.25);
-  box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.3), 0 16px 40px rgba(0, 0, 0, 0.3);
+  border-top-color: rgba(255, 255, 255, 0.20);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 16px 40px rgba(0, 0, 0, 0.35);
 }
 
-:root .topnav-island {
-  background: rgba(255, 255, 255, 0.5);
-  border-color: rgba(255, 255, 255, 0.8);
-  box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 1), 0 16px 40px rgba(0, 0, 0, 0.08);
-}
-
-.dark .topnav-island {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.12);
+:root:not(.dark) .topnav-island {
+  background: rgba(255, 255, 255, 0.60);
+  border-color: rgba(255, 255, 255, 0.80);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 16px 40px rgba(0, 0, 0, 0.06);
 }
 
 /* ═══════════════════════════════════════════════════════════
