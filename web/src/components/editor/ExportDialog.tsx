@@ -20,16 +20,32 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
   const preset = QUALITY_PRESETS[quality];
 
   const estimateTime = () => {
+    const videoScenes = visibleScenes.filter(s => s.trackId === "v1");
     const secondsPerScene = quality === "draft" ? 3 : quality === "standard" ? 6 : 10;
-    const totalSec = visibleScenes.length * secondsPerScene + 10;
+    const totalSec = videoScenes.length * secondsPerScene + 10;
     const min = Math.floor(totalSec / 60);
     const sec = totalSec % 60;
     return min > 0 ? `~${min}m ${sec}s` : `~${sec}s`;
   };
 
   const handleStartExport = () => {
+    // Re-combine V1 and A1 tracks based on their orderIndex on the timeline
+    // This allows FFmpeg to process them as a single scene chunk 
+    const videoScenes = visibleScenes.filter(s => s.trackId === "v1").sort((a, b) => a.orderIndex - b.orderIndex);
+    const audioScenes = visibleScenes.filter(s => s.trackId === "a1");
+    
+    const muxedScenes = videoScenes.map(vScene => {
+      const matchingAudio = audioScenes.find(a => a.orderIndex === vScene.orderIndex);
+      return {
+        ...vScene,
+        audioUrl: matchingAudio ? matchingAudio.audioUrl : null,
+        volume: matchingAudio && !matchingAudio.isMuted ? matchingAudio.volume : 0,
+        isMuted: matchingAudio ? matchingAudio.isMuted : true
+      };
+    });
+
     exportManager.startExport({
-      scenes: visibleScenes,
+      scenes: muxedScenes,
       musicTrack,
       videoDimension,
       quality,
