@@ -174,8 +174,8 @@ interface AppContextType {
   setMusicEnabled: (enabled: boolean) => void;
   captionsEnabled: boolean;
   setCaptionsEnabled: (enabled: boolean) => void;
-  creditsUsed: number;
-  setCreditsUsed: (credits: number) => void;
+  pollenUsed: number;
+  setPollenUsed: (pollen: number) => void;
   targetDurationMinutes: number;
   setTargetDurationMinutes: (min: number) => void;
   storyboardImages: Record<number, string>;
@@ -252,7 +252,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedVoice, setSelectedVoice] = useState(() => loadSaved("selectedVoice", "adam"));
   const [musicEnabled, setMusicEnabled] = useState(() => loadSaved("musicEnabled", false));
   const [captionsEnabled, setCaptionsEnabled] = useState(() => loadSaved("captionsEnabled", false));
-  const [creditsUsed, setCreditsUsed] = useState(0);
+  const [pollenUsed, setPollenUsed] = useState(0);
   const [targetDurationMinutes, setTargetDurationMinutes] = useState(() => loadSaved("targetDurationMinutes", 3));
   const [storyboardImages, setStoryboardImages] = useState<Record<number, string>>(() => loadSaved("storyboardImages", {}));
   const [referenceImages, setReferenceImages] = useState<Record<string, string[]>>(() => loadSaved("referenceImages", {}));
@@ -332,7 +332,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       selectedVoice, setSelectedVoice,
       musicEnabled, setMusicEnabled,
       captionsEnabled, setCaptionsEnabled,
-      creditsUsed, setCreditsUsed,
+      pollenUsed, setPollenUsed,
       targetDurationMinutes, setTargetDurationMinutes,
       storyboardImages, setStoryboardImages,
       referenceImages, setReferenceImages,

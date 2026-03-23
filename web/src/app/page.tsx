@@ -8,6 +8,8 @@ const DURATION_PRESETS = [
   { label: "3 min", value: 3 },
   { label: "5 min", value: 5 },
   { label: "10 min", value: 10 },
+  { label: "12 min", value: 12 },
+  { label: "15 min", value: 15 },
   { label: "30 min", value: 30 },
   { label: "60 min", value: 60 },
   { label: "120 min", value: 120 },
@@ -122,7 +124,7 @@ export default function Home() {
     musicEnabled, setMusicEnabled,
     captionsEnabled, setCaptionsEnabled,
     targetDurationMinutes, setTargetDurationMinutes,
-    creditsUsed,
+    pollenUsed,
     storyText, setStoryText,
     characterProfiles, setCharacterProfiles,
     audioFile, setAudioFile,
@@ -1122,12 +1124,12 @@ export default function Home() {
             </div>
 
             {/* Credits tracker */}
-            {creditsUsed > 0 && (
+            {pollenUsed > 0 && (
               <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-container-lowest/50 border border-outline-variant/10">
-                <span className="material-symbols-outlined text-primary text-lg">account_balance_wallet</span>
+                <span className="material-symbols-outlined text-primary text-lg">eco</span>
                 <div>
-                  <p className="text-xs text-outline font-label uppercase tracking-widest">Credits Used This Session</p>
-                  <p className="font-bold text-on-surface">${creditsUsed.toFixed(4)}</p>
+                  <p className="text-xs text-outline font-label uppercase tracking-widest">Pollen Used This Session</p>
+                  <p className="font-bold text-on-surface">{pollenUsed.toFixed(4)} ⚘</p>
                 </div>
               </div>
             )}

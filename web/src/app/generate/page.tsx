@@ -44,7 +44,7 @@ export default function VideoGeneration() {
     selectedVoice,
     musicEnabled,
     captionsEnabled,
-    creditsUsed, setCreditsUsed,
+    pollenUsed, setPollenUsed,
     storyboardImages,
     referenceImages,
     url,
@@ -557,8 +557,8 @@ export default function VideoGeneration() {
           setProgress(100);
 
           // Track credits
-          const creditsForThis = tier.usdPerScene * sceneAssets.length;
-          setCreditsUsed(creditsUsed + creditsForThis);
+          const creditsForThis = (tier.pollenPerScene || tier.usdPerScene) * sceneAssets.length;
+          setPollenUsed(pollenUsed + creditsForThis);
 
           // Update draft history entry with final stats (reuse same ID so it overwrites)
           const totalSecs = sceneAssets.reduce((sum, a) => sum + (a.duration || 8), 0);

@@ -280,7 +280,7 @@ function TextToolPanel({ onClose }: { onClose: () => void }) {
 
 function EditorInner() {
   const router = useRouter();
-  const { scriptData, creditsUsed, qualityTier } = useAppContext();
+  const { scriptData, pollenUsed, qualityTier } = useAppContext();
   const {
     scenes, isInitialized, selectedScene, selectedSceneId, setSelectedSceneId,
     undo, redo, canUndo, canRedo,
@@ -606,15 +606,15 @@ function EditorInner() {
         <div className="flex items-center gap-2 pr-2">
           {/* Credits indicator */}
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg" style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", border: `1px solid ${C.border}` }}
-            title={`Quality: ${qualityTier.charAt(0).toUpperCase() + qualityTier.slice(1)} · Credits used: $${creditsUsed.toFixed(4)}`}
+            title={`Quality: ${qualityTier.charAt(0).toUpperCase() + qualityTier.slice(1)} · Est. Pollen: ${pollenUsed.toFixed(4)}`}
           >
-            <span className="material-symbols-outlined text-[14px]" style={{ color: creditsUsed > 0 ? C.warn : C.success, fontVariationSettings: "'FILL' 1" }}>
-              {creditsUsed > 0 ? "toll" : "stars"}
+            <span className="material-symbols-outlined text-[14px]" style={{ color: pollenUsed > 0 ? C.warn : C.success, fontVariationSettings: "'FILL' 1" }}>
+              {pollenUsed > 0 ? "eco" : "stars"}
             </span>
             <div className="flex flex-col leading-none">
-              <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: C.textMuted }}>Credits</span>
-              <span className="text-[11px] font-bold tabular-nums" style={{ color: creditsUsed > 0 ? C.text : C.success }}>
-                {creditsUsed > 0 ? `$${creditsUsed.toFixed(2)}` : "Free"}
+              <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: C.textMuted }}>Est. Pollen</span>
+              <span className="text-[11px] font-bold tabular-nums" style={{ color: pollenUsed > 0 ? C.text : C.success }}>
+                {pollenUsed > 0 ? `${pollenUsed.toFixed(2)} ⚘` : "Free"}
               </span>
             </div>
             <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase" style={{
