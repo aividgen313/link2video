@@ -85,17 +85,18 @@ export const VOICES = [
 export const QUALITY_TIERS = {
   basic: {
     label: "Basic",
-    description: "Low Cost — Pollinations Text + Images + Ken Burns",
-    usdPerScene: 0.00112,
-    usdBreakdown: "Free (Pollinations)",
-    pollenPerScene: 0.00112,
-    pollenPerSceneBreakdown: "1 image (0.00012) + 1 TTS (0.001)",
-    pollenFixed: 0.001, // text gen only, no music for basic
+    description: "Free — Pollinations Text + Images + Ken Burns + Edge TTS",
+    // Basic is FREE: Edge TTS (free) + Pollinations images (free tier) + Ken Burns (client-side)
+    // Only cost is text generation (negligible) and images
+    pollenPerImageScene: 0.00012, // 1 image per scene
+    pollenPerTTS: 0,              // Edge TTS is free
+    pollenPerVideoScene: 0,       // Ken Burns is client-side, free
+    pollenFixed: 0.0009,          // 1 text generation call
     color: "text-emerald-400",
     bgColor: "bg-emerald-400/10",
     borderColor: "border-emerald-400/20",
     useAIVideo: false,
-    videoSceneStrategy: "none" as const, // no AI video
+    videoSceneStrategy: "none" as const,
     usePollsTTS: false, // Edge TTS (free)
     imageModel: "pollinations",
     textModel: "pollinations",
@@ -103,17 +104,17 @@ export const QUALITY_TIERS = {
   medium: {
     label: "Medium",
     description: "Pollinations Text + Images + Alternating AI Video & Ken Burns",
-    usdPerScene: 0.20112,
-    usdBreakdown: "3 AI video → 3 Ken Burns → repeating",
-    pollenPerScene: 0.20112,
-    pollenPerSceneBreakdown: "1 image (0.00012) + 1 TTS (0.001) + ~50% AI video (0.20)",
-    pollenFixed: 0.002, // text gen + music
+    // Per-scene costs (applied individually based on whether scene gets AI video or not)
+    pollenPerImageScene: 0.00012, // 1 image per scene
+    pollenPerTTS: 0.001,          // ElevenLabs TTS per scene
+    pollenPerVideoScene: 0.40,    // AI video cost (only for video scenes, ~8s × $0.05/s)
+    pollenFixed: 0.002,           // text gen + music gen
     color: "text-primary",
     bgColor: "bg-primary/10",
     borderColor: "border-primary/20",
     useAIVideo: true,
     videoSceneStrategy: "alternating" as const, // 3 AI video, 3 Ken Burns, repeating
-    alternatingGroupSize: 3, // group size for alternating pattern
+    alternatingGroupSize: 3,
     usePollsTTS: true,
     imageModel: "pollinations",
     textModel: "pollinations",
@@ -121,21 +122,44 @@ export const QUALITY_TIERS = {
   pro: {
     label: "Pro",
     description: "Pollinations Text + Images + AI Video (all scenes)",
-    usdPerScene: 0.40112,
-    usdBreakdown: "Pollinations credits for all video scenes",
-    pollenPerScene: 0.40112,
-    pollenPerSceneBreakdown: "1 image (0.00012) + 1 TTS (0.001) + AI video (0.40)",
-    pollenFixed: 0.002, // text gen + music
+    pollenPerImageScene: 0.00012, // 1 image per scene
+    pollenPerTTS: 0.001,          // ElevenLabs TTS per scene
+    pollenPerVideoScene: 0.40,    // AI video cost per scene (~8s × $0.05/s)
+    pollenFixed: 0.002,           // text gen + music gen
     color: "text-tertiary",
     bgColor: "bg-tertiary/10",
     borderColor: "border-tertiary/20",
     useAIVideo: true,
-    videoSceneStrategy: "all" as const, // every scene gets AI video
+    videoSceneStrategy: "all" as const,
     usePollsTTS: true,
     imageModel: "pollinations",
     textModel: "pollinations",
   },
 };
+
+// Helper: calculate accurate total cost for a given tier and scene count
+export function calculateTotalCost(tierKey: QualityTier, sceneCount: number, musicEnabled: boolean = false): number {
+  const tier = QUALITY_TIERS[tierKey];
+  const imageCost = tier.pollenPerImageScene * sceneCount;
+  const ttsCost = tier.pollenPerTTS * sceneCount;
+
+  // Calculate how many scenes get AI video
+  let videoSceneCount = 0;
+  if (tier.useAIVideo) {
+    if (tier.videoSceneStrategy === "all") {
+      videoSceneCount = sceneCount;
+    } else if (tier.videoSceneStrategy === "alternating") {
+      const groupSize = (tier as any).alternatingGroupSize || 3;
+      for (let i = 0; i < sceneCount; i++) {
+        if (Math.floor(i / groupSize) % 2 === 0) videoSceneCount++;
+      }
+    }
+  }
+  const videoCost = tier.pollenPerVideoScene * videoSceneCount;
+  const musicCost = musicEnabled ? POLLEN_COSTS.musicGeneration : 0;
+
+  return tier.pollenFixed + imageCost + ttsCost + videoCost + musicCost;
+}
 
 // Pollinations pricing reference (1 pollen ≈ $1 USD)
 export const POLLEN_COSTS = {

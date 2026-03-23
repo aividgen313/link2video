@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useAppContext, VOICES, VIDEO_DIMENSIONS, QUALITY_TIERS, QualityTier, AppMode, CharacterProfile, POLLEN_COSTS } from "@/context/AppContext";
+import { useAppContext, VOICES, VIDEO_DIMENSIONS, QUALITY_TIERS, QualityTier, AppMode, CharacterProfile, POLLEN_COSTS, calculateTotalCost } from "@/context/AppContext";
 
 const DURATION_PRESETS = [
   { label: "1 min", value: 1 },
@@ -386,16 +386,17 @@ export default function Home() {
   // Estimate number of scenes based on duration (~7 scenes per minute)
   const estScenes = Math.max(1, Math.round(targetDurationMinutes * 7));
 
-  // Calculate pollen costs
-  const imageCostPollen = POLLEN_COSTS.imageGeneration * estScenes;
-  const ttsCostPollen = POLLEN_COSTS.ttsGeneration * estScenes;
-  const avgVideoDuration = POLLEN_COSTS.avgSceneDuration;
+  // Calculate pollen costs — single source of truth
+  const totalPollen = calculateTotalCost(qualityTier, estScenes, musicEnabled);
+  const tierDef = QUALITY_TIERS[qualityTier];
+  const imageCostPollen = tierDef.pollenPerImageScene * estScenes;
+  const ttsCostPollen = tierDef.pollenPerTTS * estScenes;
+  // Count video scenes using same logic as calculateTotalCost
   const videoScenesCount = qualityTier === "pro" ? estScenes
-    : qualityTier === "medium" ? Math.ceil(estScenes / 2)
+    : qualityTier === "medium" ? (() => { let c = 0; for (let i = 0; i < estScenes; i++) { if (Math.floor(i / 3) % 2 === 0) c++; } return c; })()
     : 0;
-  const videoCostPollen = videoScenesCount * avgVideoDuration * POLLEN_COSTS.videoPerSecond;
+  const videoCostPollen = tierDef.pollenPerVideoScene * videoScenesCount;
   const musicCostPollen = musicEnabled ? POLLEN_COSTS.musicGeneration : 0;
-  const totalPollen = POLLEN_COSTS.textGeneration + imageCostPollen + ttsCostPollen + videoCostPollen + musicCostPollen;
 
   const canGenerate = mode === "link" ? inputValue.trim().length > 0
     : mode === "short-story" ? storyText.trim().length > 0

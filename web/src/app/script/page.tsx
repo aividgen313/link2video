@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useAppContext, Scene, QUALITY_TIERS } from "@/context/AppContext";
+import { useAppContext, Scene, QUALITY_TIERS, calculateTotalCost } from "@/context/AppContext";
 
 export default function ScriptBuilder() {
   const router = useRouter();
@@ -68,7 +68,7 @@ export default function ScriptBuilder() {
 
   const tier = QUALITY_TIERS[qualityTier];
   const estimatedTotalCost = scriptData
-    ? (tier.usdPerScene * scriptData.scenes.length).toFixed(4)
+    ? calculateTotalCost(qualityTier, scriptData.scenes.length, musicEnabled).toFixed(4)
     : "0.00";
 
   // Generate image for a single scene

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useAppContext, Scene, QUALITY_TIERS, VIDEO_DIMENSIONS } from "@/context/AppContext";
+import { useAppContext, Scene, QUALITY_TIERS, VIDEO_DIMENSIONS, POLLEN_COSTS, calculateTotalCost } from "@/context/AppContext";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
 import { useRef } from "react";
@@ -598,8 +598,14 @@ export default function VideoGeneration() {
           setStitchStatus("");
           setProgress(100);
 
-          // Track credits
-          const creditsForThis = (tier.pollenPerScene || tier.usdPerScene) * sceneAssets.length;
+          // Track credits — use accurate per-operation calculation
+          const actualVideoScenes = sceneAssets.filter(a => a.aiVideoUrl).length;
+          const creditsForThis =
+            tier.pollenFixed +
+            (tier.pollenPerImageScene * sceneAssets.length) +
+            (tier.pollenPerTTS * sceneAssets.length) +
+            (tier.pollenPerVideoScene * actualVideoScenes) +
+            (resolvedMusicUrl ? POLLEN_COSTS.musicGeneration : 0);
           setPollenUsed(pollenUsed + creditsForThis);
 
           // Upload all assets to cloud storage (if configured)
@@ -883,12 +889,8 @@ export default function VideoGeneration() {
                     <p className="text-[10px] text-outline uppercase font-label tracking-widest">Est. Cost</p>
                     <p className="font-bold text-sm text-on-surface">{qualityTier === "basic" ? "FREE" : (() => {
                       const total = scriptData?.scenes.length || 0;
-                      const strat: string = tier.videoSceneStrategy;
-                      const vidScenes = strat === "all" ? total
-                        : strat === "alternating" ? Math.ceil(total / 2)
-                        : strat === "key_scenes" ? Math.min((tier as any).maxVideoScenes || 3, total) : 0;
-                      const cost = vidScenes * 0.40 + 0.01;
-                      return vidScenes > 0 ? `~$${cost.toFixed(2)}` : "~$0.01";
+                      const cost = calculateTotalCost(qualityTier, total, musicEnabled);
+                      return cost > 0.01 ? `~${cost.toFixed(4)} ⚘` : "~0.01 ⚘";
                     })()}</p>
                   </div>
                 </div>
