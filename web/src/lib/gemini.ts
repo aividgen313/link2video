@@ -28,8 +28,8 @@ async function generateViaPollinationsWithRetry(prompt: string): Promise<string>
       const msg = err.message || "";
       console.warn(`Model ${model} failed: ${msg}`);
 
-      if (msg.includes("402")) {
-        console.warn(`Insufficient balance detected (402). Retrying ${model} without API key...`);
+      if (msg.includes("401") || msg.includes("402")) {
+        console.warn(`Auth error (${msg.includes("401") ? "401" : "402"}) — retrying ${model} without API key...`);
         try {
           return await callPollinationsChat(prompt, model, true);
         } catch (fallbackErr: any) {

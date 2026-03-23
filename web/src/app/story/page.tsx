@@ -41,6 +41,8 @@ export default function StoryAngleGenerator() {
       const provider = isRunware ? "runware" : "gemini";
       const model = isRunware ? globalScriptModel.replace("runware:", "") : globalScriptModel;
 
+      // Create a combined signal: user abort + 60s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
       const res = await fetch("/api/angles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -52,6 +54,7 @@ export default function StoryAngleGenerator() {
         }),
         signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       if (!res.ok && res.status !== 402) {
         throw new Error(`Angle generation failed (HTTP ${res.status})`);
       }
@@ -68,9 +71,14 @@ export default function StoryAngleGenerator() {
         setAngles([]);
       }
     } catch (e: any) {
-      if (e?.name === "AbortError") return; // navigated away — ignore
-      console.error("Failed to fetch angles:", e);
-      setErrorMessage("Network error: Unable to connect to the server.");
+      if (e?.name === "AbortError") {
+        // Could be user navigation OR our 60s timeout
+        if (!controller.signal.aborted) return;
+        setErrorMessage("Angle generation timed out — the AI servers may be busy. Tap Retry to try again.");
+      } else {
+        console.error("Failed to fetch angles:", e);
+        setErrorMessage("Network error: Unable to connect to the server. Tap Retry to try again.");
+      }
     } finally {
       setIsLoading(false);
       if (loadingTimerRef.current) clearInterval(loadingTimerRef.current);
@@ -151,16 +159,24 @@ export default function StoryAngleGenerator() {
                 <div>
                   <h3 className="font-headline font-bold text-xl text-on-error-container mb-2">Unable to Generate Angles</h3>
                   <p className="text-on-error-container/80 mb-4">{errorMessage}</p>
-                  {errorMessage.includes('credits') && (
-                    <a
-                      href="https://runware.ai"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      onClick={() => { setErrorMessage(null); fetchAngles(); }}
                       className="inline-flex items-center gap-2 bg-error text-on-error px-4 py-2 rounded-xl font-medium hover:opacity-90 transition-opacity">
-                      <span className="material-symbols-outlined text-sm">account_balance_wallet</span>
-                      Add Credits on Runware
-                    </a>
-                  )}
+                      <span className="material-symbols-outlined text-sm">refresh</span>
+                      Retry
+                    </button>
+                    {errorMessage.includes('credits') && (
+                      <a
+                        href="https://runware.ai"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 bg-error text-on-error px-4 py-2 rounded-xl font-medium hover:opacity-90 transition-opacity">
+                        <span className="material-symbols-outlined text-sm">account_balance_wallet</span>
+                        Add Credits on Runware
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -177,19 +193,19 @@ export default function StoryAngleGenerator() {
             <div className="text-center space-y-2">
               <p className="font-headline font-bold text-xl">Brainstorming Angles...</p>
               <p className="text-sm text-outline">
-                {loadingElapsed < 5 ? "Analyzing your topic..." : loadingElapsed < 15 ? "AI is crafting unique story angles..." : "Almost ready..."}
+                {loadingElapsed < 3 ? "Connecting to AI model..." : loadingElapsed < 8 ? "Analyzing your topic..." : loadingElapsed < 18 ? "AI is crafting unique story angles..." : loadingElapsed < 35 ? "Polishing narrative options..." : loadingElapsed < 50 ? "Taking longer than usual — switching to backup model..." : "Almost there — finalizing..."}
               </p>
-              <div className="flex items-center justify-center gap-3 mt-2">
+              <div className="flex items-center justify-center gap-3 mt-3">
                 <span className="font-mono text-sm text-outline tabular-nums">
-                  {Math.floor(loadingElapsed / 60)}:{String(loadingElapsed % 60).padStart(2, '0')}
+                  {Math.floor(loadingElapsed / 60)}:{String(loadingElapsed % 60).padStart(2, '0')} elapsed
                 </span>
-                <span className="text-xs text-outline/60">•</span>
-                <span className="text-xs text-outline/60">
-                  ETA ~{loadingElapsed < 5 ? "10-15s" : Math.max(3, 15 - loadingElapsed) + "s"}
+                <span className="text-xs text-outline/60">|</span>
+                <span className="text-xs text-primary font-medium">
+                  {loadingElapsed < 3 ? "~15s remaining" : loadingElapsed < 15 ? `~${Math.max(5, 18 - loadingElapsed)}s remaining` : loadingElapsed < 30 ? `~${Math.max(5, 35 - loadingElapsed)}s remaining` : loadingElapsed < 50 ? `~${Math.max(5, 55 - loadingElapsed)}s remaining` : "finishing up..."}
                 </span>
               </div>
-              <div className="w-48 mx-auto h-1 bg-surface-container-highest rounded-full overflow-hidden mt-2">
-                <div className="h-full bg-gradient-to-r from-primary to-primary-container rounded-full transition-all duration-1000" style={{ width: `${Math.min(95, loadingElapsed * 6)}%` }} />
+              <div className="w-64 mx-auto h-1.5 bg-surface-container-highest rounded-full overflow-hidden mt-2">
+                <div className="h-full bg-gradient-to-r from-primary to-primary-container rounded-full transition-all duration-1000" style={{ width: `${Math.min(95, loadingElapsed < 3 ? 5 : loadingElapsed < 8 ? 20 : loadingElapsed < 18 ? 50 : loadingElapsed < 35 ? 75 : loadingElapsed < 50 ? 88 : 95)}%` }} />
               </div>
             </div>
           </div>

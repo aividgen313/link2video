@@ -193,18 +193,26 @@ export default function Home() {
     try {
       const state = await loadProjectState(v.id);
       if (state && state.scriptData) {
+        // Restore project state
         setScriptData(state.scriptData);
         setStoryboardImages(state.storyboardImages || {});
         setSceneAudioUrls(state.sceneAudioUrls || {});
         setSceneVideoUrls(state.sceneVideoUrls || {});
         setSceneDurations(state.sceneDurations || {});
         setFinalVideoUrl(state.finalVideoUrl || null);
+        // Restore quality tier and dimension from history metadata
+        if (v.quality) setQualityTier(v.quality);
+        if (v.dimensionId) {
+          const dim = VIDEO_DIMENSIONS.find(d => d.id === v.dimensionId);
+          if (dim) setVideoDimension(dim);
+        }
         router.push("/editor");
       } else {
-        setErrorMsg("Project media data not found. It may have been cleared or created on another device.");
+        setErrorMsg("Project data not found — it may have been cleared by browser storage. Try regenerating.");
       }
     } catch (e) {
-      setErrorMsg("Failed to open project data.");
+      console.error("Failed to open project:", e);
+      setErrorMsg("Failed to open project. Try refreshing the page.");
     }
   };
 
@@ -374,17 +382,8 @@ export default function Home() {
   };
 
   const tier = QUALITY_TIERS[qualityTier];
-  const sceneCount = Math.ceil(targetDurationMinutes * 60 / 8);
-  // Calculate video scene breakdown
-  const strat: string = tier.videoSceneStrategy;
-  const videoScenes = strat === "all" ? sceneCount
-    : strat === "alternating" ? Math.ceil(sceneCount / 2)
-    : strat === "key_scenes" ? Math.min((tier as any).maxVideoScenes || 3, sceneCount)
-    : 0;
-  const kenBurnsScenes = sceneCount - videoScenes;
-
-  // Estimate number of scenes based on duration (~7 scenes per minute)
-  const estScenes = Math.max(1, Math.round(targetDurationMinutes * 7));
+  // Estimate number of scenes: ~8s per scene = 7.5 scenes/min, rounded up
+  const estScenes = Math.max(1, Math.ceil(targetDurationMinutes * 60 / 8));
 
   // Calculate pollen costs — single source of truth
   const totalPollen = calculateTotalCost(qualityTier, estScenes, musicEnabled);
@@ -801,20 +800,20 @@ export default function Home() {
                   <div className="space-y-1.5 text-xs">
                     <div className="flex justify-between">
                       <span className="text-outline">Script generation</span>
-                      <span className="text-on-surface font-mono">{POLLEN_COSTS.textGeneration.toFixed(4)} &#x2698;</span>
+                      <span className="text-on-surface font-mono">{tierDef.pollenFixed.toFixed(4)} &#x2698;</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-outline">Images ({estScenes} scenes)</span>
-                      <span className="text-on-surface font-mono">{(POLLEN_COSTS.imageGeneration * estScenes).toFixed(4)} &#x2698;</span>
+                      <span className="text-on-surface font-mono">{imageCostPollen.toFixed(4)} &#x2698;</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-outline">TTS narration ({estScenes} scenes)</span>
-                      <span className="text-on-surface font-mono">{(POLLEN_COSTS.ttsGeneration * estScenes).toFixed(4)} &#x2698;</span>
+                      <span className="text-outline">TTS narration ({estScenes} scenes){qualityTier === "basic" ? " — free" : ""}</span>
+                      <span className="text-on-surface font-mono">{ttsCostPollen.toFixed(4)} &#x2698;</span>
                     </div>
                     {/* Show AI video cost only for medium/pro */}
                     {qualityTier !== "basic" && (
                       <div className="flex justify-between">
-                        <span className="text-outline">AI video ({qualityTier === "pro" ? "all" : "~50%"} scenes)</span>
+                        <span className="text-outline">AI video ({qualityTier === "pro" ? `all ${estScenes}` : `${videoScenesCount} of ${estScenes}`} scenes)</span>
                         <span className="text-on-surface font-mono">{videoCostPollen.toFixed(4)} &#x2698;</span>
                       </div>
                     )}
@@ -828,7 +827,7 @@ export default function Home() {
                     {/* Divider */}
                     <div className="border-t border-outline-variant/10 pt-2 mt-2">
                       <div className="flex justify-between font-bold">
-                        <span className="text-on-surface">Total estimated</span>
+                        <span className="text-on-surface">Est. total (~{estScenes} scenes)</span>
                         <span className="text-primary font-mono">{totalPollen.toFixed(4)} &#x2698; <span className="text-outline font-normal">(&#8776; ${totalPollen.toFixed(4)})</span></span>
                       </div>
                     </div>
@@ -1215,13 +1214,38 @@ export default function Home() {
                           <p className="text-xs text-outline">{timeAgo}</p>
                         </div>
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setUrl(v.topic); router.push("/story"); }}
-                        className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-3 rounded-xl bg-primary/10 text-primary hover:bg-primary/15 transition-colors border border-primary/20"
-                      >
-                        <span className="material-symbols-outlined text-base">refresh</span>
-                        Regenerate
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              const state = await loadProjectState(v.id);
+                              if (state?.finalVideoUrl) {
+                                const a = document.createElement("a");
+                                a.href = state.finalVideoUrl;
+                                a.download = `${v.title || "video"}.mp4`;
+                                a.click();
+                              } else {
+                                // No final video — open in editor to re-export
+                                handleOpenProject(v);
+                              }
+                            } catch {
+                              setErrorMsg("Download failed — open the project to re-export.");
+                            }
+                          }}
+                          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-3 rounded-xl bg-primary/10 text-primary hover:bg-primary/15 transition-colors border border-primary/20"
+                        >
+                          <span className="material-symbols-outlined text-base">download</span>
+                          Download
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setUrl(v.topic); router.push("/story"); }}
+                          className="flex items-center justify-center gap-1 text-xs font-semibold py-2 px-3 rounded-xl bg-surface-container-high/50 text-outline hover:text-primary hover:bg-primary/10 transition-colors border border-outline-variant/10"
+                          title="Regenerate"
+                        >
+                          <span className="material-symbols-outlined text-base">refresh</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

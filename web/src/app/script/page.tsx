@@ -410,30 +410,32 @@ export default function ScriptBuilder() {
           <div className="text-center space-y-2">
             <p className="font-headline font-bold text-xl">Generating Script...</p>
             <p className="text-sm text-outline">
-              {loadingElapsed < 5
+              {loadingElapsed < 3
                 ? "Connecting to AI model..."
-                : loadingElapsed < 15
+                : loadingElapsed < 10
                 ? "AI is writing your scenes..."
-                : loadingElapsed < 30
-                ? "Crafting narrations and visual prompts..."
-                : loadingElapsed < 60
-                ? "Almost there — finalizing script..."
-                : "Taking longer than usual — trying backup model..."}
+                : loadingElapsed < 25
+                ? `Writing scene narrations & visual prompts...`
+                : loadingElapsed < 45
+                ? "Crafting final details..."
+                : loadingElapsed < 70
+                ? "Taking longer than usual — trying backup model..."
+                : "Almost there — finalizing script..."}
             </p>
             <div className="flex items-center justify-center gap-3 mt-3">
               <span className="font-mono text-sm text-outline tabular-nums">
-                {Math.floor(loadingElapsed / 60)}:{String(loadingElapsed % 60).padStart(2, '0')}
+                {Math.floor(loadingElapsed / 60)}:{String(loadingElapsed % 60).padStart(2, '0')} elapsed
               </span>
-              <span className="text-xs text-outline/60">•</span>
-              <span className="text-xs text-outline/60">
-                ETA ~{loadingElapsed < 10 ? "20-30s" : loadingElapsed < 25 ? `${Math.max(5, 30 - loadingElapsed)}s` : loadingElapsed < 60 ? "10-20s" : "15-30s"}
+              <span className="text-xs text-outline/60">|</span>
+              <span className="text-xs text-primary font-medium">
+                {loadingElapsed < 3 ? `~${Math.max(20, targetDurationMinutes * 8)}s remaining` : loadingElapsed < 25 ? `~${Math.max(5, Math.round(targetDurationMinutes * 8) - loadingElapsed)}s remaining` : loadingElapsed < 50 ? `~${Math.max(5, 55 - loadingElapsed)}s remaining` : loadingElapsed < 80 ? `~${Math.max(5, 85 - loadingElapsed)}s remaining` : "finishing up..."}
               </span>
             </div>
             {/* Progress bar */}
             <div className="w-64 mx-auto h-1.5 bg-surface-container-highest rounded-full overflow-hidden mt-2">
               <div
                 className="h-full bg-gradient-to-r from-primary to-primary-container rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${Math.min(95, loadingElapsed < 5 ? 5 : loadingElapsed < 15 ? 30 : loadingElapsed < 30 ? 60 : loadingElapsed < 60 ? 80 : 90)}%` }}
+                style={{ width: `${Math.min(95, loadingElapsed < 3 ? 5 : loadingElapsed < 10 ? 20 : loadingElapsed < 25 ? 55 : loadingElapsed < 45 ? 75 : loadingElapsed < 70 ? 88 : 95)}%` }}
               />
             </div>
           </div>
