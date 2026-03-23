@@ -265,7 +265,7 @@ export default function Home() {
     if (mode === "link") {
       if (!inputValue.trim()) return;
       setUrl(inputValue);
-      router.push("/story");
+      router.push("/script"); // skip story page — angle auto-selected on script page
     } else if (mode === "short-story") {
       if (!storyText.trim()) return;
       setUrl(storyText.substring(0, 100)); // for display purposes
@@ -1256,7 +1256,7 @@ export default function Home() {
                       <div className="flex gap-2">
                         <DownloadButton video={v} onError={setErrorMsg} onFallback={() => handleOpenProject(v)} />
                         <button
-                          onClick={(e) => { e.stopPropagation(); setUrl(v.topic); router.push("/story"); }}
+                          onClick={(e) => { e.stopPropagation(); setUrl(v.topic); setGenerateRequested(true); router.push("/script"); }}
                           className="flex items-center justify-center gap-1 text-xs font-semibold py-2 px-3 rounded-xl bg-surface-container-high/50 text-outline hover:text-primary hover:bg-primary/10 transition-colors border border-outline-variant/10"
                           title="Regenerate"
                         >

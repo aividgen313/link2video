@@ -3,12 +3,13 @@ import Link from "next/link";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAppContext, Scene, QUALITY_TIERS, calculateTotalCost } from "@/context/AppContext";
+import { pipelineManager } from "@/lib/pipelineManager";
 
 export default function ScriptBuilder() {
   const router = useRouter();
   const {
     url,
-    angle,
+    angle, setAngle,
     mode,
     scriptData,
     setScriptData,
@@ -16,9 +17,14 @@ export default function ScriptBuilder() {
     globalVisualStyle,
     selectedVoice,
     musicEnabled, setMusicEnabled,
+    captionsEnabled,
+    videoDimension,
     targetDurationMinutes,
     storyboardImages, setStoryboardImages,
     referenceImages, setReferenceImages,
+    setSceneAudioUrls, setSceneVideoUrls, setSceneDurations,
+    setFinalVideoUrl, setIsGenerating,
+    pollenUsed, setPollenUsed,
     storyText,
     characterProfiles,
     lyrics,
@@ -185,7 +191,7 @@ export default function ScriptBuilder() {
     }
 
     // Only auto-generate if user explicitly requested generation (not sidebar browsing)
-    const hasValidInput = (mode === "link" && url && angle) ||
+    const hasValidInput = (mode === "link" && url) ||
                           (mode === "short-story" && storyText) ||
                           (mode === "music-video" && audioFile);
     if (!hasValidInput || !generateRequested) {
@@ -197,6 +203,30 @@ export default function ScriptBuilder() {
     const fetchScript = async () => {
       try {
         setIsLoading(true);
+
+        // Auto-fetch angle if missing (link mode skips story page)
+        let resolvedAngle = angle;
+        if (mode === "link" && !angle && url) {
+          try {
+            const anglesRes = await fetch("/api/angles", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ topic: url, durationMinutes: targetDurationMinutes }),
+              signal: AbortSignal.timeout(60000),
+            });
+            if (anglesRes.ok) {
+              const anglesData = await anglesRes.json();
+              if (anglesData.angles?.[0]) {
+                resolvedAngle = anglesData.angles[0].title;
+                setAngle(resolvedAngle);
+              }
+            }
+          } catch (err) {
+            console.warn("Auto-angle fetch failed, using URL as angle:", err);
+          }
+          if (!resolvedAngle) resolvedAngle = url; // fallback to URL itself
+        }
+
         // Build mode-aware request body
         const requestBody: Record<string, any> = {
           visualStyle: globalVisualStyle,
@@ -216,7 +246,7 @@ export default function ScriptBuilder() {
           }
         } else {
           requestBody.url = url || "https://example.com/mock";
-          requestBody.angle = angle;
+          requestBody.angle = resolvedAngle;
         }
         const res = await fetch("/api/generate", {
           method: "POST",
@@ -254,8 +284,32 @@ export default function ScriptBuilder() {
   }, [url, angle, scriptData, setScriptData]);
 
   const handleGenerateVideo = () => {
-    setGenerateRequested(true); // Signal storyboard to auto-generate images
-    router.push("/storyboard");
+    if (!scriptData) return;
+    // Launch background pipeline via PipelineManager
+    pipelineManager.startPipeline(
+      {
+        scriptData,
+        qualityTier,
+        selectedVoice,
+        videoDimension,
+        musicEnabled,
+        captionsEnabled,
+        storyboardImages,
+        url,
+        mode,
+        audioFile,
+      },
+      {
+        setSceneAudioUrls: (urls) => setSceneAudioUrls(urls),
+        setSceneVideoUrls: (urls) => setSceneVideoUrls(urls),
+        setSceneDurations: (durations) => setSceneDurations(durations),
+        setStoryboardImages: (fn) => setStoryboardImages(fn),
+        setFinalVideoUrl,
+        setPollenUsed: (amount) => setPollenUsed(pollenUsed + amount),
+        setIsGenerating,
+      }
+    );
+    router.push("/generate"); // Show detailed progress view
   };
 
   // Continue Writing — AI generates more scenes to extend the script
@@ -357,9 +411,9 @@ export default function ScriptBuilder() {
     <>
       {/* Breadcrumb — always visible */}
       <div className="mb-4 flex items-center gap-2">
-        <Link href={mode === "link" ? "/story" : "/"} className="text-outline text-sm font-label uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1">
+        <Link href="/" className="text-outline text-sm font-label uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1">
           <span className="material-symbols-outlined text-sm">chevron_left</span>
-          {mode === "link" ? "Back to Story Angle" : mode === "short-story" ? "Back to Story Input" : "Back to Upload"}
+          Back to Dashboard
         </Link>
         <span className="text-outline mx-2">|</span>
         <span className="material-symbols-outlined text-outline">chevron_right</span>

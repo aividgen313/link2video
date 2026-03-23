@@ -488,7 +488,7 @@ function EditorInner() {
       {/* ═══ Menu Bar ═══ */}
       <div className="flex items-center gap-0 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 36 }}>
         {/* App logo + back */}
-        <button onClick={() => router.push("/storyboard")} className="flex items-center gap-1.5 px-3 h-full transition-colors"
+        <button onClick={() => router.push("/script")} className="flex items-center gap-1.5 px-3 h-full transition-colors"
           style={{ color: C.textDim }}
           onMouseEnter={(e) => { e.currentTarget.style.color = C.accent; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = C.textDim; }}
@@ -504,7 +504,7 @@ function EditorInner() {
             { label: "Import Media...", icon: "upload", action: () => importFileRef.current?.click() },
             { label: "Export Video", icon: "movie", action: () => setShowExport(true), shortcut: "Ctrl+E" },
             { divider: true },
-            { label: "Back to Storyboard", icon: "arrow_back", action: () => router.push("/storyboard") },
+            { label: "Back to Script", icon: "arrow_back", action: () => router.push("/script") },
           ]},
           { label: "Edit", items: [
             { label: "Undo", icon: "undo", action: undo, disabled: !canUndo, shortcut: "Ctrl+Z" },
