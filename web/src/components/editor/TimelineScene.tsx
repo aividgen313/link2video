@@ -1,5 +1,5 @@
 "use client";
-import { memo } from "react";
+import { memo, useState, useCallback, useRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { EditorScene, useEditorContext } from "@/context/EditorContext";
@@ -18,17 +18,19 @@ const C = {
 interface Props {
   scene: EditorScene;
   width: number;
-  trackHeight?: number; // dynamic height from timeline
+  trackHeight?: number;
+  zoom?: number;
 }
 
-function TimelineSceneInner({ scene, width, trackHeight }: Props) {
-  const { selectedSceneId, setSelectedSceneId, setPlayheadPosition, getSceneStartTime, selectedSceneIds, toggleSceneSelection } = useEditorContext();
+function TimelineSceneInner({ scene, width, trackHeight, zoom = 40 }: Props) {
+  const { selectedSceneId, setSelectedSceneId, setPlayheadPosition, getSceneStartTime, selectedSceneIds, toggleSceneSelection, updateScene } = useEditorContext();
   const isSelected = selectedSceneId === scene.id;
   const isMultiSelected = selectedSceneIds.has(scene.id);
+  const [trimSide, setTrimSide] = useState<"left" | "right" | null>(null);
+  const trimRef = useRef<{ startX: number; startDuration: number } | null>(null);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: scene.id });
 
-  // Use track height minus padding, or default to 56px
   const clipHeight = trackHeight ? Math.max(30, trackHeight - 6) : 56;
 
   const style = {
@@ -47,6 +49,40 @@ function TimelineSceneInner({ scene, width, trackHeight }: Props) {
     }
   };
 
+  // ── Trim handle drag ──
+  const handleTrimStart = useCallback((e: React.MouseEvent, side: "left" | "right") => {
+    e.stopPropagation();
+    e.preventDefault();
+    setTrimSide(side);
+    trimRef.current = { startX: e.clientX, startDuration: scene.duration };
+
+    const handleMove = (ev: MouseEvent) => {
+      if (!trimRef.current) return;
+      const deltaX = ev.clientX - trimRef.current.startX;
+      const deltaSec = deltaX / zoom;
+      let newDuration: number;
+      if (side === "right") {
+        newDuration = Math.max(1, trimRef.current.startDuration + deltaSec);
+      } else {
+        newDuration = Math.max(1, trimRef.current.startDuration - deltaSec);
+      }
+      newDuration = Math.round(newDuration * 10) / 10;
+      updateScene(scene.id, { duration: newDuration });
+    };
+
+    const handleUp = () => {
+      trimRef.current = null;
+      setTrimSide(null);
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      document.body.style.cursor = "";
+    };
+
+    document.body.style.cursor = "col-resize";
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+  }, [scene.id, scene.duration, zoom, updateScene]);
+
   const borderColor = isSelected ? C.selected : isMultiSelected ? C.multi : "transparent";
 
   return (
@@ -64,6 +100,20 @@ function TimelineSceneInner({ scene, width, trackHeight }: Props) {
       onClick={handleClick}
       className="flex-shrink-0 overflow-hidden cursor-pointer relative group"
     >
+      {/* Left trim handle */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[6px] z-20 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ background: trimSide === "left" ? C.accent : `linear-gradient(to right, ${C.accent}80, transparent)` }}
+        onMouseDown={(e) => handleTrimStart(e, "left")}
+        title="Drag to trim start"
+      />
+      {/* Right trim handle */}
+      <div
+        className="absolute right-0 top-0 bottom-0 w-[6px] z-20 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ background: trimSide === "right" ? C.accent : `linear-gradient(to left, ${C.accent}80, transparent)` }}
+        onMouseDown={(e) => handleTrimStart(e, "right")}
+        title="Drag to trim end"
+      />
       {/* Colored top bar (clip color) */}
       <div className="absolute top-0 left-0 right-0 h-[3px] z-10" style={{ background: isSelected ? C.accent : C.success }} />
 

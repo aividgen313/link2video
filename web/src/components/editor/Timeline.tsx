@@ -34,7 +34,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
     setSelectedSceneId, selectedSceneId, snapEnabled,
     addTrack, removeTrack, updateTrack, getTrackScenes,
     musicTrack, setMusicTrack, importMedia,
-    isPlaying, deleteScene,
+    isPlaying, deleteScene, splitScene, duplicateScene, getSceneStartTime,
   } = useEditorContext();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -419,7 +419,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                                 style={{ width: w, flexShrink: 0 }}
                                 onContextMenu={(e) => handleSceneContextMenu(e, scene.id)}
                               >
-                                <TimelineScene scene={scene} width={w} trackHeight={trackH} />
+                                <TimelineScene scene={scene} width={w} trackHeight={trackH} zoom={zoom} />
                               </div>
                             );
                           })}
@@ -551,7 +551,17 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
           {[
             { label: "Select", icon: "check_circle", action: () => { setSelectedSceneId(contextMenu.sceneId); } },
             { divider: true },
-            { label: "Duplicate", icon: "content_copy", action: () => { /* duplicateScene is in parent */ setSelectedSceneId(contextMenu.sceneId); } },
+            { label: "Split at Playhead", icon: "content_cut", action: () => {
+              const scene = scenes.find(s => s.id === contextMenu.sceneId);
+              if (!scene) return;
+              const start = getSceneStartTime(contextMenu.sceneId);
+              const splitAt = playheadPosition - start;
+              if (splitAt > 0.5 && splitAt < scene.duration - 0.5) {
+                splitScene(contextMenu.sceneId, Math.round(splitAt * 10) / 10);
+              }
+            }},
+            { label: "Duplicate", icon: "content_copy", action: () => { duplicateScene(contextMenu.sceneId); } },
+            { divider: true },
             { label: "Delete", icon: "delete_outline", danger: true, action: () => { if (scenes.length > 1) deleteScene(contextMenu.sceneId); } },
           ].map((item: any, i: number) =>
             item.divider ? (

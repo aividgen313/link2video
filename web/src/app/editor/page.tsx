@@ -380,6 +380,15 @@ function EditorInner() {
     if (meta && e.key === "d" && selectedScene) { e.preventDefault(); duplicateScene(selectedScene.id); }
     if (meta && e.key === "t") { e.preventDefault(); setShowTextTool(v => !v); setActiveRightTab("text"); }
     if (e.key === "?") { setShowShortcuts(v => !v); }
+    if (e.key === "s" && !meta && selectedScene) {
+      e.preventDefault();
+      // Split at playhead position relative to scene start
+      const sceneStart = getSceneStartTime(selectedScene.id);
+      const splitAt = playheadPosition - sceneStart;
+      if (splitAt > 0.5 && splitAt < selectedScene.duration - 0.5) {
+        splitScene(selectedScene.id, Math.round(splitAt * 10) / 10);
+      }
+    }
     if (e.key === "n" || e.key === "N") { setSnapEnabled(!snapEnabled); }
     if (e.key === "t" && !meta) { setShowTrim(prev => !prev); }
     if (e.key === "Home") { e.preventDefault(); setPlayheadPosition(0); }
@@ -509,7 +518,16 @@ function EditorInner() {
           { label: "Clip", items: [
             { label: "Insert Scene", icon: "add", action: () => insertScene(selectedScene?.id || null) },
             { label: "Duplicate", icon: "content_copy", action: () => selectedScene && duplicateScene(selectedScene.id), disabled: !selectedScene, shortcut: "Ctrl+D" },
-            { label: "Split", icon: "content_cut", action: () => selectedScene && splitScene(selectedScene.id, Math.floor(selectedScene.duration / 2)), disabled: !selectedScene || (selectedScene?.duration ?? 0) < 4 },
+            { label: "Split at Playhead", icon: "content_cut", action: () => {
+              if (!selectedScene) return;
+              const start = getSceneStartTime(selectedScene.id);
+              const splitAt = playheadPosition - start;
+              if (splitAt > 0.5 && splitAt < selectedScene.duration - 0.5) {
+                splitScene(selectedScene.id, Math.round(splitAt * 10) / 10);
+              } else {
+                splitScene(selectedScene.id, Math.floor(selectedScene.duration / 2));
+              }
+            }, disabled: !selectedScene || (selectedScene?.duration ?? 0) < 2, shortcut: "S" },
             { divider: true },
             { label: "Add Text Overlay", icon: "title", action: handleAddText, disabled: !selectedScene, shortcut: "Ctrl+T" },
             { divider: true },
@@ -649,7 +667,16 @@ function EditorInner() {
           <TBtn icon="redo" label="Redo (Ctrl+Shift+Z)" onClick={redo} disabled={!canRedo} />
           <TSep />
           <TBtn icon="add" label="Insert Scene" onClick={() => insertScene(selectedScene?.id || null)} />
-          <TBtn icon="content_cut" label="Split (S)" onClick={() => selectedScene && splitScene(selectedScene.id, Math.floor(selectedScene.duration / 2))} disabled={!selectedScene || selectedScene.duration < 4} />
+          <TBtn icon="content_cut" label="Split at Playhead (S)" onClick={() => {
+            if (!selectedScene) return;
+            const start = getSceneStartTime(selectedScene.id);
+            const splitAt = playheadPosition - start;
+            if (splitAt > 0.5 && splitAt < selectedScene.duration - 0.5) {
+              splitScene(selectedScene.id, Math.round(splitAt * 10) / 10);
+            } else {
+              splitScene(selectedScene.id, Math.floor(selectedScene.duration / 2));
+            }
+          }} disabled={!selectedScene || selectedScene.duration < 2} />
           <TBtn icon="content_copy" label="Duplicate (Ctrl+D)" onClick={() => selectedScene && duplicateScene(selectedScene.id)} disabled={!selectedScene} />
           <TBtn icon="delete_outline" label="Delete (Del)" onClick={() => selectedScene && scenes.length > 1 && deleteScene(selectedScene.id)} disabled={!selectedScene || scenes.length <= 1} danger />
           <TSep />
@@ -830,6 +857,7 @@ function EditorInner() {
                 ["Ctrl + T", "Add text overlay"],
                 ["Ctrl + A", "Select all"],
                 ["Ctrl + E", "Export"],
+                ["S", "Split at playhead"],
                 ["Delete", "Remove clip"],
                 ["Escape", "Deselect / close"],
                 ["N", "Toggle Snap"],

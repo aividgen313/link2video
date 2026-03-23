@@ -334,12 +334,57 @@ export default function PreviewPlayer() {
 
             {/* Text overlays */}
             {selectedScene!.overlays.map(overlay => {
-              const hasBg = !!overlay.backgroundColor;
               const hasStroke = (overlay.strokeWidth ?? 0) > 0;
               const hasBorder = (overlay.borderWidth ?? 0) > 0;
               const shadowStyle = overlay.shadowEnabled
                 ? `${overlay.shadowX ?? 2}px ${overlay.shadowY ?? 2}px ${overlay.shadowBlur ?? 4}px ${overlay.shadowColor ?? "rgba(0,0,0,0.5)"}`
                 : "0 2px 8px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.9)";
+
+              // Animation CSS based on overlay.animation and scene progress
+              const anim = overlay.animation || "none";
+              const animDuration = 0.6; // seconds for animation entrance
+              const animProgress = Math.min(sceneLocalTime / animDuration, 1);
+              let animStyle: React.CSSProperties = {};
+
+              if (anim !== "none" && isPlaying) {
+                switch (anim) {
+                  case "fade-in":
+                    animStyle = { opacity: (overlay.opacity ?? 1) * animProgress };
+                    break;
+                  case "slide-up":
+                    animStyle = {
+                      opacity: (overlay.opacity ?? 1) * animProgress,
+                      transform: `translate(-50%, ${-50 + (1 - animProgress) * 20}%)`,
+                    };
+                    break;
+                  case "typewriter":
+                    const chars = Math.floor(overlay.text.length * animProgress);
+                    // Handled via text clipping below
+                    animStyle = { clipPath: `inset(0 ${(1 - animProgress) * 100}% 0 0)` };
+                    break;
+                  case "scale-in":
+                    const scale = 0.3 + animProgress * 0.7;
+                    animStyle = {
+                      opacity: (overlay.opacity ?? 1) * animProgress,
+                      transform: `translate(-50%, -50%) scale(${scale})`,
+                    };
+                    break;
+                  case "bounce":
+                    const bounce = animProgress < 1 ? Math.abs(Math.sin(animProgress * Math.PI * 2.5)) * (1 - animProgress) * 30 : 0;
+                    animStyle = {
+                      opacity: (overlay.opacity ?? 1) * Math.min(animProgress * 2, 1),
+                      transform: `translate(-50%, ${-50 - bounce}%)`,
+                    };
+                    break;
+                  case "glow":
+                    const glowIntensity = 5 + Math.sin(sceneLocalTime * 3) * 5;
+                    animStyle = {
+                      textShadow: `${shadowStyle}, 0 0 ${glowIntensity}px ${overlay.color}, 0 0 ${glowIntensity * 2}px ${overlay.color}40`,
+                    };
+                    break;
+                }
+              }
+
               return (
                 <div
                   key={overlay.id}
@@ -367,6 +412,8 @@ export default function PreviewPlayer() {
                     borderRadius: `${overlay.borderRadius ?? 0}px`,
                     border: hasBorder ? `${overlay.borderWidth}px ${overlay.borderStyle ?? "solid"} ${overlay.borderColor ?? "#fff"}` : "none",
                     WebkitTextStroke: hasStroke ? `${overlay.strokeWidth}px ${overlay.strokeColor ?? "#000"}` : undefined,
+                    transition: isPlaying ? "none" : "all 0.2s ease",
+                    ...animStyle,
                   }}
                 >
                   {overlay.text}
