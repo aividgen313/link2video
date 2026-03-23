@@ -612,25 +612,18 @@ export default function VideoGeneration() {
     </div>
   );
 
+  useEffect(() => {
+    // Auto-start generation when the page loads
+    if (hasMounted && !userStarted) {
+      setUserStarted(true);
+    }
+  }, [hasMounted, userStarted]);
+
   if (!isGenerating && !finalVideoUrl && !userStarted) return (
-    <>
-      <div className="mb-8 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Link href="/script" className="text-outline hover:text-primary transition-colors">Script Builder</Link>
-          <span className="material-symbols-outlined text-outline-variant text-sm">chevron_right</span>
-          <span className="font-headline font-bold text-on-surface">Video Generation</span>
-        </div>
-      </div>
-      <div className="flex flex-col items-center justify-center py-12 gap-4">
-        <span className="material-symbols-outlined text-5xl text-primary">movie</span>
-        <h3 className="font-headline font-bold text-xl">Ready to Generate</h3>
-        <p className="text-outline text-sm text-center max-w-md">{scriptData.scenes.length} scenes ready. Click below to start generating your video.</p>
-        <button onClick={() => setUserStarted(true)} className="primary-gradient text-white px-8 py-4 rounded-xl font-headline font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform">
-          <span className="material-symbols-outlined">play_arrow</span>
-          Start Generation
-        </button>
-      </div>
-    </>
+    <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
+      <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+      <p className="text-outline text-sm">Preparing generation pipeline...</p>
+    </div>
   );
 
   return (

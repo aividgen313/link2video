@@ -153,7 +153,7 @@ export default function StoryboardPreview() {
             <span className="font-bold text-on-surface text-xs">{doneCount}/{total}</span>
           </div>
           <button
-            onClick={() => router.push("/editor")}
+            onClick={() => router.push("/generate")}
             disabled={anyLoading}
             className="primary-gradient text-white font-headline font-bold px-8 py-3 rounded-2xl flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
@@ -164,10 +164,17 @@ export default function StoryboardPreview() {
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>movie_edit</span>
-                {allReady ? "Open in Editor" : `Open in Editor (${doneCount}/${total} ready)`}
+                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>movie</span>
+                {allReady ? "Generate Video" : `Generate Video (${doneCount}/${total} images ready)`}
               </>
             )}
+          </button>
+          <button
+            onClick={() => router.push("/editor")}
+            className="text-outline hover:text-primary text-xs flex items-center gap-1 transition-colors"
+          >
+            <span className="material-symbols-outlined text-xs">movie_edit</span>
+            Skip to Editor (no AI video/audio)
           </button>
         </div>
       </div>
