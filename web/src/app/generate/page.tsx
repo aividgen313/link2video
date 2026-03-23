@@ -455,159 +455,46 @@ export default function VideoGeneration() {
         setProgress(75);
 
         if (sceneAssets.length > 0) {
-          setStitchStatus("Loading FFmpeg engine...");
-          const ffmpeg = ffmpegRef.current;
-          if (!ffmpeg) throw new Error("FFmpeg not initialized");
+          setStitchStatus("🎬 Sending to server for video assembly...");
+          setProgress(78);
 
-          if (!ffmpeg.loaded) {
-            setStitchStatus("⏳ Loading FFmpeg engine — this takes 30–90 seconds on first run. Please don't refresh!");
-            const loadPromise = ffmpeg.load({
-              coreURL: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js",
-              wasmURL: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm"
-            });
-            const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("FFmpeg load timed out after 120s — please refresh and try again")), 120000)
-            );
-            await Promise.race([loadPromise, timeoutPromise]);
-            setStitchStatus("FFmpeg ready — assembling scenes...");
+          // Build scene payload for server-side stitching
+          const stitchScenes = sceneAssets.map((asset) => ({
+            image: asset.image,
+            audio: asset.audio ?? undefined,
+            duration: asset.duration,
+            narration: asset.narration,
+          }));
+
+          const stitchRes = await fetch("/api/stitch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              scenes: stitchScenes,
+              resolution: { width: dim.width, height: dim.height },
+              musicUrl: (!isMusicVideo && resolvedMusicUrl) ? resolvedMusicUrl : null,
+              captionsEnabled,
+            }),
+          });
+
+          setProgress(90);
+          setStitchStatus("⚙️ Assembling scenes on server...");
+
+          if (!stitchRes.ok) {
+            const errData = await stitchRes.json().catch(() => ({}));
+            throw new Error(errData.error ?? `Server stitching failed (${stitchRes.status})`);
           }
 
-          setProgress(80);
-          setStitchStatus("Creating video from scenes...");
-          const concatList: string[] = [];
+          setStitchStatus("📦 Downloading your video...");
+          setProgress(96);
 
-          for (let index = 0; index < sceneAssets.length; index++) {
-            const asset = sceneAssets[index];
-            const mergedFile = `scene${index}.mp4`;
-            // Use audio-driven duration so narration never cuts off
-            const sceneDuration = Math.max(asset.duration || 8, 4);
-            const useAIVideo = tier.useAIVideo;
+          const videoBlob = await stitchRes.blob();
+          const videoObjectUrl = URL.createObjectURL(videoBlob);
 
-            let vidFile = `vid${index}.mp4`;
+          // If music video mode: re-stitch with uploaded audio track by doing it locally
+          // (server already handles standard music mixing via musicUrl param above)
+          setFinalVideoUrl(videoObjectUrl);
 
-            if (useAIVideo && asset.aiVideoUrl) {
-              // AI Video clip from Pollinations
-              setStitchStatus(`Using AI Video for scene ${index + 1}...`);
-              await ffmpeg.writeFile(vidFile, await fetchFile(asset.aiVideoUrl));
-            } else {
-              // Ken Burns: create video from image with zoom/pan effect
-              const imgFile = `img${index}.jpg`;
-              await ffmpeg.writeFile(imgFile, await fetchFile(asset.image));
-
-              const outW = dim.width;
-              const outH = dim.height;
-              await ffmpeg.exec([
-                '-loop', '1',
-                '-i', imgFile,
-                '-vf', `scale=${outW * 2}:${outH * 2},zoompan=z='min(zoom+0.0015,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${Math.ceil(sceneDuration) * 25}:s=${outW}x${outH}:fps=25`,
-                '-c:v', 'libx264',
-                '-t', String(Math.ceil(sceneDuration)),
-                '-pix_fmt', 'yuv420p',
-                '-r', '25',
-                vidFile,
-              ]);
-            }
-
-            // Merge with TTS audio — video is already >= audio duration
-            if (asset.audio) {
-              const audFile = `tts${index}.mp3`;
-              await ffmpeg.writeFile(audFile, await fetchFile(asset.audio));
-              await ffmpeg.exec([
-                '-i', vidFile, '-i', audFile,
-                '-c:v', 'copy', '-c:a', 'aac',
-                '-map', '0:v:0', '-map', '1:a:0',
-                '-t', String(Math.ceil(sceneDuration)),
-                mergedFile,
-              ]);
-            } else {
-              // Add silent audio track so concat works
-              await ffmpeg.exec([
-                '-i', vidFile,
-                '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo',
-                '-c:v', 'copy', '-c:a', 'aac',
-                '-t', String(Math.ceil(sceneDuration)),
-                mergedFile,
-              ]);
-            }
-
-            concatList.push(`file '${mergedFile}'`);
-            setProgress(80 + Math.round((index + 1) / sceneAssets.length * 10));
-            setStitchStatus(`Rendering scene ${index + 1}/${sceneAssets.length}...`);
-          }
-
-          setProgress(92);
-          setStitchStatus("Joining all scenes...");
-
-          await ffmpeg.writeFile('concat.txt', concatList.join('\n'));
-          await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'concat.txt', '-c', 'copy', 'master.mp4']);
-
-          setProgress(95);
-
-          // Music Video mode: overlay user's audio as primary soundtrack
-          if (isMusicVideo && audioFile) {
-            setStitchStatus("Mixing uploaded audio track...");
-            await ffmpeg.writeFile('uploaded_audio.mp3', await fetchFile(audioFile));
-            await ffmpeg.exec([
-              '-i', 'master.mp4', '-i', 'uploaded_audio.mp3',
-              '-map', '0:v', '-map', '1:a',
-              '-c:v', 'copy', '-c:a', 'aac',
-              '-shortest',
-              'output.mp4'
-            ]);
-          } else if (resolvedMusicUrl) {
-            // Standard mode: Mix background music at low volume
-            setStitchStatus("Mixing background music...");
-            await ffmpeg.writeFile('music.mp3', await fetchFile(resolvedMusicUrl));
-            await ffmpeg.exec([
-              '-i', 'master.mp4', '-i', 'music.mp3',
-              '-filter_complex', '[1:a]volume=0.15[bgm]; [0:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[a]',
-              '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', 'output.mp4'
-            ]);
-          } else {
-            await ffmpeg.exec(['-i', 'master.mp4', '-c', 'copy', 'output.mp4']);
-          }
-
-          // Burn-in captions if enabled
-          if (captionsEnabled) {
-            try {
-              setStitchStatus("Burning in captions...");
-              // Build timed drawtext filter
-              let t = 0;
-              const drawtextFilters = sceneAssets.map((asset) => {
-                const dur = Math.max(asset.duration || 8, 4);
-                const safeText = (asset.narration || "")
-                  .replace(/\\/g, "\\\\")
-                  .replace(/'/g, "\\'")
-                  .replace(/:/g, "\\:")
-                  .replace(/\[/g, "\\[")
-                  .replace(/\]/g, "\\]")
-                  .replace(/\n/g, " ")
-                  .slice(0, 120); // cap length
-                const filter = `drawtext=text='${safeText}':enable='between(t,${t.toFixed(2)},${(t + dur).toFixed(2)})':fontcolor=white:fontsize=22:borderw=2:bordercolor=black@0.8:x=(w-text_w)/2:y=h-70:line_spacing=4`;
-                t += dur;
-                return filter;
-              }).join(",");
-
-              await ffmpeg.exec([
-                '-i', 'output.mp4',
-                '-vf', drawtextFilters,
-                '-c:a', 'copy',
-                'captioned.mp4'
-              ]);
-              const captionData = await ffmpeg.readFile('captioned.mp4');
-              const captionArr = new Uint8Array(captionData as unknown as ArrayBuffer);
-              setFinalVideoUrl(URL.createObjectURL(new Blob([captionArr], { type: 'video/mp4' })));
-            } catch (captionErr) {
-              console.warn("Caption burn-in failed, using uncaptioned video:", captionErr);
-              const fileData = await ffmpeg.readFile('output.mp4');
-              const uint8Array = new Uint8Array(fileData as unknown as ArrayBuffer);
-              setFinalVideoUrl(URL.createObjectURL(new Blob([uint8Array], { type: 'video/mp4' })));
-            }
-          } else {
-            const fileData = await ffmpeg.readFile('output.mp4');
-            const uint8Array = new Uint8Array(fileData as unknown as ArrayBuffer);
-            setFinalVideoUrl(URL.createObjectURL(new Blob([uint8Array], { type: 'video/mp4' })));
-          }
 
           setStitchStatus("");
           setProgress(100);
