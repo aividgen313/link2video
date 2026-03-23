@@ -6,6 +6,10 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 
+// Allow up to 3 minutes for video stitching (default is 30s)
+export const maxDuration = 180;
+export const dynamic = "force-dynamic";
+
 const execAsync = promisify(exec);
 
 /**
