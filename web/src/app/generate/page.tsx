@@ -455,7 +455,7 @@ export default function VideoGeneration() {
         setProgress(75);
 
         if (sceneAssets.length > 0) {
-          setStitchStatus("🎬 Sending to server for video assembly...");
+          setStitchStatus("🎬 Sending scenes to server...");
           setProgress(78);
 
           // Build scene payload for server-side stitching
@@ -466,33 +466,43 @@ export default function VideoGeneration() {
             narration: asset.narration,
           }));
 
-          const stitchRes = await fetch("/api/stitch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              scenes: stitchScenes,
-              resolution: { width: dim.width, height: dim.height },
-              musicUrl: (!isMusicVideo && resolvedMusicUrl) ? resolvedMusicUrl : null,
-              captionsEnabled,
-            }),
-          });
+          // Smooth fake-progress ticker: crawls 78 → 94 while server works
+          let fakeP = 78;
+          const fakeTimer = setInterval(() => {
+            fakeP = Math.min(fakeP + 0.4, 94);
+            setProgress(Math.round(fakeP));
+            const pct = Math.round(((fakeP - 78) / (94 - 78)) * 100);
+            if (pct < 30) setStitchStatus("🎬 Uploading scenes to server...");
+            else if (pct < 60) setStitchStatus("⚙️ Encoding video clips...");
+            else setStitchStatus("🔗 Joining scenes into final video...");
+          }, 800);
 
-          setProgress(90);
-          setStitchStatus("⚙️ Assembling scenes on server...");
+          let stitchRes: Response;
+          try {
+            stitchRes = await fetch("/api/stitch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                scenes: stitchScenes,
+                resolution: { width: dim.width, height: dim.height },
+                musicUrl: (!isMusicVideo && resolvedMusicUrl) ? resolvedMusicUrl : null,
+                captionsEnabled,
+              }),
+            });
+          } finally {
+            clearInterval(fakeTimer);
+          }
 
-          if (!stitchRes.ok) {
-            const errData = await stitchRes.json().catch(() => ({}));
-            throw new Error(errData.error ?? `Server stitching failed (${stitchRes.status})`);
+          if (!stitchRes!.ok) {
+            const errData = await stitchRes!.json().catch(() => ({}));
+            throw new Error(errData.error ?? `Server stitching failed (${stitchRes!.status})`);
           }
 
           setStitchStatus("📦 Downloading your video...");
           setProgress(96);
 
-          const videoBlob = await stitchRes.blob();
+          const videoBlob = await stitchRes!.blob();
           const videoObjectUrl = URL.createObjectURL(videoBlob);
-
-          // If music video mode: re-stitch with uploaded audio track by doing it locally
-          // (server already handles standard music mixing via musicUrl param above)
           setFinalVideoUrl(videoObjectUrl);
 
 
