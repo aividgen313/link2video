@@ -252,32 +252,32 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const STORAGE_KEY = "link2video_state";
 
-function loadSaved<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
+// Read all saved state at once (only call on client after mount)
+function loadAllSaved(): Record<string, any> {
+  if (typeof window === "undefined") return {};
   try {
-    // Try localStorage first (persistent), fall back to sessionStorage (legacy)
     const raw = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw);
-    return key in parsed ? parsed[key] : fallback;
+    if (!raw) return {};
+    return JSON.parse(raw);
   } catch {
-    return fallback;
+    return {};
   }
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<AppMode>(() => loadSaved("mode", "link"));
-  const [url, setUrl] = useState(() => loadSaved("url", ""));
-  const [angle, setAngle] = useState(() => loadSaved("angle", ""));
-  const [scriptData, setScriptData] = useState<ScriptData | null>(() => loadSaved("scriptData", null));
+  // Initialize with defaults (matches server render for hydration)
+  const [mode, setMode] = useState<AppMode>("link");
+  const [url, setUrl] = useState("");
+  const [angle, setAngle] = useState("");
+  const [scriptData, setScriptData] = useState<ScriptData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
-  const [qualityTier, setQualityTier] = useState<QualityTier>(() => loadSaved("qualityTier", "basic"));
-  const [globalVisualStyle, setGlobalVisualStyle] = useState(() => loadSaved("globalVisualStyle", "Cinematic Documentary"));
-  const [videoDimension, setVideoDimension] = useState<VideoDimension>(() => loadSaved("videoDimension", VIDEO_DIMENSIONS[0]));
-  const [selectedVoice, setSelectedVoice] = useState(() => loadSaved("selectedVoice", "adam"));
-  const [musicEnabled, setMusicEnabled] = useState(() => loadSaved("musicEnabled", false));
-  const [captionsEnabled, setCaptionsEnabled] = useState(() => loadSaved("captionsEnabled", false));
+  const [qualityTier, setQualityTier] = useState<QualityTier>("basic");
+  const [globalVisualStyle, setGlobalVisualStyle] = useState("Cinematic Documentary");
+  const [videoDimension, setVideoDimension] = useState<VideoDimension>(VIDEO_DIMENSIONS[0]);
+  const [selectedVoice, setSelectedVoice] = useState("adam");
+  const [musicEnabled, setMusicEnabled] = useState(false);
+  const [captionsEnabled, setCaptionsEnabled] = useState(false);
   const [pollenUsed, setPollenUsed] = useState(0);
   const [pollenBalance, setPollenBalance] = useState<number | null>(null);
   const [isFetchingBalance, setIsFetchingBalance] = useState(false);
@@ -303,24 +303,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
     fetchBalance();
     return () => { cancelled = true; };
   }, [pollenUsed]); // re-fetch every time credits are spent
-  const [targetDurationMinutes, setTargetDurationMinutes] = useState(() => loadSaved("targetDurationMinutes", 3));
-  const [storyboardImages, setStoryboardImages] = useState<Record<number, string>>(() => loadSaved("storyboardImages", {}));
-  const [referenceImages, setReferenceImages] = useState<Record<string, string[]>>(() => loadSaved("referenceImages", {}));
-  const [sceneAudioUrls, setSceneAudioUrls] = useState<Record<number, string>>(() => loadSaved("sceneAudioUrls", {}));
-  const [sceneVideoUrls, setSceneVideoUrls] = useState<Record<number, string>>(() => loadSaved("sceneVideoUrls", {}));
-  const [sceneDurations, setSceneDurations] = useState<Record<number, number>>(() => loadSaved("sceneDurations", {}));
-  const [youtubeStyleSuffix, setYoutubeStyleSuffix] = useState(() => loadSaved("youtubeStyleSuffix", ""));
+  const [targetDurationMinutes, setTargetDurationMinutes] = useState(3);
+  const [storyboardImages, setStoryboardImages] = useState<Record<number, string>>({});
+  const [referenceImages, setReferenceImages] = useState<Record<string, string[]>>({});
+  const [sceneAudioUrls, setSceneAudioUrls] = useState<Record<number, string>>({});
+  const [sceneVideoUrls, setSceneVideoUrls] = useState<Record<number, string>>({});
+  const [sceneDurations, setSceneDurations] = useState<Record<number, number>>({});
+  const [youtubeStyleSuffix, setYoutubeStyleSuffix] = useState("");
   const [generateRequested, setGenerateRequested] = useState(false); // session-only, never persisted
   const [globalScriptModel] = useState("pollinations");
   // Short Story Mode
-  const [storyText, setStoryText] = useState(() => loadSaved("storyText", ""));
-  const [characterProfiles, setCharacterProfiles] = useState<CharacterProfile[]>(() => loadSaved("characterProfiles", []));
+  const [storyText, setStoryText] = useState("");
+  const [characterProfiles, setCharacterProfiles] = useState<CharacterProfile[]>([]);
   // Music Video Mode
-  const [audioFile, setAudioFile] = useState<string | null>(() => loadSaved("audioFile", null));
-  const [audioFileName, setAudioFileName] = useState<string | null>(() => loadSaved("audioFileName", null));
-  const [lyrics, setLyrics] = useState(() => loadSaved("lyrics", ""));
-  const [musicSegments, setMusicSegments] = useState<MusicSegment[]>(() => loadSaved("musicSegments", []));
-  const [audioDuration, setAudioDuration] = useState(() => loadSaved("audioDuration", 0));
+  const [audioFile, setAudioFile] = useState<string | null>(null);
+  const [audioFileName, setAudioFileName] = useState<string | null>(null);
+  const [lyrics, setLyrics] = useState("");
+  const [musicSegments, setMusicSegments] = useState<MusicSegment[]>([]);
+  const [audioDuration, setAudioDuration] = useState(0);
+
+  // Hydrate state from localStorage AFTER mount (avoids hydration mismatch)
+  useEffect(() => {
+    const saved = loadAllSaved();
+    if (Object.keys(saved).length === 0) return;
+    if (saved.mode) setMode(saved.mode);
+    if (saved.url) setUrl(saved.url);
+    if (saved.angle) setAngle(saved.angle);
+    if (saved.scriptData) setScriptData(saved.scriptData);
+    if (saved.qualityTier) setQualityTier(saved.qualityTier);
+    if (saved.globalVisualStyle) setGlobalVisualStyle(saved.globalVisualStyle);
+    if (saved.videoDimension) setVideoDimension(saved.videoDimension);
+    if (saved.selectedVoice) setSelectedVoice(saved.selectedVoice);
+    if (saved.musicEnabled !== undefined) setMusicEnabled(saved.musicEnabled);
+    if (saved.captionsEnabled !== undefined) setCaptionsEnabled(saved.captionsEnabled);
+    if (saved.targetDurationMinutes) setTargetDurationMinutes(saved.targetDurationMinutes);
+    if (saved.storyboardImages) setStoryboardImages(saved.storyboardImages);
+    if (saved.referenceImages) setReferenceImages(saved.referenceImages);
+    if (saved.sceneDurations) setSceneDurations(saved.sceneDurations);
+    if (saved.youtubeStyleSuffix) setYoutubeStyleSuffix(saved.youtubeStyleSuffix);
+    if (saved.storyText) setStoryText(saved.storyText);
+    if (saved.characterProfiles) setCharacterProfiles(saved.characterProfiles);
+    if (saved.audioFileName) setAudioFileName(saved.audioFileName);
+    if (saved.lyrics) setLyrics(saved.lyrics);
+    if (saved.musicSegments) setMusicSegments(saved.musicSegments);
+    if (saved.audioDuration) setAudioDuration(saved.audioDuration);
+  }, []);
 
   // Persist key state to localStorage/sessionStorage.
   // NOTE: audioFile, sceneAudioUrls, and sceneVideoUrls are excluded because

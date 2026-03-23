@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { generateGeminiText } from "@/lib/gemini";
 
+// Script generation can take 2+ minutes for large scene counts
+export const maxDuration = 180;
+
 function repairJson(str: string): string {
   let repaired = str.replace(/(\d+)'(\d+)"/g, '$1 foot $2');
   repaired = repaired.replace(/(\d+)'(\d+)\\"/g, '$1 foot $2');
