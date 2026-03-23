@@ -145,9 +145,12 @@ export default function ScriptBuilder() {
     }
   }, [setReferenceImages]);
 
-  // Auto-generate images for scenes that don't have one yet (2 at a time)
+  // Auto-generate images ONLY for newly generated scripts (not when browsing back)
+  // Images are generated on the storyboard page, not here — this only runs
+  // when a script was just freshly created in this session
+  const [freshScript, setFreshScript] = useState(false);
   useEffect(() => {
-    if (!scriptData?.scenes || isLoading) return;
+    if (!freshScript || !scriptData?.scenes || isLoading) return;
 
     const scenesNeedingImages = scriptData.scenes.filter(
       s => s.visual_prompt && !storyboardImages[s.id] && !generatingImages[s.id] && !autoGenTriggered.current.has(s.id)
@@ -159,7 +162,7 @@ export default function ScriptBuilder() {
       autoGenTriggered.current.add(scene.id);
       generateSceneImage(scene);
     }
-  }, [scriptData?.scenes, storyboardImages, generatingImages, isLoading, generateSceneImage]);
+  }, [freshScript, scriptData?.scenes, storyboardImages, generatingImages, isLoading, generateSceneImage]);
 
   useEffect(() => {
     if (scriptData) {
@@ -214,6 +217,7 @@ export default function ScriptBuilder() {
         } else {
           setScriptData(data);
           setErrorMessage(null);
+          setFreshScript(true); // Script was just generated — allow auto-image gen
           if (data.scenes && data.scenes.length > 0) {
             setActiveScene(data.scenes[0]);
           }
@@ -232,6 +236,7 @@ export default function ScriptBuilder() {
   }, [url, angle, scriptData, setScriptData]);
 
   const handleGenerateVideo = () => {
+    setGenerateRequested(true); // Signal storyboard to auto-generate images
     router.push("/storyboard");
   };
 

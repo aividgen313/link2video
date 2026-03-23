@@ -9,7 +9,7 @@ type ImgStatus = "queued" | "loading" | "done" | "error";
 
 export default function StoryboardPreview() {
   const router = useRouter();
-  const { scriptData, storyboardImages, setStoryboardImages } = useAppContext();
+  const { scriptData, storyboardImages, setStoryboardImages, generateRequested, setGenerateRequested } = useAppContext();
   const [statuses, setStatuses] = useState<Record<number, { status: ImgStatus; url?: string | undefined }>>({});
   const [hasMounted, setHasMounted] = useState(false);
   const abortRefs = useRef<Record<number, AbortController>>({});
@@ -17,19 +17,21 @@ export default function StoryboardPreview() {
   const startedRef = useRef(false);
   const [editingScene, setEditingScene] = useState<number | null>(null);
   const [editPrompt, setEditPrompt] = useState("");
+  const [userStarted, setUserStarted] = useState(false);
 
   useEffect(() => {
     isMountedRef.current = true;
     setHasMounted(true);
+    return () => { isMountedRef.current = false; };
+  }, []);
 
+  // Only auto-generate if user came here via the pipeline (generateRequested)
+  // or explicitly clicked "Generate Images"
+  useEffect(() => {
     if (startedRef.current) return;
-    if (!scriptData || scriptData.scenes.length === 0) {
-      return;
-    }
+    if (!scriptData || scriptData.scenes.length === 0) return;
 
-    startedRef.current = true;
-
-    // Initialize statuses
+    // Initialize statuses from existing images
     const init: Record<number, { status: ImgStatus; url?: string }> = {};
     scriptData.scenes.forEach((s) => {
       init[s.id] = storyboardImages[s.id]
@@ -38,13 +40,17 @@ export default function StoryboardPreview() {
     });
     setStatuses(init);
 
-    // Generate images in batches of 3
-    const scenes = scriptData.scenes.filter((s) => !storyboardImages[s.id]);
-    generateInBatches(scenes);
+    // Only start generation if user explicitly requested it
+    if (!generateRequested && !userStarted) return;
+    startedRef.current = true;
+    setGenerateRequested(false); // Consume the intent signal
 
-    return () => { isMountedRef.current = false; };
+    const scenes = scriptData.scenes.filter((s) => !storyboardImages[s.id]);
+    if (scenes.length > 0) {
+      generateInBatches(scenes);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [generateRequested, userStarted]);
 
   const generateImage = async (sceneId: number, prompt: string) => {
     if (!isMountedRef.current) return;
@@ -117,6 +123,16 @@ export default function StoryboardPreview() {
   const doneCount = Object.values(statuses).filter((s) => s.status === "done").length;
   const allReady = doneCount === total;
   const anyLoading = Object.values(statuses).some((s) => s.status === "loading" || s.status === "queued");
+  const needsGeneration = !startedRef.current && scriptData.scenes.some((s) => !storyboardImages[s.id]);
+
+  const handleStartGeneration = () => {
+    setUserStarted(true);
+  };
+
+  const handleGenerateVideo = () => {
+    setGenerateRequested(true);
+    router.push("/generate");
+  };
 
   return (
     <>
@@ -152,8 +168,17 @@ export default function StoryboardPreview() {
             </div>
             <span className="font-bold text-on-surface text-xs">{doneCount}/{total}</span>
           </div>
+          {needsGeneration && !anyLoading ? (
+            <button
+              onClick={handleStartGeneration}
+              className="primary-gradient text-white font-headline font-bold px-8 py-3 rounded-2xl flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
+            >
+              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>image</span>
+              Generate {scriptData.scenes.filter(s => !storyboardImages[s.id]).length} Missing Images
+            </button>
+          ) : (
           <button
-            onClick={() => router.push("/generate")}
+            onClick={handleGenerateVideo}
             disabled={anyLoading}
             className="primary-gradient text-white font-headline font-bold px-8 py-3 rounded-2xl flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
@@ -169,6 +194,7 @@ export default function StoryboardPreview() {
               </>
             )}
           </button>
+          )}
           <button
             onClick={() => router.push("/editor")}
             className="text-outline hover:text-primary text-xs flex items-center gap-1 transition-colors"

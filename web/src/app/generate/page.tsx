@@ -53,6 +53,8 @@ export default function VideoGeneration() {
     setSceneAudioUrls,
     setSceneVideoUrls,
     setSceneDurations,
+    generateRequested,
+    setGenerateRequested,
   } = useAppContext();
   const router = useRouter();
   const isMusicVideo = mode === "music-video";
@@ -612,17 +614,28 @@ export default function VideoGeneration() {
     </div>
   );
 
+  // Auto-start only if user came via pipeline (generateRequested flag)
   useEffect(() => {
-    // Auto-start generation when the page loads
-    if (hasMounted && !userStarted) {
+    if (hasMounted && generateRequested && !userStarted) {
+      setGenerateRequested(false);
       setUserStarted(true);
     }
-  }, [hasMounted, userStarted]);
+  }, [hasMounted, generateRequested, userStarted, setGenerateRequested]);
 
   if (!isGenerating && !finalVideoUrl && !userStarted) return (
-    <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
-      <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-      <p className="text-outline text-sm">Preparing generation pipeline...</p>
+    <div className="flex flex-col items-center justify-center py-20 text-center gap-6">
+      <span className="material-symbols-outlined text-6xl text-primary/40">movie</span>
+      <h3 className="font-headline font-bold text-xl text-on-surface">Ready to Generate</h3>
+      <p className="text-outline text-sm max-w-md">
+        Your script has {scriptData.scenes.length} scenes. Click below to start generating images, voiceovers, and video.
+      </p>
+      <button
+        onClick={() => setUserStarted(true)}
+        className="primary-gradient text-white font-headline font-bold px-8 py-4 rounded-2xl flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform"
+      >
+        <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>play_arrow</span>
+        Start Generation
+      </button>
     </div>
   );
 

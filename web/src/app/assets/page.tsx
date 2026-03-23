@@ -1,6 +1,7 @@
 "use client";
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { useAppContext } from "@/context/AppContext";
+import { getHistory, loadProjectState, type VideoHistoryItem } from "@/lib/videoHistory";
 
 type AssetType = "all" | "image" | "audio" | "video";
 
@@ -11,6 +12,7 @@ type Asset = {
   url: string;
   size?: string;
   date: string;
+  project?: string; // project title this asset belongs to
 };
 
 export default function AssetLibrary() {
@@ -18,14 +20,87 @@ export default function AssetLibrary() {
   const [filter, setFilter] = useState<AssetType>("all");
   const [search, setSearch] = useState("");
   const [uploadedAssets, setUploadedAssets] = useState<Asset[]>([]);
+  const [savedProjectAssets, setSavedProjectAssets] = useState<Asset[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Build assets from app state + uploads
+  // Load assets from all saved projects in IndexedDB
+  useEffect(() => {
+    const loadSavedAssets = async () => {
+      try {
+        const history = getHistory();
+        const allAssets: Asset[] = [];
+
+        for (const item of history) {
+          const state = await loadProjectState(item.id);
+          if (!state) continue;
+          const projName = item.title || "Untitled";
+          const date = new Date(item.createdAt).toLocaleDateString();
+
+          // Storyboard images
+          if (state.storyboardImages) {
+            Object.entries(state.storyboardImages).forEach(([sceneId, url]) => {
+              const scene = state.scriptData?.scenes?.find((s: any) => s.id === Number(sceneId));
+              allAssets.push({
+                id: `saved-img-${item.id}-${sceneId}`,
+                name: `${projName}_Scene_${sceneId}_${scene?.visual_prompt?.slice(0, 20).replace(/\s+/g, "_") || "image"}.jpg`,
+                type: "image",
+                url: url as string,
+                date,
+                project: projName,
+              });
+            });
+          }
+
+          // Audio
+          if (state.sceneAudioUrls) {
+            Object.entries(state.sceneAudioUrls).forEach(([sceneId, url]) => {
+              allAssets.push({
+                id: `saved-audio-${item.id}-${sceneId}`,
+                name: `${projName}_Scene_${sceneId}_narration.mp3`,
+                type: "audio",
+                url: url as string,
+                date,
+                project: projName,
+              });
+            });
+          }
+
+          // Videos
+          if (state.sceneVideoUrls) {
+            Object.entries(state.sceneVideoUrls).forEach(([sceneId, url]) => {
+              allAssets.push({
+                id: `saved-video-${item.id}-${sceneId}`,
+                name: `${projName}_Scene_${sceneId}_video.mp4`,
+                type: "video",
+                url: url as string,
+                date,
+                project: projName,
+              });
+            });
+          }
+        }
+
+        setSavedProjectAssets(allAssets);
+      } catch (err) {
+        console.error("Failed to load saved project assets:", err);
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
+    loadSavedAssets();
+  }, []);
+
+  // Build assets from current session app state + saved projects + uploads
   const assets = useMemo(() => {
     const items: Asset[] = [];
+    // Track IDs to avoid duplicates between current session and saved projects
+    const seenUrls = new Set<string>();
 
-    // Add storyboard images
+    // Add storyboard images from current session
     Object.entries(storyboardImages).forEach(([sceneId, url]) => {
+      seenUrls.add(url);
       const scene = scriptData?.scenes.find(s => s.id === Number(sceneId));
       items.push({
         id: `img-${sceneId}`,
@@ -33,11 +108,13 @@ export default function AssetLibrary() {
         type: "image",
         url,
         date: new Date().toLocaleDateString(),
+        project: scriptData?.title || "Current Session",
       });
     });
 
-    // Add scene audio (TTS narration)
+    // Add scene audio from current session
     Object.entries(sceneAudioUrls).forEach(([sceneId, url]) => {
+      seenUrls.add(url);
       const scene = scriptData?.scenes.find(s => s.id === Number(sceneId));
       items.push({
         id: `audio-${sceneId}`,
@@ -45,11 +122,13 @@ export default function AssetLibrary() {
         type: "audio",
         url,
         date: new Date().toLocaleDateString(),
+        project: scriptData?.title || "Current Session",
       });
     });
 
-    // Add scene videos (AI-generated clips)
+    // Add scene videos from current session
     Object.entries(sceneVideoUrls).forEach(([sceneId, url]) => {
+      seenUrls.add(url);
       const scene = scriptData?.scenes.find(s => s.id === Number(sceneId));
       items.push({
         id: `video-${sceneId}`,
@@ -57,18 +136,30 @@ export default function AssetLibrary() {
         type: "video",
         url,
         date: new Date().toLocaleDateString(),
+        project: scriptData?.title || "Current Session",
       });
     });
+
+    // Add assets from saved projects (deduplicated)
+    for (const asset of savedProjectAssets) {
+      if (!seenUrls.has(asset.url)) {
+        seenUrls.add(asset.url);
+        items.push(asset);
+      }
+    }
 
     // Add uploaded assets
     items.push(...uploadedAssets);
 
     return items;
-  }, [storyboardImages, scriptData, sceneAudioUrls, sceneVideoUrls, uploadedAssets]);
+  }, [storyboardImages, scriptData, sceneAudioUrls, sceneVideoUrls, uploadedAssets, savedProjectAssets]);
 
   const filtered = assets.filter(a => {
     if (filter !== "all" && a.type !== filter) return false;
-    if (search && !a.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!a.name.toLowerCase().includes(q) && !(a.project?.toLowerCase().includes(q))) return false;
+    }
     return true;
   });
 
@@ -238,7 +329,7 @@ export default function AssetLibrary() {
                   <div className="p-5">
                     <h3 className="font-headline font-bold text-on-surface mb-1 truncate">{asset.name}</h3>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-label text-on-surface-variant uppercase tracking-widest">{asset.size || "AI Generated"}</span>
+                      <span className="text-xs font-label text-on-surface-variant uppercase tracking-widest">{asset.size || asset.project || "AI Generated"}</span>
                       <span className="text-[11px] font-body text-outline">{asset.date}</span>
                     </div>
                   </div>
