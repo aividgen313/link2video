@@ -217,12 +217,16 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     futureRef.current = [];
   }, [scenes, selectedSceneId]);
 
-  // Initialize from AppContext on first render
-  if (!isInitialized && scriptData?.scenes?.length) {
+  // Initialize / re-initialize scenes whenever scriptData changes.
+  // Using useEffect (not a render-body if-block) so that it correctly reacts
+  // when scriptData arrives after navigation (e.g., restoring a project from history).
+  useEffect(() => {
+    if (!scriptData?.scenes?.length) return;
+
     const editorScenes: EditorScene[] = [];
     scriptData.scenes.forEach((s: Scene, i: number) => {
       const dur = sceneDurations[s.id] || s.duration_estimate_seconds || 8;
-      
+
       // 1. Video Clip (V1)
       editorScenes.push({
         id: s.id * 10,
@@ -243,7 +247,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
         filter: "none",
         kenBurns: "zoom-in",
         playbackSpeed: 1,
-        volume: 0, // Video clips default to muted as narration is separate
+        volume: 0,
         isMuted: false,
         isLocked: false,
         isHidden: false,
@@ -276,6 +280,10 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // Reset history when restoring a new project
+    historyRef.current = [];
+    futureRef.current = [];
+
     setScenesRaw(editorScenes);
     if (editorScenes.length > 0) {
       const firstVid = editorScenes.find(s => s.trackId === "v1");
@@ -285,7 +293,9 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       }
     }
     setIsInitialized(true);
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scriptData]);
+
 
   // Measure actual audio durations and adjust scene durations if they're too short
   const audioMeasuredRef = useRef(false);
