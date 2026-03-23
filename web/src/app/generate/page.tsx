@@ -75,7 +75,11 @@ export default function VideoGeneration() {
   const [hasMounted, setHasMounted] = useState(false);
   const [userStarted, setUserStarted] = useState(false);
   const ffmpegRef = useRef<FFmpeg | null>(null);
-  const pipelineStartedRef = useRef(false); // prevent StrictMode double-run
+  // Prevent double-run across StrictMode AND page refreshes.
+  // sessionStorage key is tied to this specific script title so a genuinely new
+  // generation (different script) is allowed to start fresh.
+  const pipelineSessionKey = `pipeline_running_${scriptData?.title ?? ""}`;
+  const pipelineStartedRef = useRef(false);
 
   useEffect(() => {
     setHasMounted(true);
@@ -240,9 +244,15 @@ export default function VideoGeneration() {
   // Main generation pipeline
   useEffect(() => {
     if (!scriptData || isGenerating || finalVideoUrl || !userStarted) return;
-    // Prevent StrictMode double-invocation from causing duplicate saves
+    // Prevent double-run: check both the in-memory ref (StrictMode) and
+    // sessionStorage (page refresh during FFmpeg loading)
     if (pipelineStartedRef.current) return;
+    if (typeof window !== "undefined" && sessionStorage.getItem(pipelineSessionKey) === "running") {
+      console.log("[Pipeline] Detected prior run in sessionStorage — skipping duplicate start");
+      return;
+    }
     pipelineStartedRef.current = true;
+    if (typeof window !== "undefined") sessionStorage.setItem(pipelineSessionKey, "running");
 
     const runPipeline = async () => {
       setIsGenerating(true);
@@ -450,12 +460,16 @@ export default function VideoGeneration() {
           if (!ffmpeg) throw new Error("FFmpeg not initialized");
 
           if (!ffmpeg.loaded) {
+            setStitchStatus("⏳ Loading FFmpeg engine — this takes 30–90 seconds on first run. Please don't refresh!");
             const loadPromise = ffmpeg.load({
               coreURL: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js",
               wasmURL: "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm"
             });
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("FFmpeg load timed out after 30s")), 30000));
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("FFmpeg load timed out after 120s — please refresh and try again")), 120000)
+            );
             await Promise.race([loadPromise, timeoutPromise]);
+            setStitchStatus("FFmpeg ready — assembling scenes...");
           }
 
           setProgress(80);
@@ -670,6 +684,8 @@ export default function VideoGeneration() {
         setStitchStatus("Error: " + (err as Error).message);
       } finally {
         setIsGenerating(false);
+      // Clear session guard so user can start a fresh generation
+      if (typeof window !== "undefined") sessionStorage.removeItem(pipelineSessionKey);
       }
     };
 
