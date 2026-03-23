@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p ${PORT:-3000}",
-    "build": "NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS='--max_old_space_size=512 --gc-interval=50' next build",
+    "build": "NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS='--max_old_space_size=512' next build",
     "start": "cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public 2>/dev/null; HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "lint": "eslint"
   },
