@@ -112,6 +112,45 @@ const MODE_TABS: { mode: AppMode; label: string; icon: string; desc: string }[] 
   { mode: "music-video", label: "Music Video", icon: "music_note", desc: "Upload audio + lyrics" },
 ];
 
+function DownloadButton({ video, onError, onFallback }: { video: VideoHistoryItem; onError: (msg: string) => void; onFallback: () => void }) {
+  const [loading, setLoading] = useState(false);
+  return (
+    <button
+      disabled={loading}
+      onClick={async (e) => {
+        e.stopPropagation();
+        setLoading(true);
+        try {
+          const state = await loadProjectState(video.id);
+          if (state?.finalVideoUrl && !state.finalVideoUrl.startsWith("blob:")) {
+            const a = document.createElement("a");
+            a.href = state.finalVideoUrl;
+            a.download = `${video.title || "video"}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          } else {
+            // No persistent video URL — open in editor to re-export
+            onFallback();
+          }
+        } catch {
+          onError("Download failed — open the project to re-export.");
+        } finally {
+          setLoading(false);
+        }
+      }}
+      className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-3 rounded-xl bg-primary/10 text-primary hover:bg-primary/15 transition-colors border border-primary/20 disabled:opacity-50"
+    >
+      {loading ? (
+        <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      ) : (
+        <span className="material-symbols-outlined text-base">download</span>
+      )}
+      {loading ? "Loading..." : "Download"}
+    </button>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const {
@@ -1215,29 +1254,7 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            try {
-                              const state = await loadProjectState(v.id);
-                              if (state?.finalVideoUrl) {
-                                const a = document.createElement("a");
-                                a.href = state.finalVideoUrl;
-                                a.download = `${v.title || "video"}.mp4`;
-                                a.click();
-                              } else {
-                                // No final video — open in editor to re-export
-                                handleOpenProject(v);
-                              }
-                            } catch {
-                              setErrorMsg("Download failed — open the project to re-export.");
-                            }
-                          }}
-                          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-3 rounded-xl bg-primary/10 text-primary hover:bg-primary/15 transition-colors border border-primary/20"
-                        >
-                          <span className="material-symbols-outlined text-base">download</span>
-                          Download
-                        </button>
+                        <DownloadButton video={v} onError={setErrorMsg} onFallback={() => handleOpenProject(v)} />
                         <button
                           onClick={(e) => { e.stopPropagation(); setUrl(v.topic); router.push("/story"); }}
                           className="flex items-center justify-center gap-1 text-xs font-semibold py-2 px-3 rounded-xl bg-surface-container-high/50 text-outline hover:text-primary hover:bg-primary/10 transition-colors border border-outline-variant/10"

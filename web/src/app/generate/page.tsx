@@ -519,6 +519,18 @@ export default function VideoGeneration() {
           const videoObjectUrl = URL.createObjectURL(videoBlob);
           setFinalVideoUrl(videoObjectUrl);
 
+          // Convert blob to data URL for persistent storage in IndexedDB
+          let videoPersistUrl: string | null = null;
+          try {
+            videoPersistUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(videoBlob);
+            });
+          } catch {
+            console.warn("Could not convert video blob to data URL for persistence");
+          }
 
           setStitchStatus("");
           setProgress(100);
@@ -542,14 +554,11 @@ export default function VideoGeneration() {
           let cloudFinalVideo: string | null = null;
 
           try {
-            // Get the final video blob URL as a data URL for upload
-            let finalVideoDataUrl: string | null = null;
-            // We can't easily convert blob URL back, so upload individual assets
             const cloudAssets = await uploadProjectAssets(draftHistoryId, {
               storyboardImages: imagesMap,
               sceneAudioUrls: audioMap,
               sceneVideoUrls: videoMap,
-              finalVideoUrl: finalVideoDataUrl,
+              finalVideoUrl: videoPersistUrl,
             });
             cloudImages = cloudAssets.storyboardImages;
             cloudAudio = cloudAssets.sceneAudioUrls;
@@ -587,7 +596,7 @@ export default function VideoGeneration() {
             sceneVideoUrls: cloudVideo,
             sceneDurations: durationMap,
             musicUrl: resolvedMusicUrl || null,
-            finalVideoUrl: cloudFinalVideo,
+            finalVideoUrl: cloudFinalVideo || videoPersistUrl,
           });
         }
       } catch (err) {
