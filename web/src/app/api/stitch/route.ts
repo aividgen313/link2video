@@ -9,9 +9,9 @@ import { randomUUID } from "crypto";
 const execAsync = promisify(exec);
 
 /**
- * Server-side video stitching using system ffmpeg.
- * Accepts image URLs, audio data URLs, and durations per scene.
- * Returns a downloadable MP4.
+ * Lightweight server-side video stitching using system ffmpeg.
+ * Designed to run within Render free tier (512MB RAM).
+ * Uses simple image-loop approach (no zoompan) for speed and low memory.
  */
 export async function POST(req: NextRequest) {
   const workDir = join(tmpdir(), `stitch_${randomUUID()}`);
@@ -20,133 +20,136 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const {
-      scenes,          // Array<{ image: string; audio?: string; duration: number; narration?: string }>
-      resolution,      // { width: number; height: number }
-      musicUrl,        // optional background music URL
-      captionsEnabled, // boolean
+      scenes,       // Array<{ image: string; audio?: string; duration: number; narration?: string }>
+      resolution,   // { width: number; height: number }
+      musicUrl,     // optional background music
     } = body;
 
     if (!scenes || !Array.isArray(scenes) || scenes.length === 0) {
       return NextResponse.json({ error: "No scenes provided" }, { status: 400 });
     }
 
-    const width = resolution?.width ?? 1280;
-    const height = resolution?.height ?? 720;
+    const W = resolution?.width ?? 1280;
+    const H = resolution?.height ?? 720;
 
-    // ── Step 1: Write all assets to disk ─────────────────────────────────────
-    const scenePaths: { imgPath: string; audPath: string | null; duration: number }[] = [];
+    // ── Write assets to disk ─────────────────────────────────────────────────
+    const clipPaths: string[] = [];
 
     for (let i = 0; i < scenes.length; i++) {
       const scene = scenes[i];
+      const dur = Math.max(Math.ceil(scene.duration ?? 8), 3);
 
-      // Image — fetch from URL or decode base64 data URL
+      // Write image
       const imgPath = join(workDir, `img_${i}.jpg`);
-      if (scene.image.startsWith("data:")) {
-        const base64Data = scene.image.replace(/^data:[^;]+;base64,/, "");
-        await writeFile(imgPath, Buffer.from(base64Data, "base64"));
+      if (typeof scene.image === "string" && scene.image.startsWith("data:")) {
+        const b64 = scene.image.replace(/^data:[^;]+;base64,/, "");
+        await writeFile(imgPath, Buffer.from(b64, "base64"));
+      } else if (typeof scene.image === "string") {
+        // URL fetch
+        const r = await fetch(scene.image, { signal: AbortSignal.timeout(15_000) });
+        if (!r.ok) throw new Error(`Image fetch failed for scene ${i}: ${r.status}`);
+        await writeFile(imgPath, Buffer.from(await r.arrayBuffer()));
       } else {
-        const imgRes = await fetch(scene.image);
-        if (!imgRes.ok) throw new Error(`Failed to fetch image for scene ${i}: ${imgRes.status}`);
-        const imgBuf = await imgRes.arrayBuffer();
-        await writeFile(imgPath, Buffer.from(imgBuf));
+        throw new Error(`Invalid image for scene ${i}`);
       }
 
-      // Audio — optional, data URL
-      let audPath: string | null = null;
+      // Write audio (base64 data URL)
+      const audPath = join(workDir, `aud_${i}.mp3`);
+      let hasAudio = false;
       if (scene.audio) {
-        audPath = join(workDir, `aud_${i}.mp3`);
-        const base64Data = scene.audio.replace(/^data:[^;]+;base64,/, "");
-        await writeFile(audPath, Buffer.from(base64Data, "base64"));
+        const b64 = (scene.audio as string).replace(/^data:[^;]+;base64,/, "");
+        await writeFile(audPath, Buffer.from(b64, "base64"));
+        hasAudio = true;
       }
 
-      scenePaths.push({ imgPath, audPath, duration: Math.max(scene.duration ?? 8, 3) });
-    }
-
-    // ── Step 2: Render each scene to a clip ────────────────────────────────
-    const clipPaths: string[] = [];
-    for (let i = 0; i < scenePaths.length; i++) {
-      const { imgPath, audPath, duration } = scenePaths[i];
+      // ── Render scene clip (lightweight: scale only, no zoom/pan) ──────────
       const clipPath = join(workDir, `clip_${i}.mp4`);
-      const dur = Math.ceil(duration);
 
-      // Ken Burns zoom-pan effect from image
-      const videoFilter = `scale=${width * 2}:${height * 2},zoompan=z='min(zoom+0.0015,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${dur * 25}:s=${width}x${height}:fps=25`;
+      // Simple: scale to target size, loop image, mux with audio
+      // Uses much less memory than zoompan approach
+      const vf = `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black`;
 
-      let ffCmd: string;
-      if (audPath) {
-        ffCmd = [
+      let cmd: string;
+      if (hasAudio) {
+        cmd = [
           "ffmpeg -y",
-          `-loop 1 -i "${imgPath}"`,
+          `-loglevel error`,
+          `-loop 1 -t ${dur} -i "${imgPath}"`,
           `-i "${audPath}"`,
-          `-vf "${videoFilter}"`,
-          `-c:v libx264 -pix_fmt yuv420p -r 25`,
-          `-c:a aac -shortest`,
-          `-t ${dur}`,
+          `-vf "${vf}"`,
+          `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r 25`,
+          `-c:a aac -b:a 96k -shortest`,
           `"${clipPath}"`
         ].join(" ");
       } else {
-        // Silent clip
-        ffCmd = [
+        cmd = [
           "ffmpeg -y",
-          `-loop 1 -i "${imgPath}"`,
+          `-loglevel error`,
+          `-loop 1 -t ${dur} -i "${imgPath}"`,
           `-f lavfi -i "anullsrc=r=44100:cl=stereo"`,
-          `-vf "${videoFilter}"`,
-          `-c:v libx264 -pix_fmt yuv420p -r 25`,
-          `-c:a aac`,
-          `-t ${dur}`,
+          `-vf "${vf}"`,
+          `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r 25`,
+          `-c:a aac -b:a 96k -t ${dur}`,
           `"${clipPath}"`
         ].join(" ");
       }
 
-      await execAsync(ffCmd, { timeout: 120_000 });
+      await execAsync(cmd, { timeout: 60_000 });
       clipPaths.push(clipPath);
     }
 
-    // ── Step 3: Concat clips ───────────────────────────────────────────────
-    const concatList = clipPaths.map(p => `file '${p}'`).join("\n");
-    const concatFile = join(workDir, "concat.txt");
-    await writeFile(concatFile, concatList);
+    // ── Concatenate clips ─────────────────────────────────────────────────────
+    const concatTxt = join(workDir, "concat.txt");
+    await writeFile(concatTxt, clipPaths.map(p => `file '${p}'`).join("\n"));
     const masterPath = join(workDir, "master.mp4");
-    await execAsync(`ffmpeg -y -f concat -safe 0 -i "${concatFile}" -c copy "${masterPath}"`, { timeout: 180_000 });
+    await execAsync(
+      `ffmpeg -y -loglevel error -f concat -safe 0 -i "${concatTxt}" -c copy "${masterPath}"`,
+      { timeout: 120_000 }
+    );
 
-    // ── Step 4: Mix background music (if provided) ────────────────────────
+    // ── Optional: Mix background music ────────────────────────────────────────
     const outputPath = join(workDir, "output.mp4");
-    if (musicUrl) {
-      const musicPath = join(workDir, "music.mp3");
-      const musicRes = await fetch(musicUrl);
-      if (musicRes.ok) {
-        await writeFile(musicPath, Buffer.from(await musicRes.arrayBuffer()));
-        await execAsync([
-          `ffmpeg -y -i "${masterPath}" -i "${musicPath}"`,
-          `-filter_complex "[1:a]volume=0.15[bgm];[0:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[a]"`,
-          `-map 0:v -map "[a]" -c:v copy -c:a aac "${outputPath}"`
-        ].join(" "), { timeout: 120_000 });
-      } else {
-        await execAsync(`ffmpeg -y -i "${masterPath}" -c copy "${outputPath}"`, { timeout: 60_000 });
+    if (musicUrl && typeof musicUrl === "string") {
+      try {
+        const musicPath = join(workDir, "music.mp3");
+        const mRes = await fetch(musicUrl, { signal: AbortSignal.timeout(15_000) });
+        if (mRes.ok) {
+          await writeFile(musicPath, Buffer.from(await mRes.arrayBuffer()));
+          await execAsync([
+            `ffmpeg -y -loglevel error`,
+            `-i "${masterPath}" -i "${musicPath}"`,
+            `-filter_complex "[1:a]volume=0.15[bgm];[0:a][bgm]amix=inputs=2:duration=first[a]"`,
+            `-map 0:v -map "[a]" -c:v copy -c:a aac -b:a 128k "${outputPath}"`
+          ].join(" "), { timeout: 60_000 });
+        } else {
+          await execAsync(`ffmpeg -y -loglevel error -i "${masterPath}" -c copy "${outputPath}"`, { timeout: 30_000 });
+        }
+      } catch {
+        // music mix failed — fall back to master without music
+        await execAsync(`ffmpeg -y -loglevel error -i "${masterPath}" -c copy "${outputPath}"`, { timeout: 30_000 });
       }
     } else {
-      await execAsync(`ffmpeg -y -i "${masterPath}" -c copy "${outputPath}"`, { timeout: 60_000 });
+      await execAsync(`ffmpeg -y -loglevel error -i "${masterPath}" -c copy "${outputPath}"`, { timeout: 30_000 });
     }
 
-    // ── Step 5: Return the MP4 ─────────────────────────────────────────────
+    // ── Stream MP4 back to client ──────────────────────────────────────────────
     const videoData = await readFile(outputPath);
-
     return new NextResponse(videoData, {
       status: 200,
       headers: {
         "Content-Type": "video/mp4",
-        "Content-Disposition": "attachment; filename=\"video.mp4\"",
         "Content-Length": videoData.length.toString(),
+        "Content-Disposition": `attachment; filename="video.mp4"`,
       },
     });
 
   } catch (err) {
     console.error("[/api/stitch] Error:", err);
-    const msg = err instanceof Error ? err.message : "Stitching failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
-
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Stitching failed" },
+      { status: 500 }
+    );
   } finally {
-    // Clean up temp files
     rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
