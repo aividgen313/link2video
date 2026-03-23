@@ -473,7 +473,7 @@ export default function PreviewPlayer() {
               setIsPlaying(!isPlaying);
             }}
             className="w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-lg"
-            style={{ background: isPlaying ? "rgba(239,68,68,0.2)" : "rgba(91,158,244,0.15)", border: `1px solid ${isPlaying ? "rgba(239,68,68,0.3)" : "rgba(91,158,244,0.3)"}`, color: isPlaying ? "#ef4444" : "#5b9ef4" }}
+            style={{ background: isPlaying ? "rgba(239,68,68,0.2)" : "var(--editor-hover)", border: `1px solid ${isPlaying ? "rgba(239,68,68,0.3)" : "var(--editor-border-active)"}`, color: isPlaying ? "var(--editor-danger)" : "var(--editor-accent)" }}
           >
             <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
               {isPlaying ? "pause" : "play_arrow"}

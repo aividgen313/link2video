@@ -370,6 +370,14 @@ body {
   --editor-waveform: rgba(124, 58, 237, 0.5);
   --editor-danger: #ef4444;
   --editor-success: #22c55e;
+  --editor-warn: #f0b040;
+  --editor-video-track: rgba(124, 58, 237, 0.04);
+  --editor-audio-track: rgba(16, 185, 129, 0.04);
+  --editor-surface-hover: rgba(0, 0, 0, 0.04);
+  --editor-surface-overlay: rgba(0, 0, 0, 0.7);
+  --editor-menu-bg: #ffffff;
+  --editor-ruler-mark: rgba(0, 0, 0, 0.15);
+  --editor-ruler-mark-minor: rgba(0, 0, 0, 0.06);
 }
 
 .dark {
@@ -390,6 +398,14 @@ body {
   --editor-waveform: rgba(167, 139, 250, 0.6);
   --editor-danger: #f87171;
   --editor-success: #4ade80;
+  --editor-warn: #f0b040;
+  --editor-video-track: rgba(130, 100, 220, 0.08);
+  --editor-audio-track: rgba(16, 185, 129, 0.08);
+  --editor-surface-hover: rgba(255, 255, 255, 0.06);
+  --editor-surface-overlay: rgba(0, 0, 0, 0.8);
+  --editor-menu-bg: #252528;
+  --editor-ruler-mark: rgba(255, 255, 255, 0.2);
+  --editor-ruler-mark-minor: rgba(255, 255, 255, 0.08);
 }
 
 /* Glow ring for active/selected elements */
@@ -617,6 +633,34 @@ body {
 .editor-clip:hover {
   background: var(--editor-clip-active);
   border-color: var(--editor-border-active);
+}
+
+/* Editor button states for text overlay editor */
+.editor-btn-active {
+  background: var(--editor-hover);
+  color: var(--editor-accent);
+}
+
+.editor-btn-inactive {
+  background: var(--editor-surface-hover);
+  color: var(--editor-text-dim);
+}
+
+.editor-btn-inactive:hover {
+  background: var(--editor-hover);
+  color: var(--editor-text);
+}
+
+/* Editor input styling */
+.editor-input {
+  background: var(--editor-panel-alt);
+  color: var(--editor-text);
+  border: 1px solid var(--editor-border);
+}
+
+.editor-input:focus {
+  border-color: var(--editor-border-active);
+  outline: none;
 }
 
 /* ═══════════════════════════════════════════════════════════

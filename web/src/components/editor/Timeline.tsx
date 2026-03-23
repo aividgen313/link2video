@@ -6,20 +6,20 @@ import { useEditorContext, TrackType } from "@/context/EditorContext";
 import TimelineScene from "./TimelineScene";
 import TimelineAudioScene from "./TimelineAudioScene";
 
-// Modern dark theme colors
+// Theme-aware colors via CSS variables (set in globals.css, auto-switch with .dark)
 const C = {
-  bg: "#161618",
-  ruler: "#1c1c1f",
-  trackBg: "#1e1e22",
-  trackAlt: "#1a1a1e",
-  border: "#2e2e34",
-  accent: "#5b9ef4",
-  accentDim: "rgba(91, 158, 244, 0.10)",
-  textDim: "#9a9aa0",
-  textMuted: "#5a5a62",
-  playhead: "#ef4444",
-  audioTrack: "#1e2e1e",
-  videoTrack: "#1e2230",
+  bg: "var(--editor-bg)",
+  ruler: "var(--editor-panel-alt)",
+  trackBg: "var(--editor-panel)",
+  trackAlt: "var(--editor-panel-alt)",
+  border: "var(--editor-border)",
+  accent: "var(--editor-accent)",
+  accentDim: "var(--editor-hover)",
+  textDim: "var(--editor-text-dim)",
+  textMuted: "var(--editor-text-dim)",
+  playhead: "var(--editor-playhead)",
+  audioTrack: "var(--editor-track)",
+  videoTrack: "var(--editor-track)",
 };
 
 interface TimelineProps {
@@ -223,8 +223,8 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
 
       {/* Drop overlay */}
       {isDragOver && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none" style={{ background: "rgba(91, 158, 244, 0.08)", border: `2px dashed ${C.accent}`, borderRadius: 8 }}>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: "rgba(0,0,0,0.8)", color: C.accent }}>
+        <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none" style={{ background: C.accentDim, border: `2px dashed ${C.accent}`, borderRadius: 8 }}>
+          <div className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: "var(--editor-surface-overlay)", color: C.accent }}>
             <span className="material-symbols-outlined text-lg">upload_file</span>
             <span className="text-sm font-medium">Drop media here</span>
           </div>
@@ -241,7 +241,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
         onDrop={handleFileDrop}
       >
         {/* Track labels (fixed left) */}
-        <div className="flex-shrink-0 flex flex-col" style={{ width: 110, background: "#1a1a1e", borderRight: `1px solid ${C.border}`, zIndex: 10 }}>
+        <div className="flex-shrink-0 flex flex-col" style={{ width: 110, background: C.trackAlt, borderRight: `1px solid ${C.border}`, zIndex: 10 }}>
           {/* Ruler label */}
           <div className="flex items-center justify-between px-2" style={{ height: 24, borderBottom: `1px solid ${C.border}` }}>
             <span className="text-[9px] font-mono" style={{ color: C.textMuted }}>{formatTime(totalDuration)}</span>
@@ -276,7 +276,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                 <button
                   onClick={() => updateTrack(track.id, { isLocked: !track.isLocked })}
                   className="p-0.5 rounded transition-colors"
-                  style={{ color: track.isLocked ? "#d29922" : C.textMuted }}
+                  style={{ color: track.isLocked ? C.accent : C.textMuted }}
                   title={track.isLocked ? "Unlock" : "Lock"}
                 >
                   <span className="material-symbols-outlined text-[10px]">{track.isLocked ? "lock" : "lock_open"}</span>
@@ -334,7 +334,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                 <button
                   onClick={() => updateTrack(track.id, { isLocked: !track.isLocked })}
                   className="p-0.5 rounded transition-colors"
-                  style={{ color: track.isLocked ? "#d29922" : C.textMuted }}
+                  style={{ color: track.isLocked ? C.accent : C.textMuted }}
                   title={track.isLocked ? "Unlock" : "Lock"}
                 >
                   <span className="material-symbols-outlined text-[10px]">{track.isLocked ? "lock" : "lock_open"}</span>
@@ -378,7 +378,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                   <span className="font-mono mt-0.5" style={{ fontSize: m.major ? 9 : 8, color: m.major ? C.textDim : C.textMuted }}>
                     {formatTime(m.time)}
                   </span>
-                  <div className="w-px mt-auto" style={{ height: m.major ? 6 : 4, background: m.major ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)" }} />
+                  <div className="w-px mt-auto" style={{ height: m.major ? 6 : 4, background: m.major ? "var(--editor-ruler-mark)" : "var(--editor-ruler-mark-minor)" }} />
                 </div>
               ))}
             </div>
@@ -403,7 +403,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                   style={{
                     height: trackH,
                     borderBottom: `1px solid ${C.border}`,
-                    background: track.isMuted ? "rgba(42,58,90,0.3)" : C.videoTrack,
+                    background: track.isMuted ? "var(--editor-surface-hover)" : C.videoTrack,
                     opacity: track.isMuted ? 0.5 : 1,
                   }}
                 >
@@ -454,7 +454,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                   style={{
                     height: trackH,
                     borderBottom: `1px solid ${C.border}`,
-                    background: track.isMuted ? "rgba(42,90,42,0.3)" : C.audioTrack,
+                    background: track.isMuted ? "var(--editor-surface-hover)" : C.audioTrack,
                     opacity: track.isMuted ? 0.5 : 1,
                   }}
                 >
@@ -506,7 +506,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
         <div className="flex items-center gap-2">
           <button onClick={() => setZoom(Math.max(5, zoom - 10))} className="p-0.5 rounded transition-colors"
             style={{ color: C.textDim }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "#fff"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--editor-text)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = C.textDim; }}
           >
             <span className="material-symbols-outlined text-[14px]">remove</span>
@@ -514,7 +514,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
           <input type="range" min={5} max={150} value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-24 h-0.5" style={{ accentColor: C.accent }} />
           <button onClick={() => setZoom(Math.min(150, zoom + 10))} className="p-0.5 rounded transition-colors"
             style={{ color: C.textDim }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "#fff"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--editor-text)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = C.textDim; }}
           >
             <span className="material-symbols-outlined text-[14px]">add</span>
@@ -535,7 +535,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
           }}
           className="text-[10px] px-2.5 py-0.5 rounded-md transition-colors"
           style={{ color: C.textMuted }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "#fff"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--editor-text)"; e.currentTarget.style.background = "var(--editor-surface-hover)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = "transparent"; }}
         >
           Fit
@@ -546,7 +546,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
       {contextMenu && (
         <div
           className="fixed z-[100] py-1 rounded-lg shadow-2xl min-w-[160px]"
-          style={{ top: contextMenu.y, left: contextMenu.x, background: "#252528", border: `1px solid ${C.border}` }}
+          style={{ top: contextMenu.y, left: contextMenu.x, background: "var(--editor-menu-bg)", border: `1px solid ${C.border}` }}
         >
           {[
             { label: "Select", icon: "check_circle", action: () => { setSelectedSceneId(contextMenu.sceneId); } },
@@ -561,8 +561,8 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                 key={i}
                 onClick={() => { item.action(); setContextMenu(null); }}
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-left transition-colors"
-                style={{ color: item.danger ? C.playhead : "#e0e0e4" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                style={{ color: item.danger ? C.playhead : "var(--editor-text)" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--editor-surface-hover)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               >
                 <span className="material-symbols-outlined text-[14px]">{item.icon}</span>

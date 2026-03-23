@@ -1,16 +1,17 @@
 "use client";
+import { memo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { EditorScene, useEditorContext } from "@/context/EditorContext";
 
 const C = {
-  accent: "#10b981", // Emerald audio theme
-  accentDim: "rgba(16, 185, 129, 0.2)",
-  border: "rgba(16, 185, 129, 0.4)",
-  selected: "#34d399",
-  multi: "#f0b040",
-  textDim: "#9a9aa0",
-  bg: "#16201b", // darker green tint
+  accent: "var(--editor-success)",
+  accentDim: "var(--editor-audio-track)",
+  border: "var(--editor-border)",
+  selected: "var(--editor-success)",
+  multi: "var(--editor-warn)",
+  textDim: "var(--editor-text-dim)",
+  bg: "var(--editor-track)",
 };
 
 interface Props {
@@ -19,7 +20,7 @@ interface Props {
   trackHeight?: number;
 }
 
-export default function TimelineAudioScene({ scene, width, trackHeight }: Props) {
+function TimelineAudioSceneInner({ scene, width, trackHeight }: Props) {
   const { selectedSceneId, setSelectedSceneId, setPlayheadPosition, getSceneStartTime, selectedSceneIds, toggleSceneSelection } = useEditorContext();
   const isSelected = selectedSceneId === scene.id;
   const isMultiSelected = selectedSceneIds.has(scene.id);
@@ -62,7 +63,7 @@ export default function TimelineAudioScene({ scene, width, trackHeight }: Props)
       className={`flex-shrink-0 overflow-hidden cursor-pointer relative group transition-colors ${isSelected ? "shadow-[0_0_12px_rgba(16,185,129,0.3)]" : ""}`}
     >
       {/* Base highlight */}
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent to-[rgba(16,185,129,0.05)]" />
+      <div className="absolute inset-0 z-0" style={{ background: `linear-gradient(to bottom, transparent, ${C.accentDim})` }} />
 
       {/* Decorative Waveform (CSS representation) */}
       <div className="absolute inset-0 flex items-center justify-around opacity-30 px-2 select-none overflow-hidden">
@@ -80,15 +81,15 @@ export default function TimelineAudioScene({ scene, width, trackHeight }: Props)
 
       <div className="absolute inset-0 flex items-center px-2 z-10 pointer-events-none">
         <span className="material-symbols-outlined text-[12px] mr-1.5" style={{ color: C.accent }}>graphic_eq</span>
-        <span className="text-[9px] font-medium truncate drop-shadow-md" style={{ color: "#d1d5db" }}>
+        <span className="text-[9px] font-medium truncate drop-shadow-md" style={{ color: "var(--editor-text-dim)" }}>
           {scene.sourceFileName || `Audio ${scene.id}`}
         </span>
       </div>
 
       {/* Status Indicators */}
       <div className="absolute top-0.5 right-1 flex gap-0.5 z-20">
-        {scene.isLocked && <span className="material-symbols-outlined text-[10px]" style={{ color: "#f0b040", fontVariationSettings: "'FILL' 1" }}>lock</span>}
-        {scene.isMuted && <span className="material-symbols-outlined text-[10px]" style={{ color: "#e5534b" }}>volume_off</span>}
+        {scene.isLocked && <span className="material-symbols-outlined text-[10px]" style={{ color: "var(--editor-warn)", fontVariationSettings: "'FILL' 1" }}>lock</span>}
+        {scene.isMuted && <span className="material-symbols-outlined text-[10px]" style={{ color: "var(--editor-danger)" }}>volume_off</span>}
         {scene.playbackSpeed !== 1 && <span className="text-[7px] px-0.5 rounded" style={{ background: "rgba(0,0,0,0.6)", color: C.accent }}>{scene.playbackSpeed}x</span>}
       </div>
 
@@ -97,3 +98,5 @@ export default function TimelineAudioScene({ scene, width, trackHeight }: Props)
     </div>
   );
 }
+
+export default memo(TimelineAudioSceneInner);

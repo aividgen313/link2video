@@ -1,17 +1,18 @@
 "use client";
+import { memo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { EditorScene, useEditorContext } from "@/context/EditorContext";
 
 const C = {
-  accent: "#5b9ef4",
-  accentDim: "rgba(91, 158, 244, 0.4)",
-  border: "#2e2e34",
-  selected: "#5b9ef4",
-  multi: "#f0b040",
-  warn: "#f0b040",
-  success: "#4ade80",
-  textDim: "#9a9aa0",
+  accent: "var(--editor-accent)",
+  accentDim: "var(--editor-hover)",
+  border: "var(--editor-border)",
+  selected: "var(--editor-accent)",
+  multi: "var(--editor-warn)",
+  warn: "var(--editor-warn)",
+  success: "var(--editor-success)",
+  textDim: "var(--editor-text-dim)",
 };
 
 interface Props {
@@ -20,7 +21,7 @@ interface Props {
   trackHeight?: number; // dynamic height from timeline
 }
 
-export default function TimelineScene({ scene, width, trackHeight }: Props) {
+function TimelineSceneInner({ scene, width, trackHeight }: Props) {
   const { selectedSceneId, setSelectedSceneId, setPlayheadPosition, getSceneStartTime, selectedSceneIds, toggleSceneSelection } = useEditorContext();
   const isSelected = selectedSceneId === scene.id;
   const isMultiSelected = selectedSceneIds.has(scene.id);
@@ -55,7 +56,7 @@ export default function TimelineScene({ scene, width, trackHeight }: Props) {
         ...style,
         border: `2px solid ${borderColor}`,
         borderRadius: 6,
-        background: "#22222a",
+        background: "var(--editor-panel-alt)",
         height: clipHeight,
       }}
       {...attributes}
@@ -64,7 +65,7 @@ export default function TimelineScene({ scene, width, trackHeight }: Props) {
       className="flex-shrink-0 overflow-hidden cursor-pointer relative group"
     >
       {/* Colored top bar (clip color) */}
-      <div className="absolute top-0 left-0 right-0 h-[3px] z-10" style={{ background: isSelected ? C.accent : "#4a7a4a" }} />
+      <div className="absolute top-0 left-0 right-0 h-[3px] z-10" style={{ background: isSelected ? C.accent : C.success }} />
 
       {/* Image fill — object-position center to show middle of image */}
       {scene.imageUrl ? (
@@ -75,13 +76,13 @@ export default function TimelineScene({ scene, width, trackHeight }: Props) {
           draggable={false}
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.03)" }}>
+        <div className="w-full h-full flex items-center justify-center" style={{ background: "var(--editor-surface-hover)" }}>
           <span className="material-symbols-outlined text-sm" style={{ color: C.textDim }}>image</span>
         </div>
       )}
 
       {/* Bottom info bar */}
-      <div className="absolute inset-x-0 bottom-0 h-5 flex items-center justify-between px-1.5" style={{ background: "rgba(0,0,0,0.75)" }}>
+      <div className="absolute inset-x-0 bottom-0 h-5 flex items-center justify-between px-1.5" style={{ background: "var(--editor-surface-overlay)" }}>
         <span className="text-[9px] font-bold text-white tabular-nums">{scene.orderIndex + 1}</span>
         <span className="text-[8px] text-white/70 font-mono tabular-nums">{Math.round(scene.duration * 10) / 10}s</span>
       </div>
@@ -102,7 +103,7 @@ export default function TimelineScene({ scene, width, trackHeight }: Props) {
       {/* Status icons */}
       <div className="absolute top-1 left-1 flex gap-0.5 z-10">
         {scene.isLocked && <span className="material-symbols-outlined text-[10px]" style={{ color: C.warn, fontVariationSettings: "'FILL' 1" }}>lock</span>}
-        {scene.isMuted && <span className="material-symbols-outlined text-[10px]" style={{ color: "#e5534b" }}>volume_off</span>}
+        {scene.isMuted && <span className="material-symbols-outlined text-[10px]" style={{ color: "var(--editor-danger)" }}>volume_off</span>}
         {scene.playbackSpeed !== 1 && <span className="text-[7px] px-0.5 rounded" style={{ background: "rgba(0,0,0,0.6)", color: C.accent }}>{scene.playbackSpeed}x</span>}
       </div>
 
@@ -120,3 +121,5 @@ export default function TimelineScene({ scene, width, trackHeight }: Props) {
     </div>
   );
 }
+
+export default memo(TimelineSceneInner);
