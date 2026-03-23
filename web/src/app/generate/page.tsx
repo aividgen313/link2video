@@ -6,7 +6,7 @@ import { useAppContext, Scene, QUALITY_TIERS, VIDEO_DIMENSIONS } from "@/context
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
 import { useRef } from "react";
-import { saveToHistory } from "@/lib/videoHistory";
+import { saveToHistory, saveProjectState } from "@/lib/videoHistory";
 import SocialCopyPanel from "@/components/SocialCopyPanel";
 
 type SceneStatus = {
@@ -269,6 +269,22 @@ export default function VideoGeneration() {
         dimensionLabel: dim.label,
         totalSeconds: totalSecsDraft,
         createdAt: new Date().toISOString(),
+      });
+
+      const imagesMap: Record<number, string> = {};
+      imageAudioResults.forEach(r => {
+        imagesMap[r.scene.id] = r.image;
+      });
+
+      await saveProjectState({
+        id: draftHistoryId,
+        scriptData,
+        storyboardImages: imagesMap,
+        sceneAudioUrls: audioMap,
+        sceneVideoUrls: {},
+        sceneDurations: durationMap,
+        musicUrl: null,
+        finalVideoUrl: null
       });
 
       // Step 2: Determine which scenes get AI video vs Ken Burns
@@ -557,6 +573,17 @@ export default function VideoGeneration() {
             dimensionLabel: dim.label,
             totalSeconds: totalSecs,
             createdAt: new Date().toISOString(),
+          });
+
+          await saveProjectState({
+            id: draftHistoryId,
+            scriptData,
+            storyboardImages: imagesMap, // Reuse imagesMap
+            sceneAudioUrls: audioMap,
+            sceneVideoUrls: videoMap,
+            sceneDurations: durationMap,
+            musicUrl: resolvedMusicUrl || null,
+            finalVideoUrl: null // Blob URLs do not persist across page loads
           });
         }
       } catch (err) {

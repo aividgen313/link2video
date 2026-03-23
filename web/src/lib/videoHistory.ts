@@ -13,7 +13,20 @@ export type VideoHistoryItem = {
   createdAt: string;
 };
 
+export type ProjectState = {
+  id: string; // matches VideoHistoryItem id
+  scriptData: any; // using any to avoid circular imports of ScriptData if needed
+  storyboardImages: Record<number, string>;
+  sceneAudioUrls: Record<number, string>;
+  sceneVideoUrls: Record<number, string>;
+  sceneDurations: Record<number, number>;
+  musicUrl: string | null;
+  finalVideoUrl: string | null;
+};
+
 const HISTORY_KEY = "link2video_history";
+const IDB_DB_NAME = "link2video_db";
+const IDB_STORE_NAME = "projects";
 const MAX_ITEMS = 20;
 const MAX_THUMBNAIL_BYTES = 80000; // 80KB final compressed limit per item
 
@@ -114,5 +127,70 @@ export function deleteFromHistory(id: string): void {
   try {
     const updated = getHistory().filter((h) => h.id !== id);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+    deleteProjectState(id); // Clean up IndexedDB space
   } catch {}
+}
+
+// ==========================================
+// IndexedDB Wrappers for Large Project State
+// ==========================================
+
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(IDB_DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = (e.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(IDB_STORE_NAME)) {
+        db.createObjectStore(IDB_STORE_NAME, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function saveProjectState(state: ProjectState): Promise<void> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE_NAME, "readwrite");
+      const store = tx.objectStore(IDB_STORE_NAME);
+      const req = store.put(state);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch (err) {
+    console.error("Failed to save project state to IndexedDB", err);
+  }
+}
+
+export async function loadProjectState(id: string): Promise<ProjectState | null> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE_NAME, "readonly");
+      const store = tx.objectStore(IDB_STORE_NAME);
+      const req = store.get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (err) {
+    console.error("Failed to load project state from IndexedDB", err);
+    return null;
+  }
+}
+
+export async function deleteProjectState(id: string): Promise<void> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE_NAME, "readwrite");
+      const store = tx.objectStore(IDB_STORE_NAME);
+      const req = store.delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch (err) {
+    console.error("Failed to delete project state from IndexedDB", err);
+  }
 }

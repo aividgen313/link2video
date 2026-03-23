@@ -12,7 +12,7 @@ const DURATION_PRESETS = [
   { label: "60 min", value: 60 },
   { label: "120 min", value: 120 },
 ];
-import { getHistory, deleteFromHistory, type VideoHistoryItem } from "@/lib/videoHistory";
+import { getHistory, deleteFromHistory, loadProjectState, type VideoHistoryItem } from "@/lib/videoHistory";
 import { getSavedStyles, saveStyle, deleteStyle, type SavedStyle } from "@/lib/savedStyles";
 
 function formatTimeAgo(date: Date): string {
@@ -132,6 +132,9 @@ export default function Home() {
     audioDuration, setAudioDuration,
     setScriptData,
     setStoryboardImages,
+    setSceneAudioUrls,
+    setSceneVideoUrls,
+    setSceneDurations,
     setFinalVideoUrl,
     setYoutubeStyleSuffix,
     setGenerateRequested,
@@ -183,6 +186,25 @@ export default function Home() {
     };
     fetchBalance();
   }, [hasMounted]);
+
+  const handleOpenProject = async (v: VideoHistoryItem) => {
+    try {
+      const state = await loadProjectState(v.id);
+      if (state && state.scriptData) {
+        setScriptData(state.scriptData);
+        setStoryboardImages(state.storyboardImages || {});
+        setSceneAudioUrls(state.sceneAudioUrls || {});
+        setSceneVideoUrls(state.sceneVideoUrls || {});
+        setSceneDurations(state.sceneDurations || {});
+        setFinalVideoUrl(state.finalVideoUrl || null);
+        router.push("/editor");
+      } else {
+        setErrorMsg("Project media data not found. It may have been cleared or created on another device.");
+      }
+    } catch (e) {
+      setErrorMsg("Failed to open project data.");
+    }
+  };
 
   const handleGenerate = () => {
     // Reset previous generation state
@@ -1151,7 +1173,7 @@ export default function Home() {
                 const secs = totalRounded % 60;
                 const durationLabel = `${mins}:${String(secs).padStart(2, "0")}`;
                 return (
-                  <div key={v.id} onClick={() => router.push("/editor")} className="group glass-card rounded-[1.5rem] overflow-hidden flex flex-col hover-lift cursor-pointer hover:ring-2 ring-primary/30 animate-fade-in-up">
+                  <div key={v.id} onClick={() => handleOpenProject(v)} className="group glass-card rounded-[1.5rem] overflow-hidden flex flex-col hover-lift cursor-pointer hover:ring-2 ring-primary/30 animate-fade-in-up">
                     <div className="h-40 md:h-48 relative overflow-hidden bg-surface-container-high">
                       {v.thumbnailUrl ? (
                         <img alt={v.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src={v.thumbnailUrl} />
