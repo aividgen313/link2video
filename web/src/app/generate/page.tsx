@@ -677,6 +677,15 @@ export default function VideoGeneration() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scriptData, finalVideoUrl, userStarted]);
 
+  // Auto-start only if user came via pipeline (generateRequested flag)
+  // MUST be before any early returns to comply with React Hook rules
+  useEffect(() => {
+    if (hasMounted && generateRequested && !userStarted) {
+      setGenerateRequested(false);
+      setUserStarted(true);
+    }
+  }, [hasMounted, generateRequested, userStarted, setGenerateRequested]);
+
   if (!hasMounted) return null;
 
   if (!scriptData) return (
@@ -690,14 +699,6 @@ export default function VideoGeneration() {
       </a>
     </div>
   );
-
-  // Auto-start only if user came via pipeline (generateRequested flag)
-  useEffect(() => {
-    if (hasMounted && generateRequested && !userStarted) {
-      setGenerateRequested(false);
-      setUserStarted(true);
-    }
-  }, [hasMounted, generateRequested, userStarted, setGenerateRequested]);
 
   if (!isGenerating && !finalVideoUrl && !userStarted) return (
     <div className="flex flex-col items-center justify-center py-20 text-center gap-6">
