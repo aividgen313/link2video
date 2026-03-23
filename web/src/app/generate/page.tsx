@@ -7,6 +7,7 @@ import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
 import { useRef } from "react";
 import { saveToHistory, saveProjectState } from "@/lib/videoHistory";
+import { uploadProjectAssets } from "@/lib/cloudStorage";
 import SocialCopyPanel from "@/components/SocialCopyPanel";
 
 type SceneStatus = {
@@ -562,6 +563,37 @@ export default function VideoGeneration() {
           const creditsForThis = (tier.pollenPerScene || tier.usdPerScene) * sceneAssets.length;
           setPollenUsed(pollenUsed + creditsForThis);
 
+          // Upload all assets to cloud storage (if configured)
+          // This replaces base64 data URLs with persistent cloud URLs
+          setStitchStatus("Saving to cloud...");
+          let cloudImages = imagesMap;
+          let cloudAudio = audioMap;
+          let cloudVideo = videoMap;
+          let cloudFinalVideo: string | null = null;
+
+          try {
+            // Get the final video blob URL as a data URL for upload
+            let finalVideoDataUrl: string | null = null;
+            // We can't easily convert blob URL back, so upload individual assets
+            const cloudAssets = await uploadProjectAssets(draftHistoryId, {
+              storyboardImages: imagesMap,
+              sceneAudioUrls: audioMap,
+              sceneVideoUrls: videoMap,
+              finalVideoUrl: finalVideoDataUrl,
+            });
+            cloudImages = cloudAssets.storyboardImages;
+            cloudAudio = cloudAssets.sceneAudioUrls;
+            cloudVideo = cloudAssets.sceneVideoUrls;
+            cloudFinalVideo = cloudAssets.finalVideoUrl;
+
+            // Update AppContext with cloud URLs so editor/assets can use them
+            setSceneAudioUrls(cloudAudio);
+            setSceneVideoUrls(cloudVideo);
+          } catch (uploadErr) {
+            console.warn("Cloud upload failed (assets saved locally only):", uploadErr);
+          }
+          setStitchStatus("");
+
           // Update draft history entry with final stats (reuse same ID so it overwrites)
           const totalSecs = sceneAssets.reduce((sum, a) => sum + (a.duration || 8), 0);
           await saveToHistory({
@@ -569,7 +601,7 @@ export default function VideoGeneration() {
             title: scriptData?.title || "Untitled Video",
             topic: url || "",
             angle: scriptData?.angle || "",
-            thumbnailUrl: sceneAssets[0]?.image || firstSceneImgDraft,
+            thumbnailUrl: cloudImages[scriptData.scenes[0]?.id] || sceneAssets[0]?.image || firstSceneImgDraft,
             quality: qualityTier,
             dimensionId: dim.id,
             dimensionLabel: dim.label,
@@ -580,12 +612,12 @@ export default function VideoGeneration() {
           await saveProjectState({
             id: draftHistoryId,
             scriptData,
-            storyboardImages: imagesMap, // Reuse imagesMap
-            sceneAudioUrls: audioMap,
-            sceneVideoUrls: videoMap,
+            storyboardImages: cloudImages,
+            sceneAudioUrls: cloudAudio,
+            sceneVideoUrls: cloudVideo,
             sceneDurations: durationMap,
             musicUrl: resolvedMusicUrl || null,
-            finalVideoUrl: null // Blob URLs do not persist across page loads
+            finalVideoUrl: cloudFinalVideo,
           });
         }
       } catch (err) {
