@@ -106,18 +106,47 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+    // Check if scene is on a locked track
+    const scene = scenes.find(s => s.id === active.id);
+    if (scene) {
+      const track = tracks.find(t => t.id === scene.trackId);
+      if (track?.isLocked || scene.isLocked) return;
+    }
     const fromIndex = scenes.findIndex(s => s.id === active.id);
     const toIndex = scenes.findIndex(s => s.id === over.id);
     if (fromIndex !== -1 && toIndex !== -1) reorderScene(fromIndex, toIndex);
   };
 
-  const handleRulerClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left + (scrollRef.current?.scrollLeft || 0);
+  const rulerRef = useRef<HTMLDivElement>(null);
+  const isDraggingPlayhead = useRef(false);
+
+  const calcTimeFromX = useCallback((clientX: number) => {
+    const ruler = rulerRef.current;
+    if (!ruler) return 0;
+    const rect = ruler.getBoundingClientRect();
+    const x = clientX - rect.left + (scrollRef.current?.scrollLeft || 0);
     let time = x / zoom;
     if (snapEnabled) time = Math.round(time * 4) / 4;
-    setPlayheadPosition(Math.max(0, Math.min(time, totalDuration)));
-  };
+    return Math.max(0, Math.min(time, totalDuration));
+  }, [zoom, snapEnabled, totalDuration]);
+
+  const handleRulerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    isDraggingPlayhead.current = true;
+    setPlayheadPosition(calcTimeFromX(e.clientX));
+
+    const handleMove = (ev: MouseEvent) => {
+      if (!isDraggingPlayhead.current) return;
+      setPlayheadPosition(calcTimeFromX(ev.clientX));
+    };
+    const handleUp = () => {
+      isDraggingPlayhead.current = false;
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+  }, [calcTimeFromX, setPlayheadPosition]);
 
   const playheadX = playheadPosition * zoom;
 
@@ -369,9 +398,10 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
           <div style={{ minWidth: totalWidth + 100, position: "relative" }}>
             {/* Time ruler */}
             <div
+              ref={rulerRef}
               className="relative cursor-pointer"
               style={{ height: 24, background: C.ruler, borderBottom: `1px solid ${C.border}` }}
-              onClick={handleRulerClick}
+              onMouseDown={handleRulerMouseDown}
             >
               {timeMarks.map(m => (
                 <div key={m.time} className="absolute top-0 h-full flex flex-col items-center" style={{ left: m.x }}>
@@ -388,8 +418,27 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
               className="absolute top-0 bottom-0 z-20 pointer-events-none"
               style={{ left: playheadX, width: 2, background: C.playhead }}
             >
-              {/* Playhead marker triangle */}
-              <div className="absolute -top-[1px] left-1/2 -translate-x-1/2" style={{ width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: `7px solid ${C.playhead}` }} />
+              {/* Playhead marker triangle (draggable) */}
+              <div
+                className="absolute -top-[1px] left-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing"
+                style={{ width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: `7px solid ${C.playhead}`, pointerEvents: "auto" }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  isDraggingPlayhead.current = true;
+                  const handleMove = (ev: MouseEvent) => {
+                    if (!isDraggingPlayhead.current) return;
+                    setPlayheadPosition(calcTimeFromX(ev.clientX));
+                  };
+                  const handleUp = () => {
+                    isDraggingPlayhead.current = false;
+                    window.removeEventListener("mousemove", handleMove);
+                    window.removeEventListener("mouseup", handleUp);
+                  };
+                  window.addEventListener("mousemove", handleMove);
+                  window.addEventListener("mouseup", handleUp);
+                }}
+              />
             </div>
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -434,6 +483,11 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                           )}
                         </div>
                       </SortableContext>
+                    )}
+                    {track.isLocked && !track.isCollapsed && (
+                      <div className="absolute inset-0 pointer-events-none z-10 opacity-10"
+                        style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 5px, currentColor 5px, currentColor 6px)", color: "var(--editor-warn)" }}
+                      />
                     )}
                   </div>
                 );
@@ -483,6 +537,11 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                           )}
                         </div>
                       </SortableContext>
+                    )}
+                    {track.isLocked && !track.isCollapsed && (
+                      <div className="absolute inset-0 pointer-events-none z-10 opacity-10"
+                        style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 5px, currentColor 5px, currentColor 6px)", color: "var(--editor-warn)" }}
+                      />
                     )}
                   </div>
                 );
@@ -541,7 +600,11 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
       </div>
 
       {/* ── Right-click context menu ── */}
-      {contextMenu && (
+      {contextMenu && (() => {
+        const contextScene = scenes.find(s => s.id === contextMenu.sceneId);
+        const contextTrack = contextScene ? tracks.find(t => t.id === contextScene.trackId) : null;
+        const isContextLocked = !!(contextScene?.isLocked || contextTrack?.isLocked);
+        return (
         <div
           className="fixed z-[100] py-1 rounded-lg shadow-2xl min-w-[160px]"
           style={{ top: contextMenu.y, left: contextMenu.x, background: "var(--editor-menu-bg)", border: `1px solid ${C.border}` }}
@@ -549,7 +612,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
           {[
             { label: "Select", icon: "check_circle", action: () => { setSelectedSceneId(contextMenu.sceneId); } },
             { divider: true },
-            { label: "Split at Playhead", icon: "content_cut", action: () => {
+            { label: "Split at Playhead", icon: "content_cut", disabled: isContextLocked, action: () => {
               const scene = scenes.find(s => s.id === contextMenu.sceneId);
               if (!scene) return;
               const start = getSceneStartTime(contextMenu.sceneId);
@@ -558,28 +621,31 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                 splitScene(contextMenu.sceneId, Math.round(splitAt * 10) / 10);
               }
             }},
-            { label: "Duplicate", icon: "content_copy", action: () => { duplicateScene(contextMenu.sceneId); } },
+            { label: "Duplicate", icon: "content_copy", disabled: isContextLocked, action: () => { duplicateScene(contextMenu.sceneId); } },
             { divider: true },
-            { label: "Delete", icon: "delete_outline", danger: true, action: () => { if (scenes.length > 1) deleteScene(contextMenu.sceneId); } },
+            { label: "Delete", icon: "delete_outline", danger: true, disabled: isContextLocked, action: () => { if (scenes.length > 1) deleteScene(contextMenu.sceneId); } },
           ].map((item: any, i: number) =>
             item.divider ? (
               <div key={i} className="my-1 mx-2 h-px" style={{ background: C.border }} />
             ) : (
               <button
                 key={i}
-                onClick={() => { item.action(); setContextMenu(null); }}
+                onClick={() => { if (item.disabled) return; item.action(); setContextMenu(null); }}
+                disabled={item.disabled}
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-left transition-colors"
-                style={{ color: item.danger ? C.playhead : "var(--editor-text)" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--editor-surface-hover)"; }}
+                style={{ color: item.disabled ? C.textMuted : item.danger ? C.playhead : "var(--editor-text)", opacity: item.disabled ? 0.4 : 1, cursor: item.disabled ? "not-allowed" : "pointer" }}
+                onMouseEnter={(e) => { if (!item.disabled) e.currentTarget.style.background = "var(--editor-surface-hover)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               >
                 <span className="material-symbols-outlined text-[14px]">{item.icon}</span>
                 {item.label}
+                {item.disabled && <span className="material-symbols-outlined text-[11px] ml-auto" style={{ color: C.textMuted }}>lock</span>}
               </button>
             )
           )}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

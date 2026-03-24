@@ -382,6 +382,7 @@ function EditorInner() {
     playheadPosition, setPlayheadPosition, totalDuration,
     getSceneStartTime,
     addOverlay, importMedia,
+    activeWorkspace, setActiveWorkspace,
   } = useEditorContext();
   const { theme: C, isDark, toggle: toggleTheme } = useEditorTheme();
   const [showExport, setShowExport] = useState(false);
@@ -886,6 +887,34 @@ function EditorInner() {
           <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full" style={{ background: C.accentBg, color: C.accent }}>
             {scenes.length} clips
           </span>
+        </div>
+
+        {/* Workspace switcher */}
+        <div className="flex items-center gap-0.5 mx-3 px-1 py-0.5 rounded-lg" style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }}>
+          {([
+            { id: "editing" as const, icon: "movie_edit", label: "Editing" },
+            { id: "review" as const, icon: "preview", label: "Review" },
+            { id: "library" as const, icon: "video_library", label: "Library" },
+          ]).map(ws => (
+            <button
+              key={ws.id}
+              onClick={() => {
+                setActiveWorkspace(ws.id);
+                if (ws.id === "editing") { setShowSource(true); setShowProperties(true); }
+                else if (ws.id === "review") { setShowSource(false); setShowProperties(false); }
+                else if (ws.id === "library") { setShowSource(true); setShowProperties(false); }
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all"
+              style={{
+                background: activeWorkspace === ws.id ? C.accentBg : "transparent",
+                color: activeWorkspace === ws.id ? C.accent : C.textMuted,
+              }}
+              title={ws.label}
+            >
+              <span className="material-symbols-outlined text-[13px]">{ws.icon}</span>
+              <span className="hidden xl:inline">{ws.label}</span>
+            </button>
+          ))}
         </div>
 
         <div className="flex-1" />

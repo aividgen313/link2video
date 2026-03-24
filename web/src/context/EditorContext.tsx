@@ -4,6 +4,8 @@ import { Scene, useAppContext } from "./AppContext";
 
 // ── Types ──
 
+export type WorkspacePreset = "editing" | "review" | "library";
+
 export type TransitionType = "none" | "fade" | "dissolve" | "wipe-left" | "wipe-right" | "zoom-in" | "zoom-out" | "slide-left" | "slide-right";
 export type FilterType = "none" | "cinematic" | "vintage" | "noir" | "warm" | "cool" | "vivid" | "muted" | "sepia" | "dramatic";
 export type KenBurnsDirection = "zoom-in" | "zoom-out" | "pan-left" | "pan-right" | "pan-up" | "pan-down";
@@ -167,6 +169,10 @@ interface EditorContextType {
   setShowSafeZones: (v: boolean) => void;
   previewScale: "fit" | "fill" | "100";
   setPreviewScale: (v: "fit" | "fill" | "100") => void;
+
+  // Workspace
+  activeWorkspace: WorkspacePreset;
+  setActiveWorkspace: (w: WorkspacePreset) => void;
 }
 
 const EditorContext = createContext<EditorContextType | null>(null);
@@ -202,6 +208,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [showSafeZones, setShowSafeZones] = useState(false);
   const [previewScale, setPreviewScale] = useState<"fit" | "fill" | "100">("fill");
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspacePreset>("editing");
 
   // Undo/Redo history
   const historyRef = useRef<HistoryEntry[]>([]);
@@ -442,18 +449,41 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   // Scene operations
   const reorderScene = useCallback((fromIndex: number, toIndex: number) => {
     setScenesWithHistory(prev => {
+      const scene = prev[fromIndex];
+      if (!scene) return prev;
+      if (scene.isLocked) return prev;
+      const track = tracks.find(t => t.id === scene.trackId);
+      if (track?.isLocked) return prev;
       const arr = [...prev];
       const [moved] = arr.splice(fromIndex, 1);
       arr.splice(toIndex, 0, moved);
       return arr;
     });
-  }, [setScenesWithHistory]);
+  }, [setScenesWithHistory, tracks]);
 
   const updateScene = useCallback((id: number, updates: Partial<EditorScene>) => {
-    setScenesWithHistory(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-  }, [setScenesWithHistory]);
+    // Allow toggling lock itself
+    if (Object.keys(updates).length === 1 && 'isLocked' in updates) {
+      setScenesWithHistory(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+      return;
+    }
+    setScenesWithHistory(prev => {
+      const scene = prev.find(s => s.id === id);
+      if (!scene) return prev;
+      if (scene.isLocked) return prev;
+      const track = tracks.find(t => t.id === scene.trackId);
+      if (track?.isLocked) return prev;
+      return prev.map(s => s.id === id ? { ...s, ...updates } : s);
+    });
+  }, [setScenesWithHistory, tracks]);
 
   const deleteScene = useCallback((id: number) => {
+    // Check lock before deleting
+    const scene = scenes.find(s => s.id === id);
+    if (!scene) return;
+    if (scene.isLocked) return;
+    const track = tracks.find(t => t.id === scene.trackId);
+    if (track?.isLocked) return;
     setScenesWithHistory(prev => prev.filter(s => s.id !== id));
     setSelectedSceneId(prev => prev === id ? null : prev);
     setSelectedSceneIds(prev => {
@@ -461,29 +491,36 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       next.delete(id);
       return next;
     });
-  }, [setScenesWithHistory]);
+  }, [setScenesWithHistory, scenes, tracks]);
 
   const duplicateScene = useCallback((id: number) => {
     setScenesWithHistory(prev => {
       const idx = prev.findIndex(s => s.id === id);
       if (idx === -1) return prev;
+      const scene = prev[idx];
+      if (scene.isLocked) return prev;
+      const track = tracks.find(t => t.id === scene.trackId);
+      if (track?.isLocked) return prev;
       const maxId = Math.max(...prev.map(s => s.id)) + 1;
       const dupe: EditorScene = {
-        ...JSON.parse(JSON.stringify(prev[idx])),
+        ...JSON.parse(JSON.stringify(scene)),
         id: maxId,
-        overlays: prev[idx].overlays.map(o => ({ ...o, id: `${o.id}-copy-${Date.now()}` })),
+        overlays: scene.overlays.map(o => ({ ...o, id: `${o.id}-copy-${Date.now()}` })),
       };
       const arr = [...prev];
       arr.splice(idx + 1, 0, dupe);
       return arr;
     });
-  }, [setScenesWithHistory]);
+  }, [setScenesWithHistory, tracks]);
 
   const splitScene = useCallback((id: number, splitAt: number) => {
     setScenesWithHistory(prev => {
       const idx = prev.findIndex(s => s.id === id);
       if (idx === -1) return prev;
       const scene = prev[idx];
+      if (scene.isLocked) return prev;
+      const track = tracks.find(t => t.id === scene.trackId);
+      if (track?.isLocked) return prev;
       if (splitAt <= 0 || splitAt >= scene.duration) return prev;
       const maxId = Math.max(...prev.map(s => s.id)) + 1;
       const first: EditorScene = { ...scene, duration: splitAt };
@@ -498,7 +535,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       arr.splice(idx, 1, first, second);
       return arr;
     });
-  }, [setScenesWithHistory]);
+  }, [setScenesWithHistory, tracks]);
 
   const insertScene = useCallback((afterId: number | null) => {
     setScenesWithHistory(prev => {
@@ -537,6 +574,11 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       const s1 = prev.find(s => s.id === id1);
       const s2 = prev.find(s => s.id === id2);
       if (!s1 || !s2) return prev;
+      // Check locks on both scenes
+      if (s1.isLocked || s2.isLocked) return prev;
+      const track1 = tracks.find(t => t.id === s1.trackId);
+      const track2 = tracks.find(t => t.id === s2.trackId);
+      if (track1?.isLocked || track2?.isLocked) return prev;
       const merged: EditorScene = {
         ...s1,
         duration: s1.duration + s2.duration,
@@ -545,20 +587,32 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       };
       return prev.map(s => s.id === id1 ? merged : s).filter(s => s.id !== id2);
     });
-  }, [setScenesWithHistory]);
+  }, [setScenesWithHistory, tracks]);
 
   // Batch
   const applyToSelected = useCallback((updates: Partial<EditorScene>) => {
     setScenesWithHistory(prev =>
-      prev.map(s => selectedSceneIds.has(s.id) ? { ...s, ...updates } : s)
+      prev.map(s => {
+        if (!selectedSceneIds.has(s.id)) return s;
+        if (s.isLocked) return s;
+        const track = tracks.find(t => t.id === s.trackId);
+        if (track?.isLocked) return s;
+        return { ...s, ...updates };
+      })
     );
-  }, [setScenesWithHistory, selectedSceneIds]);
+  }, [setScenesWithHistory, selectedSceneIds, tracks]);
 
   const deleteSelected = useCallback(() => {
-    setScenesWithHistory(prev => prev.filter(s => !selectedSceneIds.has(s.id)));
+    setScenesWithHistory(prev => prev.filter(s => {
+      if (!selectedSceneIds.has(s.id)) return true;
+      if (s.isLocked) return true;
+      const track = tracks.find(t => t.id === s.trackId);
+      if (track?.isLocked) return true;
+      return false;
+    }));
     setSelectedSceneIds(new Set());
     setSelectedSceneId(null);
-  }, [setScenesWithHistory, selectedSceneIds]);
+  }, [setScenesWithHistory, selectedSceneIds, tracks]);
 
   // Overlays
   const addOverlay = useCallback((sceneId: number, overlay: TextOverlay) => {
@@ -774,6 +828,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     snapEnabled, setSnapEnabled,
     showSafeZones, setShowSafeZones,
     previewScale, setPreviewScale,
+    activeWorkspace, setActiveWorkspace,
   }), [
     scenes, setScenes,
     selectedSceneId, setSelectedSceneId,
@@ -796,6 +851,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     snapEnabled, setSnapEnabled,
     showSafeZones, setShowSafeZones,
     previewScale, setPreviewScale,
+    activeWorkspace, setActiveWorkspace,
   ]);
 
   return (
