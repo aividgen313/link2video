@@ -212,7 +212,7 @@ export default function ScriptBuilder() {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ topic: url, durationMinutes: targetDurationMinutes }),
-              signal: AbortSignal.timeout(60000),
+              signal: AbortSignal.timeout(90000), // angle gen can take 60s+
             });
             if (anglesRes.ok) {
               const anglesData = await anglesRes.json();
@@ -252,7 +252,7 @@ export default function ScriptBuilder() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody),
-          signal: AbortSignal.timeout(90000), // 90s max — fail rather than hang forever
+          signal: AbortSignal.timeout(180000), // 3min — server does 2 sequential AI calls (visual ref + script)
         });
         if (!res.ok) throw new Error(`Script generation failed (HTTP ${res.status})`);
         const data = await res.json();
@@ -466,14 +466,16 @@ export default function ScriptBuilder() {
             <p className="text-sm text-outline">
               {loadingElapsed < 3
                 ? "Connecting to AI model..."
-                : loadingElapsed < 10
+                : loadingElapsed < 15
                 ? "AI is writing your scenes..."
-                : loadingElapsed < 25
+                : loadingElapsed < 40
                 ? `Writing scene narrations & visual prompts...`
-                : loadingElapsed < 45
-                ? "Crafting final details..."
                 : loadingElapsed < 70
-                ? "Taking longer than usual — trying backup model..."
+                ? "Crafting visual reference descriptions..."
+                : loadingElapsed < 100
+                ? "Still working — AI models can take a minute..."
+                : loadingElapsed < 140
+                ? "Taking longer than usual — hang tight..."
                 : "Almost there — finalizing script..."}
             </p>
             <div className="flex items-center justify-center gap-3 mt-3">
@@ -482,7 +484,7 @@ export default function ScriptBuilder() {
               </span>
               <span className="text-xs text-outline/60">|</span>
               <span className="text-xs text-primary font-medium">
-                {loadingElapsed < 3 ? `~${Math.max(20, targetDurationMinutes * 8)}s remaining` : loadingElapsed < 25 ? `~${Math.max(5, Math.round(targetDurationMinutes * 8) - loadingElapsed)}s remaining` : loadingElapsed < 50 ? `~${Math.max(5, 55 - loadingElapsed)}s remaining` : loadingElapsed < 80 ? `~${Math.max(5, 85 - loadingElapsed)}s remaining` : "finishing up..."}
+                {loadingElapsed < 3 ? `~${Math.max(60, targetDurationMinutes * 15)}s remaining` : loadingElapsed < 40 ? `~${Math.max(30, 90 - loadingElapsed)}s remaining` : loadingElapsed < 100 ? `~${Math.max(10, 120 - loadingElapsed)}s remaining` : loadingElapsed < 150 ? `~${Math.max(5, 160 - loadingElapsed)}s remaining` : "finishing up..."}
               </span>
             </div>
             {/* Progress bar */}
