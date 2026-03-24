@@ -186,9 +186,9 @@ export async function deleteProjectFromCloud(projectId: string): Promise<void> {
     const historyRes = await fetch("/api/upload?path=projects.json");
     if (historyRes.ok) {
       const data = await historyRes.json();
-      if (data.success && Array.isArray(data.data)) {
-        const updated = (data.data as any[]).filter((h: any) => h.id !== projectId);
-        // 1. Update index (using raw json field)
+      const list: any[] = Array.isArray(data) ? data : (data.success && Array.isArray(data.data)) ? data.data : [];
+      if (list.length > 0) {
+        const updated = list.filter((h: any) => h.id !== projectId);
         await fetch("/api/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

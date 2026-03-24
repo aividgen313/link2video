@@ -85,9 +85,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Storage bucket unavailable" }, { status: 200 });
     }
 
-    // Skip the regex match if we already handled it above
-
-    // Using contentType and buffer from above
 
     const { error } = await supabase.storage
       .from(BUCKET)

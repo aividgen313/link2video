@@ -191,12 +191,23 @@ export async function saveProjectState(state: ProjectState): Promise<void> {
       req.onerror = () => reject(req.error);
     });
 
-    // Background cloud sync
+    // Background cloud sync — always run, even if history item not found yet
     const history = getHistory();
     const item = history.find(h => h.id === state.id);
-    if (item) {
-      saveProjectToCloud(state.id, state, item);
-    }
+    // Use a minimal stub so new (pipeline-generated) projects are still uploaded
+    const historyItem = item ?? {
+      id: state.id,
+      title: state.scriptData?.title || "Untitled",
+      topic: "",
+      angle: "",
+      quality: "basic" as const,
+      dimensionId: "16:9",
+      dimensionLabel: "16:9",
+      totalSeconds: 0,
+      createdAt: new Date().toISOString(),
+    };
+    saveProjectToCloud(state.id, state, historyItem);
+
   } catch (err) {
     console.error("Failed to save project state to IndexedDB", err);
   }
