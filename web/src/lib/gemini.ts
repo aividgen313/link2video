@@ -17,43 +17,26 @@ async function generateViaPollinationsWithRetry(prompt: string): Promise<string>
   let lastError: Error = new Error("Unknown error");
   const apiKey = process.env.POLLINATIONS_API_KEY || "";
 
-  // Strategy 1: Try chat endpoint with API key (if available)
-  if (apiKey) {
-    const modelsToTry = POLLINATIONS_MODELS.slice(0, 3);
-    for (let i = 0; i < modelsToTry.length; i++) {
-      const model = modelsToTry[i];
-      console.log(`Pollinations chat (auth) attempt ${i + 1}/${modelsToTry.length} with model: ${model}`);
-      try {
-        return await callPollinationsChat(prompt, model, apiKey);
-      } catch (err: any) {
-        lastError = err;
-        const msg = err.message || "";
-        console.warn(`Model ${model} failed: ${msg}`);
-        if (msg.includes("429")) {
-          await new Promise(r => setTimeout(r, 2000));
-        } else if (msg.includes("502") || msg.includes("503") || msg.includes("504")) {
-          await new Promise(r => setTimeout(r, 3000));
-        }
-        // On 401/402, stop trying with key — fall through to anonymous
-        if (msg.includes("401") || msg.includes("402")) break;
-      }
-    }
-  }
+  // Always try with API key first (Pollinations now requires auth for all models)
+  const modelsToTry = apiKey ? POLLINATIONS_MODELS : POLLINATIONS_MODELS.slice(0, 4);
+  const key = apiKey; // use key for all attempts
 
-  // Strategy 2: Try chat endpoint WITHOUT API key (anonymous, rate-limited but free)
-  console.log("Falling back to anonymous chat endpoint (no API key)...");
-  const anonModels = POLLINATIONS_MODELS.slice(0, 4); // try more models without key
-  for (let i = 0; i < anonModels.length; i++) {
-    const model = anonModels[i];
-    console.log(`Pollinations chat (anon) attempt ${i + 1}/${anonModels.length} with model: ${model}`);
+  for (let i = 0; i < modelsToTry.length; i++) {
+    const model = modelsToTry[i];
+    console.log(`Pollinations chat attempt ${i + 1}/${modelsToTry.length} with model: ${model} (${key ? "auth" : "no-key"})`);
     try {
-      return await callPollinationsChat(prompt, model, "");
+      return await callPollinationsChat(prompt, model, key);
     } catch (err: any) {
       lastError = err;
       const msg = err.message || "";
-      console.warn(`Anon model ${model} failed: ${msg}`);
+      console.warn(`Model ${model} failed: ${msg}`);
+
+      // 402 = out of credits — no point trying more models with the same key
+      if (msg.includes("402")) {
+        throw new Error("Pollinations balance is empty. Please top up at enter.pollinations.ai and try again.");
+      }
       if (msg.includes("429")) {
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 2000));
       } else if (msg.includes("502") || msg.includes("503") || msg.includes("504")) {
         await new Promise(r => setTimeout(r, 3000));
       }
