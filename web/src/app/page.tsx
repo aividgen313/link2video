@@ -554,7 +554,7 @@ export default function Home() {
             {mode === "link" && (
               <>
                 <div className="space-y-2">
-                  <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Paste a link or topic</label>
+                  <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Paste a link or topic</label>
                   <div className="relative">
                     <input
                       className="w-full bg-surface-container-lowest/50 border border-outline-variant/10 rounded-2xl py-4 px-5 pr-12 text-on-surface placeholder:text-outline/50 focus:ring-2 focus:ring-primary/40 focus:outline-none transition-all text-base"
@@ -572,7 +572,7 @@ export default function Home() {
 
                 {/* Video Style Templates */}
                 <div className="space-y-2">
-                  <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Video Style</label>
+                  <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Video Style</label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {STYLE_TEMPLATES.map((s) => {
                       const isActive = activeStyle === s.label;
@@ -596,7 +596,7 @@ export default function Home() {
                 {/* Optional Character References for Link Mode */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Character References (optional)</label>
+                    <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Character References (optional)</label>
                     {characterProfiles.length === 0 && (
                       <div className="flex items-center gap-3">
                         <button
@@ -666,7 +666,7 @@ export default function Home() {
              {/* Global Setting / Location Input */}
                 <div className="space-y-2 mt-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Setting / Location (optional)</label>
+                    <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Setting / Location (optional)</label>
                   </div>
                   <input
                     className="w-full bg-surface-container-lowest/50 border border-outline-variant/10 rounded-2xl py-3 px-4 text-on-surface placeholder:text-outline/50 focus:ring-2 focus:ring-primary/40 focus:outline-none transition-all text-sm"
@@ -682,7 +682,7 @@ export default function Home() {
             {mode === "short-story" && (
               <>
                 <div className="space-y-2">
-                  <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Paste or write your story</label>
+                  <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Paste or write your story</label>
                   <textarea
                     className="w-full bg-surface-container-lowest/50 border border-outline-variant/10 rounded-2xl py-4 px-5 text-on-surface placeholder:text-outline/50 focus:ring-2 focus:ring-primary/40 focus:outline-none transition-all text-sm leading-relaxed resize-none"
                     placeholder="Once upon a time, in a city that never sleeps..."
@@ -709,7 +709,7 @@ export default function Home() {
                 {/* Global Setting / Location Input */}
                 <div className="space-y-2 mt-4">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Setting / Location (optional)</label>
+                    <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Setting / Location (optional)</label>
                   </div>
                   <input
                     className="w-full bg-surface-container-lowest/50 border border-outline-variant/10 rounded-2xl py-3 px-4 text-on-surface placeholder:text-outline/50 focus:ring-2 focus:ring-primary/40 focus:outline-none transition-all text-sm"
@@ -723,7 +723,7 @@ export default function Home() {
                 {characterProfiles.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Character Profiles ({characterProfiles.length})</label>
+                      <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Character Profiles ({characterProfiles.length})</label>
                       <button
                         onClick={() => setCharacterProfiles([...characterProfiles, { id: `char_${Date.now()}`, name: "", appearance: "", role: "supporting" }])}
                         className="text-xs text-primary flex items-center gap-1 hover:underline"
@@ -824,7 +824,7 @@ export default function Home() {
               <>
                 {/* Audio Upload */}
                 <div className="space-y-2">
-                  <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Upload Audio File</label>
+                  <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Upload Audio File</label>
                   <input ref={audioInputRef} type="file" accept=".mp3,.wav,.m4a,.ogg,.aac,.flac" onChange={handleAudioUpload} className="hidden" />
                   <button
                     onClick={() => audioInputRef.current?.click()}
@@ -851,7 +851,7 @@ export default function Home() {
 
                 {/* Lyrics Input */}
                 <div className="space-y-2">
-                  <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Lyrics (optional — improves scene accuracy)</label>
+                  <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Lyrics (optional — improves scene accuracy)</label>
                   <textarea
                     className="w-full bg-surface-container-lowest/50 border border-outline-variant/10 rounded-2xl py-3 px-4 text-on-surface placeholder:text-outline/50 focus:ring-2 focus:ring-primary/40 focus:outline-none transition-all text-sm leading-relaxed resize-none"
                     placeholder="Paste song lyrics here..."
@@ -879,7 +879,7 @@ export default function Home() {
                 {/* Segments Preview */}
                 {musicSegments.length > 0 && (
                   <div className="space-y-2">
-                    <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Song Structure ({musicSegments.length} segments)</label>
+                    <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Song Structure ({musicSegments.length} segments)</label>
                     <div className="flex flex-wrap gap-1.5">
                       {musicSegments.map((seg) => (
                         <span
@@ -901,7 +901,7 @@ export default function Home() {
                 {/* Character Profiles for Music Video (optional) */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Artist / Character Profiles (optional)</label>
+                    <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Artist / Character Profiles (optional)</label>
                     <button
                       onClick={() => setCharacterProfiles([...characterProfiles, { id: `char_${Date.now()}`, name: "", appearance: "", role: "protagonist" }])}
                       className="text-xs text-primary flex items-center gap-1 hover:underline"
@@ -983,7 +983,7 @@ export default function Home() {
 
             {/* Quality Tier */}
             <div className="space-y-2">
-              <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Quality</label>
+              <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Quality</label>
               <div className="grid grid-cols-3 gap-2 bg-surface-container-lowest/50 border border-outline-variant/10 p-1.5 rounded-2xl">
                 {(["basic", "medium", "pro"] as QualityTier[]).map((t) => {
                   const info = QUALITY_TIERS[t];
@@ -1074,7 +1074,7 @@ export default function Home() {
             {/* Duration — hide for music-video (duration comes from audio) */}
             {mode !== "music-video" && (
               <div className="space-y-2">
-                <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Duration</label>
+                <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Duration</label>
                 <div className="flex flex-wrap gap-1.5">
                   {DURATION_PRESETS.map((d) => {
                     const isActive = targetDurationMinutes === d.value;
@@ -1103,7 +1103,7 @@ export default function Home() {
             {/* Row: Dimension + Visual Style */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Video Size</label>
+                <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Video Size</label>
                 <div className="relative">
                   <select
                     value={videoDimension.id}
@@ -1116,7 +1116,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Visual Style</label>
+                <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Visual Style</label>
                 <div className="relative">
                   <select
                     value={globalVisualStyle}
@@ -1307,7 +1307,7 @@ export default function Home() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {mode !== "music-video" && (
                 <div className="space-y-2">
-                  <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">
+                  <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">
                     Voice {qualityTier === "basic" ? "(Free · Edge TTS)" : "(ElevenLabs)"}
                   </label>
                   <div className="relative">
@@ -1324,7 +1324,7 @@ export default function Home() {
               )}
 
               <div className="space-y-2">
-                <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Extras</label>
+                <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Extras</label>
                 <div className="space-y-2">
                   {[
                     ...(mode !== "music-video" ? [{ enabled: musicEnabled, toggle: () => setMusicEnabled(!musicEnabled), onIcon: "music_note", offIcon: "music_off", label: "Background Music" }] : []),
@@ -1378,7 +1378,7 @@ export default function Home() {
       {hasMounted && (
         <div className="max-w-5xl mx-auto w-full">
           <div className="flex items-center justify-between mb-6 px-1">
-            <h3 className="font-headline text-xl md:text-2xl font-bold tracking-tight">
+            <h3 className="font-headline text-xl md:text-2xl font-extrabold tracking-tight text-on-surface">
               Recent Videos
               {recentVideos.length > 0 && (<span className="ml-2 text-sm font-normal text-outline">({recentVideos.length})</span>)}
             </h3>
@@ -1387,7 +1387,7 @@ export default function Home() {
           {recentVideos.length === 0 ? (
             <div className="glass rounded-2xl p-12 flex flex-col items-center justify-center text-center border border-dashed border-outline-variant/20">
               <span className="material-symbols-outlined text-4xl text-outline mb-3">movie</span>
-              <h4 className="font-headline font-bold text-lg mb-1">No videos yet</h4>
+              <h4 className="font-headline font-extrabold text-lg mb-1">No videos yet</h4>
               <p className="text-sm text-outline">Generate your first video above and it&apos;ll appear here.</p>
             </div>
           ) : (
@@ -1422,7 +1422,7 @@ export default function Home() {
                     </div>
                     <div className="p-4 md:p-5 space-y-3 flex-1 flex flex-col justify-between">
                       <div>
-                        <h4 className="font-headline font-bold text-base leading-tight mb-1 line-clamp-2">{v.title}</h4>
+                        <h4 className="font-headline font-extrabold text-base leading-tight mb-1 line-clamp-2">{v.title}</h4>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${QUALITY_TIERS[v.quality].bgColor} ${QUALITY_TIERS[v.quality].color}`}>{QUALITY_TIERS[v.quality].label}</span>
                           <p className="text-xs text-outline">{timeAgo}</p>

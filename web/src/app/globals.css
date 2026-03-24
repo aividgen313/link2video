@@ -338,6 +338,91 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   NOTEPAD — Facebook-inspired theme
+   ═══════════════════════════════════════════════════════════ */
+
+.notepad-page {
+  --np-blue: #1877F2;
+  --np-blue-hover: #166FE5;
+  --np-blue-light: #E7F3FF;
+  --np-blue-muted: #4599FF;
+  --np-bg: #F0F2F5;
+  --np-card: #FFFFFF;
+  --np-card-hover: #F7F8FA;
+  --np-text: #050505;
+  --np-text-secondary: #65676B;
+  --np-text-tertiary: #8A8D91;
+  --np-divider: #CED0D4;
+  --np-divider-light: #E4E6EB;
+  --np-input-bg: #F0F2F5;
+  --np-green: #31A24C;
+  --np-green-bg: #E6F5EA;
+  --np-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --np-shadow-lg: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dark .notepad-page {
+  --np-blue: #4599FF;
+  --np-blue-hover: #5AA7FF;
+  --np-blue-light: rgba(69, 153, 255, 0.1);
+  --np-blue-muted: #4599FF;
+  --np-bg: #18191A;
+  --np-card: #242526;
+  --np-card-hover: #3A3B3C;
+  --np-text: #E4E6EB;
+  --np-text-secondary: #B0B3B8;
+  --np-text-tertiary: #8A8D91;
+  --np-divider: #3E4042;
+  --np-divider-light: #3E4042;
+  --np-input-bg: #3A3B3C;
+  --np-green: #5BD476;
+  --np-green-bg: rgba(91, 212, 118, 0.1);
+  --np-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --np-shadow-lg: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+.np-card {
+  background: var(--np-card);
+  border: 1px solid var(--np-divider-light);
+  border-radius: 8px;
+  box-shadow: var(--np-shadow);
+}
+
+.np-btn-primary {
+  background: var(--np-blue);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+.np-btn-primary:hover:not(:disabled) { background: var(--np-blue-hover); }
+.np-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.np-btn-secondary {
+  background: var(--np-blue-light);
+  color: var(--np-blue);
+  font-weight: 600;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+.np-btn-secondary:hover:not(:disabled) { background: var(--np-blue-light); filter: brightness(0.95); }
+
+.np-input {
+  background: var(--np-input-bg);
+  color: var(--np-text);
+  border: none;
+  border-radius: 6px;
+  outline: none;
+  transition: box-shadow 0.15s ease;
+}
+.np-input:focus {
+  box-shadow: 0 0 0 2px var(--np-blue);
+}
+.np-input::placeholder {
+  color: var(--np-text-tertiary);
+}
+
+/* ═══════════════════════════════════════════════════════════
    SIDEBAR & TOPNAV ISLANDS
    ═══════════════════════════════════════════════════════════ */
 
@@ -534,6 +619,14 @@ body {
 /* ═══════════════════════════════════════════════════════════
    EDITOR FULL-SCREEN OVERRIDES
    ═══════════════════════════════════════════════════════════ */
+/* Hide global nav chrome when editor is active — reclaims ~144px */
+body:has(.editor-container) .sidebar-island,
+body:has(.editor-container) .global-mobile-nav,
+body:has(.editor-container) .topnav-island,
+body:has(.editor-container) > .atmosphere,
+body:has(.editor-container) .atmosphere {
+  display: none !important;
+}
 body:has(.editor-container) main > section {
   padding: 0 !important;
   overflow: hidden !important;

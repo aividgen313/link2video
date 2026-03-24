@@ -262,12 +262,12 @@ export default function PropertiesPanel() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-on-surface/[0.06]">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-full">
+          <span className="text-[11px] text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-full">
             {selectedScene.orderIndex + 1}
           </span>
-          <h3 className="font-headline text-xs font-bold text-white/90">
+          <h3 className="font-headline text-xs font-bold text-on-surface/90">
             Scene {selectedScene.orderIndex + 1}
           </h3>
         </div>
@@ -304,15 +304,15 @@ export default function PropertiesPanel() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-white/[0.06]">
+      <div className="flex border-b border-on-surface/[0.06]">
         {tabs.map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 text-[10px] font-medium transition-all border-b-2 ${
+            className={`flex-1 flex items-center justify-center gap-1 py-2 text-[11px] font-medium transition-all border-b-2 ${
               tab === t.id
                 ? "text-primary border-primary bg-primary/5"
-                : "text-outline/50 border-transparent hover:text-outline/80 hover:bg-white/[0.02]"
+                : "text-outline/50 border-transparent hover:text-outline/80 hover:bg-on-surface/[0.02]"
             }`}
           >
             <span className="material-symbols-outlined text-[14px]">{t.icon}</span>
@@ -322,12 +322,12 @@ export default function PropertiesPanel() {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-5">
 
         {/* Status Message Banner */}
         {statusMessage && (
           <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-medium animate-in fade-in duration-200 ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-medium animate-in fade-in duration-200 ${
               statusMessage.type === "error"
                 ? "bg-red-500/15 text-red-300 border border-red-500/20"
                 : "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
@@ -342,7 +342,7 @@ export default function PropertiesPanel() {
                 if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
                 setStatusMessage(null);
               }}
-              className="text-white/40 hover:text-white/70"
+              className="text-on-surface/40 hover:text-on-surface/70"
             >
               <span className="material-symbols-outlined text-xs">close</span>
             </button>
@@ -359,7 +359,7 @@ export default function PropertiesPanel() {
                 <button
                   onClick={handleRegenerateImage}
                   disabled={isRegeneratingImage}
-                  className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 text-white text-xs"
+                  className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 text-on-surface text-xs"
                 >
                   <span className="material-symbols-outlined text-sm">refresh</span>
                   {isRegeneratingImage ? "Generating..." : "Regenerate"}
@@ -370,25 +370,25 @@ export default function PropertiesPanel() {
             {/* Duration + Speed */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[9px] uppercase tracking-wider text-outline/50 block mb-1">Duration</label>
+                <label className="text-[11px] uppercase tracking-wider text-outline/50 block mb-1">Duration</label>
                 <div className="flex items-center gap-1">
                   <button onClick={() => updateScene(selectedScene.id, { duration: Math.max(2, selectedScene.duration - 1) })}
-                    className="w-7 h-7 rounded-lg bg-white/[0.04] flex items-center justify-center text-white/80 hover:bg-white/[0.08]">
+                    className="w-7 h-7 rounded-lg bg-on-surface/[0.04] flex items-center justify-center text-on-surface/80 hover:bg-on-surface/[0.08]">
                     <span className="material-symbols-outlined text-sm">remove</span>
                   </button>
-                  <span className="text-sm font-mono text-white w-10 text-center">{selectedScene.duration}s</span>
+                  <span className="text-sm font-mono text-on-surface w-10 text-center">{selectedScene.duration}s</span>
                   <button onClick={() => updateScene(selectedScene.id, { duration: Math.min(60, selectedScene.duration + 1) })}
-                    className="w-7 h-7 rounded-lg bg-white/[0.04] flex items-center justify-center text-white/80 hover:bg-white/[0.08]">
+                    className="w-7 h-7 rounded-lg bg-on-surface/[0.04] flex items-center justify-center text-on-surface/80 hover:bg-on-surface/[0.08]">
                     <span className="material-symbols-outlined text-sm">add</span>
                   </button>
                 </div>
               </div>
               <div>
-                <label className="text-[9px] uppercase tracking-wider text-outline/50 block mb-1">Speed</label>
+                <label className="text-[11px] uppercase tracking-wider text-outline/50 block mb-1">Speed</label>
                 <select
                   value={selectedScene.playbackSpeed}
                   onChange={e => updateScene(selectedScene.id, { playbackSpeed: Number(e.target.value) })}
-                  className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-primary/40"
+                  className="w-full bg-on-surface/[0.04] border border-on-surface/[0.06] rounded-lg px-2 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary/40"
                 >
                   {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4].map(s => (
                     <option key={s} value={s}>{s}x</option>
@@ -400,32 +400,32 @@ export default function PropertiesPanel() {
             {/* Narration */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-[9px] uppercase tracking-wider text-outline/50">Narration</label>
-                <span className="text-[8px] text-outline/30">{selectedScene.narration.length} chars</span>
+                <label className="text-[11px] uppercase tracking-wider text-outline/50">Narration</label>
+                <span className="text-[11px] text-outline/30">{selectedScene.narration.length} chars</span>
               </div>
               <textarea
                 value={selectedScene.narration}
                 onChange={e => updateScene(selectedScene.id, { narration: e.target.value })}
                 rows={3}
-                className="w-full bg-white/[0.04] rounded-lg px-3 py-2 text-xs text-white/90 border border-white/[0.06] focus:border-primary/40 focus:outline-none resize-none placeholder:text-outline/30"
+                className="w-full bg-on-surface/[0.04] rounded-lg px-3 py-2 text-xs text-on-surface/90 border border-on-surface/[0.06] focus:border-primary/40 focus:outline-none resize-none placeholder:text-outline/30"
                 placeholder="Scene narration text..."
               />
             </div>
 
             {/* Visual Prompt */}
             <div>
-              <label className="text-[9px] uppercase tracking-wider text-outline/50 block mb-1">Visual Prompt</label>
+              <label className="text-[11px] uppercase tracking-wider text-outline/50 block mb-1">Visual Prompt</label>
               <textarea
                 value={selectedScene.visual_prompt}
                 onChange={e => updateScene(selectedScene.id, { visual_prompt: e.target.value })}
                 rows={3}
-                className="w-full bg-white/[0.04] rounded-lg px-3 py-2 text-xs text-white/70 border border-white/[0.06] focus:border-primary/40 focus:outline-none resize-none placeholder:text-outline/30"
+                className="w-full bg-on-surface/[0.04] rounded-lg px-3 py-2 text-xs text-on-surface/70 border border-on-surface/[0.06] focus:border-primary/40 focus:outline-none resize-none placeholder:text-outline/30"
                 placeholder="Image generation prompt..."
               />
               <button
                 onClick={handleRegenerateImage}
                 disabled={isRegeneratingImage}
-                className="mt-1 text-[10px] text-primary hover:text-primary/80 flex items-center gap-0.5"
+                className="mt-1 text-[11px] text-primary hover:text-primary/80 flex items-center gap-0.5"
               >
                 <span className="material-symbols-outlined text-xs">refresh</span>
                 {isRegeneratingImage ? "Regenerating..." : "Regenerate Image"}
@@ -437,12 +437,12 @@ export default function PropertiesPanel() {
 
             {/* Marker / Bookmark */}
             <div>
-              <label className="text-[9px] uppercase tracking-wider text-outline/50 block mb-1">Marker / Bookmark</label>
+              <label className="text-[11px] uppercase tracking-wider text-outline/50 block mb-1">Marker / Bookmark</label>
               <input
                 type="text"
                 value={selectedScene.marker || ""}
                 onChange={e => updateScene(selectedScene.id, { marker: e.target.value || undefined })}
-                className="w-full bg-white/[0.04] rounded-lg px-3 py-1.5 text-xs text-white/80 border border-white/[0.06] focus:border-primary/40 focus:outline-none placeholder:text-outline/30"
+                className="w-full bg-on-surface/[0.04] rounded-lg px-3 py-1.5 text-xs text-on-surface/80 border border-on-surface/[0.06] focus:border-primary/40 focus:outline-none placeholder:text-outline/30"
                 placeholder="e.g. Key moment, Climax, Hook..."
               />
             </div>
@@ -450,11 +450,11 @@ export default function PropertiesPanel() {
             {/* Metadata tags */}
             {(selectedScene.camera_angle || selectedScene.lighting || selectedScene.mood) && (
               <div className="space-y-1">
-                <span className="text-[9px] uppercase tracking-wider text-outline/50">Metadata</span>
+                <span className="text-[11px] uppercase tracking-wider text-outline/50">Metadata</span>
                 <div className="flex flex-wrap gap-1">
-                  {selectedScene.camera_angle && <span className="text-[8px] bg-white/[0.04] text-outline/60 px-1.5 py-0.5 rounded">{selectedScene.camera_angle}</span>}
-                  {selectedScene.lighting && <span className="text-[8px] bg-white/[0.04] text-outline/60 px-1.5 py-0.5 rounded">{selectedScene.lighting}</span>}
-                  {selectedScene.mood && <span className="text-[8px] bg-white/[0.04] text-outline/60 px-1.5 py-0.5 rounded">{selectedScene.mood}</span>}
+                  {selectedScene.camera_angle && <span className="text-[11px] bg-on-surface/[0.04] text-outline/60 px-1.5 py-0.5 rounded">{selectedScene.camera_angle}</span>}
+                  {selectedScene.lighting && <span className="text-[11px] bg-on-surface/[0.04] text-outline/60 px-1.5 py-0.5 rounded">{selectedScene.lighting}</span>}
+                  {selectedScene.mood && <span className="text-[11px] bg-on-surface/[0.04] text-outline/60 px-1.5 py-0.5 rounded">{selectedScene.mood}</span>}
                 </div>
               </div>
             )}
@@ -466,16 +466,16 @@ export default function PropertiesPanel() {
           <>
             {/* Transition */}
             <div>
-              <label className="text-[9px] uppercase tracking-wider text-outline/50 block mb-2">Transition In</label>
+              <label className="text-[11px] uppercase tracking-wider text-outline/50 block mb-2">Transition In</label>
               <div className="grid grid-cols-3 gap-1">
                 {TRANSITIONS.map(t => (
                   <button
                     key={t.value}
                     onClick={() => updateScene(selectedScene.id, { transition: t.value })}
-                    className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-lg text-[9px] transition-all ${
+                    className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-lg text-[11px] transition-all ${
                       selectedScene.transition === t.value
                         ? "bg-primary/20 text-primary border border-primary/30"
-                        : "bg-white/[0.03] text-outline/60 border border-transparent hover:bg-white/[0.06] hover:text-white/80"
+                        : "bg-on-surface/[0.03] text-outline/60 border border-transparent hover:bg-on-surface/[0.06] hover:text-on-surface/80"
                     }`}
                   >
                     <span className="material-symbols-outlined text-[14px]">{t.icon}</span>
@@ -485,7 +485,7 @@ export default function PropertiesPanel() {
               </div>
               {selectedScene.transition !== "none" && (
                 <div className="mt-2">
-                  <label className="text-[8px] text-outline/40 block mb-1">Duration: {selectedScene.transitionDuration}s</label>
+                  <label className="text-[11px] text-outline/40 block mb-1">Duration: {selectedScene.transitionDuration}s</label>
                   <input
                     type="range"
                     min={0.1}
@@ -501,16 +501,16 @@ export default function PropertiesPanel() {
 
             {/* Filter */}
             <div>
-              <label className="text-[9px] uppercase tracking-wider text-outline/50 block mb-2">Color Filter</label>
+              <label className="text-[11px] uppercase tracking-wider text-outline/50 block mb-2">Color Filter</label>
               <div className="grid grid-cols-2 gap-1">
                 {FILTERS.map(f => (
                   <button
                     key={f.value}
                     onClick={() => updateScene(selectedScene.id, { filter: f.value })}
-                    className={`py-1.5 px-2 rounded-lg text-[10px] text-left transition-all ${
+                    className={`py-1.5 px-2 rounded-lg text-[11px] text-left transition-all ${
                       selectedScene.filter === f.value
                         ? "bg-primary/20 text-primary border border-primary/30"
-                        : "bg-white/[0.03] text-outline/60 border border-transparent hover:bg-white/[0.06]"
+                        : "bg-on-surface/[0.03] text-outline/60 border border-transparent hover:bg-on-surface/[0.06]"
                     }`}
                   >
                     {f.label}
@@ -521,16 +521,16 @@ export default function PropertiesPanel() {
 
             {/* Ken Burns */}
             <div>
-              <label className="text-[9px] uppercase tracking-wider text-outline/50 block mb-2">Camera Motion (Ken Burns)</label>
+              <label className="text-[11px] uppercase tracking-wider text-outline/50 block mb-2">Camera Motion (Ken Burns)</label>
               <div className="grid grid-cols-3 gap-1">
                 {KEN_BURNS.map(k => (
                   <button
                     key={k.value}
                     onClick={() => updateScene(selectedScene.id, { kenBurns: k.value })}
-                    className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-lg text-[9px] transition-all ${
+                    className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-lg text-[11px] transition-all ${
                       selectedScene.kenBurns === k.value
                         ? "bg-primary/20 text-primary border border-primary/30"
-                        : "bg-white/[0.03] text-outline/60 border border-transparent hover:bg-white/[0.06]"
+                        : "bg-on-surface/[0.03] text-outline/60 border border-transparent hover:bg-on-surface/[0.06]"
                     }`}
                   >
                     <span className="material-symbols-outlined text-[14px]">{k.icon}</span>
@@ -541,15 +541,15 @@ export default function PropertiesPanel() {
             </div>
 
             {/* Apply to all */}
-            <div className="pt-2 border-t border-white/[0.04]">
-              <p className="text-[8px] text-outline/40 mb-2">Batch apply current style to all scenes:</p>
+            <div className="pt-2 border-t border-on-surface/[0.04]">
+              <p className="text-[11px] text-outline/40 mb-2">Batch apply current style to all scenes:</p>
               <div className="flex gap-1">
                 <button
                   onClick={() => {
                     const { transition, transitionDuration } = selectedScene;
                     scenes.forEach(s => updateScene(s.id, { transition, transitionDuration }));
                   }}
-                  className="flex-1 text-[9px] py-1.5 rounded-lg bg-white/[0.04] text-outline/60 hover:text-white hover:bg-white/[0.08]"
+                  className="flex-1 text-[11px] py-1.5 rounded-lg bg-on-surface/[0.04] text-outline/60 hover:text-on-surface hover:bg-on-surface/[0.08]"
                 >
                   Apply Transition
                 </button>
@@ -558,7 +558,7 @@ export default function PropertiesPanel() {
                     const { filter } = selectedScene;
                     scenes.forEach(s => updateScene(s.id, { filter }));
                   }}
-                  className="flex-1 text-[9px] py-1.5 rounded-lg bg-white/[0.04] text-outline/60 hover:text-white hover:bg-white/[0.08]"
+                  className="flex-1 text-[11px] py-1.5 rounded-lg bg-on-surface/[0.04] text-outline/60 hover:text-on-surface hover:bg-on-surface/[0.08]"
                 >
                   Apply Filter
                 </button>
@@ -569,7 +569,7 @@ export default function PropertiesPanel() {
                     scenes.forEach(s => updateScene(s.id, { transition: "none", transitionDuration: 0 }));
                     showStatus("All transitions removed", "success");
                   }}
-                  className="flex-1 flex items-center justify-center gap-1 text-[9px] py-1.5 rounded-lg bg-red-500/10 text-red-400/80 hover:text-red-400 hover:bg-red-500/20 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1 text-[11px] py-1.5 rounded-lg bg-red-500/10 text-red-400/80 hover:text-red-400 hover:bg-red-500/20 transition-colors"
                 >
                   <span className="material-symbols-outlined text-[12px]">link_off</span>
                   Remove All Transitions
@@ -583,7 +583,7 @@ export default function PropertiesPanel() {
                     });
                     showStatus("Default transitions applied", "success");
                   }}
-                  className="flex-1 flex items-center justify-center gap-1 text-[9px] py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400/80 hover:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1 text-[11px] py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400/80 hover:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
                 >
                   <span className="material-symbols-outlined text-[12px]">auto_fix_high</span>
                   Default Transitions
@@ -598,7 +598,7 @@ export default function PropertiesPanel() {
           <>
             {/* Scene Volume */}
             <div>
-              <label className="text-[9px] uppercase tracking-wider text-outline/50 block mb-1">Scene Volume</label>
+              <label className="text-[11px] uppercase tracking-wider text-outline/50 block mb-1">Scene Volume</label>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => updateScene(selectedScene.id, { isMuted: !selectedScene.isMuted })}
@@ -617,46 +617,46 @@ export default function PropertiesPanel() {
                   className="flex-1 h-1 accent-primary"
                   disabled={selectedScene.isMuted}
                 />
-                <span className="text-[9px] text-outline/50 w-8 text-right">{selectedScene.isMuted ? "Mute" : `${Math.round(selectedScene.volume * 100)}%`}</span>
+                <span className="text-[11px] text-outline/50 w-8 text-right">{selectedScene.isMuted ? "Mute" : `${Math.round(selectedScene.volume * 100)}%`}</span>
               </div>
             </div>
 
             {/* Narration audio */}
             <div>
-              <label className="text-[9px] uppercase tracking-wider text-outline/50 block mb-1">Narration Audio</label>
+              <label className="text-[11px] uppercase tracking-wider text-outline/50 block mb-1">Narration Audio</label>
               {selectedScene.audioUrl ? (
-                <div className="flex items-center gap-2 bg-white/[0.04] rounded-lg p-2">
+                <div className="flex items-center gap-2 bg-on-surface/[0.04] rounded-lg p-2">
                   <span className="material-symbols-outlined text-sm text-emerald-400">mic</span>
-                  <span className="text-[10px] text-white/70 flex-1">Audio generated</span>
+                  <span className="text-[11px] text-on-surface/70 flex-1">Audio generated</span>
                   <button onClick={() => updateScene(selectedScene.id, { audioUrl: null })}
                     className="text-outline/40 hover:text-red-400">
                     <span className="material-symbols-outlined text-sm">close</span>
                   </button>
                 </div>
               ) : (
-                <div className="bg-white/[0.02] border border-dashed border-white/[0.08] rounded-lg p-3 text-center">
+                <div className="bg-on-surface/[0.02] border border-dashed border-on-surface/[0.08] rounded-lg p-3 text-center">
                   <span className="material-symbols-outlined text-lg text-outline/20">mic_off</span>
-                  <p className="text-[9px] text-outline/40 mt-1">TTS audio will be generated during export</p>
+                  <p className="text-[11px] text-outline/40 mt-1">TTS audio will be generated during export</p>
                 </div>
               )}
             </div>
 
             {/* AI Video */}
             <div>
-              <label className="text-[9px] uppercase tracking-wider text-outline/50 block mb-1">AI Video</label>
+              <label className="text-[11px] uppercase tracking-wider text-outline/50 block mb-1">AI Video</label>
               {selectedScene.aiVideoUrl ? (
-                <div className="flex items-center gap-2 bg-white/[0.04] rounded-lg p-2">
+                <div className="flex items-center gap-2 bg-on-surface/[0.04] rounded-lg p-2">
                   <span className="material-symbols-outlined text-sm text-tertiary">smart_display</span>
-                  <span className="text-[10px] text-white/70 flex-1">AI video attached</span>
+                  <span className="text-[11px] text-on-surface/70 flex-1">AI video attached</span>
                   <button onClick={() => updateScene(selectedScene.id, { aiVideoUrl: null })}
                     className="text-outline/40 hover:text-red-400">
                     <span className="material-symbols-outlined text-sm">close</span>
                   </button>
                 </div>
               ) : (
-                <div className="bg-white/[0.02] border border-dashed border-white/[0.08] rounded-lg p-3 text-center">
+                <div className="bg-on-surface/[0.02] border border-dashed border-on-surface/[0.08] rounded-lg p-3 text-center">
                   <span className="material-symbols-outlined text-lg text-outline/20">videocam_off</span>
-                  <p className="text-[9px] text-outline/40 mt-1">Ken Burns will be used (free)</p>
+                  <p className="text-[11px] text-outline/40 mt-1">Ken Burns will be used (free)</p>
                 </div>
               )}
             </div>
@@ -667,17 +667,17 @@ export default function PropertiesPanel() {
         {tab === "ai" && (
           <>
             <div className="space-y-2">
-              <p className="text-[9px] text-outline/50">Use AI to enhance this scene</p>
+              <p className="text-[11px] text-outline/50">Use AI to enhance this scene</p>
 
               <button
                 onClick={handleRegenerateImage}
                 disabled={isRegeneratingImage}
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.07] hover:border-primary/20 transition-all disabled:opacity-40"
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-on-surface/[0.04] border border-on-surface/[0.06] hover:bg-on-surface/[0.07] hover:border-primary/20 transition-all disabled:opacity-40"
               >
                 <span className="material-symbols-outlined text-sm text-primary">image</span>
                 <div className="text-left flex-1">
-                  <span className="text-[10px] text-white/80 block">{isRegeneratingImage ? "Generating..." : "Regenerate Image (Premium)"}</span>
-                  <span className="text-[8px] text-outline/40">Cost: 1 Image Credit — Runware</span>
+                  <span className="text-[11px] text-on-surface/80 block">{isRegeneratingImage ? "Generating..." : "Regenerate Image (Premium)"}</span>
+                  <span className="text-[11px] text-outline/40">Cost: 1 Image Credit — Runware</span>
                 </div>
               </button>
 
@@ -688,32 +688,32 @@ export default function PropertiesPanel() {
               >
                 <span className="material-symbols-outlined text-sm text-green-400">image</span>
                 <div className="text-left flex-1">
-                  <span className="text-[10px] text-green-100 block">{isRegeneratingGenericImage ? "Generating..." : "Regenerate Generic Photo (Free)"}</span>
-                  <span className="text-[8px] text-green-400/60">Free fallback using Pollinations</span>
+                  <span className="text-[11px] text-green-100 block">{isRegeneratingGenericImage ? "Generating..." : "Regenerate Generic Photo (Free)"}</span>
+                  <span className="text-[11px] text-green-400/60">Free fallback using Pollinations</span>
                 </div>
               </button>
 
               <button
                 onClick={handleRegenerateNarration}
                 disabled={isRegeneratingNarration}
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.07] hover:border-primary/20 transition-all disabled:opacity-40"
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-on-surface/[0.04] border border-on-surface/[0.06] hover:bg-on-surface/[0.07] hover:border-primary/20 transition-all disabled:opacity-40"
               >
                 <span className="material-symbols-outlined text-sm text-tertiary">edit_note</span>
                 <div className="text-left flex-1">
-                  <span className="text-[10px] text-white/80 block">{isRegeneratingNarration ? "Rewriting..." : "Rewrite Narration"}</span>
-                  <span className="text-[8px] text-outline/40">AI rewrites the narration text</span>
+                  <span className="text-[11px] text-on-surface/80 block">{isRegeneratingNarration ? "Rewriting..." : "Rewrite Narration"}</span>
+                  <span className="text-[11px] text-outline/40">AI rewrites the narration text</span>
                 </div>
               </button>
 
               <button
                 onClick={handleRegenerateAudio}
                 disabled={isRegeneratingAudio || !selectedScene.narration}
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.07] hover:border-primary/20 transition-all disabled:opacity-40"
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-on-surface/[0.04] border border-on-surface/[0.06] hover:bg-on-surface/[0.07] hover:border-primary/20 transition-all disabled:opacity-40"
               >
                 <span className="material-symbols-outlined text-sm text-blue-400">record_voice_over</span>
                 <div className="text-left flex-1">
-                  <span className="text-[10px] text-white/80 block">{isRegeneratingAudio ? "Generating TTS..." : selectedScene.audioUrl ? "Regenerate Audio" : "Generate Audio"}</span>
-                  <span className="text-[8px] text-outline/40">{selectedScene.audioUrl ? "Replace TTS voiceover" : "Create TTS voiceover for this scene"}</span>
+                  <span className="text-[11px] text-on-surface/80 block">{isRegeneratingAudio ? "Generating TTS..." : selectedScene.audioUrl ? "Regenerate Audio" : "Generate Audio"}</span>
+                  <span className="text-[11px] text-outline/40">{selectedScene.audioUrl ? "Replace TTS voiceover" : "Create TTS voiceover for this scene"}</span>
                 </div>
                 {selectedScene.audioUrl && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
               </button>
@@ -721,12 +721,12 @@ export default function PropertiesPanel() {
               <button
                 onClick={handleRegenerateVideo}
                 disabled={isRegeneratingVideo}
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.07] hover:border-primary/20 transition-all disabled:opacity-40"
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-on-surface/[0.04] border border-on-surface/[0.06] hover:bg-on-surface/[0.07] hover:border-primary/20 transition-all disabled:opacity-40"
               >
                 <span className="material-symbols-outlined text-sm text-purple-400">smart_display</span>
                 <div className="text-left flex-1">
-                  <span className="text-[10px] text-white/80 block">{isRegeneratingVideo ? "Generating video..." : selectedScene.aiVideoUrl ? "Regenerate Premium AI Video" : "Generate Premium AI Video"}</span>
-                  <span className="text-[8px] text-outline/40">{selectedScene.aiVideoUrl ? "Replace AI video clip (Costs $0.05)" : "Create AI video from prompt (Costs $0.05)"}</span>
+                  <span className="text-[11px] text-on-surface/80 block">{isRegeneratingVideo ? "Generating video..." : selectedScene.aiVideoUrl ? "Regenerate Premium AI Video" : "Generate Premium AI Video"}</span>
+                  <span className="text-[11px] text-outline/40">{selectedScene.aiVideoUrl ? "Replace AI video clip (Costs $0.05)" : "Create AI video from prompt (Costs $0.05)"}</span>
                 </div>
                 {selectedScene.aiVideoUrl && <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />}
               </button>
@@ -738,14 +738,14 @@ export default function PropertiesPanel() {
               >
                 <span className="material-symbols-outlined text-sm text-green-400">smart_display</span>
                 <div className="text-left flex-1">
-                  <span className="text-[10px] text-green-100 block">{isRegeneratingGenericVideo ? "Generating video..." : selectedScene.aiVideoUrl ? "Regenerate Generic Video (Free)" : "Generate Generic Video (Free)"}</span>
-                  <span className="text-[8px] text-green-400/60">Free fallback using Pollinations</span>
+                  <span className="text-[11px] text-green-100 block">{isRegeneratingGenericVideo ? "Generating video..." : selectedScene.aiVideoUrl ? "Regenerate Generic Video (Free)" : "Generate Generic Video (Free)"}</span>
+                  <span className="text-[11px] text-green-400/60">Free fallback using Pollinations</span>
                 </div>
                 {selectedScene.aiVideoUrl && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
               </button>
 
               <button
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.07] hover:border-primary/20 transition-all"
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-on-surface/[0.04] border border-on-surface/[0.06] hover:bg-on-surface/[0.07] hover:border-primary/20 transition-all"
                 onClick={() => {
                   const improved = selectedScene.visual_prompt + ", ultra detailed, 8k, cinematic lighting, professional photography";
                   updateScene(selectedScene.id, { visual_prompt: improved });
@@ -753,13 +753,13 @@ export default function PropertiesPanel() {
               >
                 <span className="material-symbols-outlined text-sm text-amber-400">auto_fix_high</span>
                 <div className="text-left flex-1">
-                  <span className="text-[10px] text-white/80 block">Enhance Prompt</span>
-                  <span className="text-[8px] text-outline/40">Add cinematic quality keywords</span>
+                  <span className="text-[11px] text-on-surface/80 block">Enhance Prompt</span>
+                  <span className="text-[11px] text-outline/40">Add cinematic quality keywords</span>
                 </div>
               </button>
 
               <button
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.07] hover:border-primary/20 transition-all"
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-on-surface/[0.04] border border-on-surface/[0.06] hover:bg-on-surface/[0.07] hover:border-primary/20 transition-all"
                 onClick={() => {
                   updateScene(selectedScene.id, {
                     transition: "fade",
@@ -771,13 +771,13 @@ export default function PropertiesPanel() {
               >
                 <span className="material-symbols-outlined text-sm text-emerald-400">movie_filter</span>
                 <div className="text-left flex-1">
-                  <span className="text-[10px] text-white/80 block">Apply Cinematic Style</span>
-                  <span className="text-[8px] text-outline/40">Fade + Cinematic filter + Zoom</span>
+                  <span className="text-[11px] text-on-surface/80 block">Apply Cinematic Style</span>
+                  <span className="text-[11px] text-outline/40">Fade + Cinematic filter + Zoom</span>
                 </div>
               </button>
 
               <button
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.07] hover:border-primary/20 transition-all"
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-on-surface/[0.04] border border-on-surface/[0.06] hover:bg-on-surface/[0.07] hover:border-primary/20 transition-all"
                 onClick={() => {
                   scenes.forEach(s => {
                     updateScene(s.id, {
@@ -790,8 +790,8 @@ export default function PropertiesPanel() {
               >
                 <span className="material-symbols-outlined text-sm text-purple-400">auto_awesome</span>
                 <div className="text-left flex-1">
-                  <span className="text-[10px] text-white/80 block">Auto-Style All Scenes</span>
-                  <span className="text-[8px] text-outline/40">Apply cinematic look to entire project</span>
+                  <span className="text-[11px] text-on-surface/80 block">Auto-Style All Scenes</span>
+                  <span className="text-[11px] text-outline/40">Apply cinematic look to entire project</span>
                 </div>
               </button>
             </div>

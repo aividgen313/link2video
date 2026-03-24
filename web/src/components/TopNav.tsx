@@ -26,6 +26,7 @@ export default function TopNav() {
       case "/story": return "Story Angles";
       case "/script": return "Script Editor";
       case "/storyboard": return "Storyboard Preview";
+      case "/notepad": return "Notepad";
       case "/editor": return "Video Editor";
       case "/generate": return "Video Generation";
       default: return "Dashboard";
@@ -39,6 +40,7 @@ export default function TopNav() {
       case "/story": return "Choose your narrative";
       case "/script": return "Write & refine";
       case "/storyboard": return "Visual planning";
+      case "/notepad": return "Research & synthesize";
       case "/editor": return "Fine-tune your video";
       case "/generate": return "Bring it to life";
       default: return "";
@@ -71,10 +73,10 @@ export default function TopNav() {
     <header className="h-[56px] md:h-[72px] shrink-0 flex items-center justify-between px-4 md:px-6 topnav-island relative z-10">
       <div className="flex items-center gap-3">
         <div>
-          <h2 className="font-headline font-bold text-base md:text-lg tracking-tight text-on-surface leading-tight">
+          <h2 className="font-headline font-extrabold text-lg md:text-xl tracking-tight text-on-surface leading-none">
             {pageTitle}
           </h2>
-          <p className="text-[11px] text-outline font-medium leading-tight mt-0.5 hidden md:block">
+          <p className="text-[11px] text-outline font-semibold leading-tight mt-1 hidden md:block tracking-wide">
             {pageSubtitle}
           </p>
         </div>

@@ -2,7 +2,25 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-export type AppMode = "link" | "short-story" | "music-video";
+export type AppMode = "link" | "short-story" | "music-video" | "notepad";
+
+export type NotepadSourceType = "text" | "url" | "pdf" | "clipboard";
+
+export type NotepadSource = {
+  id: string;
+  type: NotepadSourceType;
+  title: string;
+  rawContent: string;
+  extractedFacts: string[] | null;
+  addedAt: number;
+  preview: string;
+};
+
+export type NotepadData = {
+  sources: NotepadSource[];
+  synthesizedKnowledge: string | null;
+  lastSynthesizedAt: number | null;
+};
 
 export type Scene = {
   id: number;
@@ -243,6 +261,9 @@ interface AppContextType {
   setMusicSegments: (segments: MusicSegment[]) => void;
   audioDuration: number; // seconds
   setAudioDuration: (dur: number) => void;
+  // Notepad
+  notepadData: NotepadData;
+  setNotepadData: (data: NotepadData | ((prev: NotepadData) => NotepadData)) => void;
   // Navigation intent — true only when user explicitly clicked "Generate" from home page
   // Prevents auto-triggering API calls when browsing via sidebar
   generateRequested: boolean;
@@ -330,6 +351,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [lyrics, setLyrics] = useState("");
   const [musicSegments, setMusicSegments] = useState<MusicSegment[]>([]);
   const [audioDuration, setAudioDuration] = useState(0);
+  // Notepad Mode
+  const [notepadData, setNotepadData] = useState<NotepadData>({ sources: [], synthesizedKnowledge: null, lastSynthesizedAt: null });
 
   // Hydrate state from localStorage AFTER mount (avoids hydration mismatch)
   useEffect(() => {
@@ -358,6 +381,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (saved.lyrics) setLyrics(saved.lyrics);
     if (saved.musicSegments) setMusicSegments(saved.musicSegments);
     if (saved.audioDuration) setAudioDuration(saved.audioDuration);
+    if (saved.notepadData) setNotepadData(saved.notepadData);
   }, []);
 
   // Persist key state to localStorage/sessionStorage.
@@ -374,6 +398,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         storyboardImages,
         storyText, characterProfiles, activeStyle, settingText, audioFileName,
         lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
+        notepadData: { ...notepadData, sources: notepadData.sources.map(s => ({ ...s, rawContent: s.rawContent.substring(0, 10000) })) },
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
@@ -388,6 +413,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           storyboardImages: {},
           storyText, characterProfiles, activeStyle, settingText, audioFileName,
           lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
+          notepadData: { sources: [], synthesizedKnowledge: notepadData.synthesizedKnowledge, lastSynthesizedAt: notepadData.lastSynthesizedAt },
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(fallbackState));
       } catch { /* truly full — nothing we can do */ }
@@ -398,7 +424,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     targetDurationMinutes, referenceImages, sceneDurations,
     storyboardImages,
     storyText, characterProfiles, settingText, audioFileName,
-    lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
+    lyrics, musicSegments, audioDuration, youtubeStyleSuffix, notepadData,
   ]);
 
   // Derived model values based on quality tier
@@ -441,6 +467,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       globalVideoModel,
       globalImageModel,
       globalAudioModel,
+      notepadData, setNotepadData,
       generateRequested, setGenerateRequested,
       globalScriptModel,
       setGlobalScriptModel: () => {},

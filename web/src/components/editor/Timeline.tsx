@@ -244,7 +244,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
         <div className="flex-shrink-0 flex flex-col" style={{ width: 110, background: C.trackAlt, borderRight: `1px solid ${C.border}`, zIndex: 10 }}>
           {/* Ruler label */}
           <div className="flex items-center justify-between px-2" style={{ height: 24, borderBottom: `1px solid ${C.border}` }}>
-            <span className="text-[9px] font-mono" style={{ color: C.textMuted }}>{formatTime(totalDuration)}</span>
+            <span className="text-[11px] font-mono" style={{ color: C.textMuted }}>{formatTime(totalDuration)}</span>
           </div>
 
           {/* Video tracks */}
@@ -260,9 +260,9 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                   className="p-0.5 rounded transition-colors"
                   style={{ color: C.textDim }}
                 >
-                  <span className="material-symbols-outlined text-[10px]">{track.isCollapsed ? "expand_more" : "expand_less"}</span>
+                  <span className="material-symbols-outlined text-[11px]">{track.isCollapsed ? "expand_more" : "expand_less"}</span>
                 </button>
-                <span className="text-[9px] font-bold" style={{ color: C.textDim }}>{track.label}</span>
+                <span className="text-[11px] font-bold" style={{ color: C.textDim }}>{track.label}</span>
               </div>
               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
@@ -271,7 +271,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                   style={{ color: track.isMuted ? C.playhead : C.textMuted }}
                   title={track.isMuted ? "Unmute" : "Mute"}
                 >
-                  <span className="material-symbols-outlined text-[10px]">{track.isMuted ? "visibility_off" : "visibility"}</span>
+                  <span className="material-symbols-outlined text-[11px]">{track.isMuted ? "visibility_off" : "visibility"}</span>
                 </button>
                 <button
                   onClick={() => updateTrack(track.id, { isLocked: !track.isLocked })}
@@ -279,7 +279,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                   style={{ color: track.isLocked ? C.accent : C.textMuted }}
                   title={track.isLocked ? "Unlock" : "Lock"}
                 >
-                  <span className="material-symbols-outlined text-[10px]">{track.isLocked ? "lock" : "lock_open"}</span>
+                  <span className="material-symbols-outlined text-[11px]">{track.isLocked ? "lock" : "lock_open"}</span>
                 </button>
                 <button
                   onClick={() => handleImportClick(track.id)}
@@ -287,7 +287,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                   style={{ color: C.textMuted }}
                   title="Import media"
                 >
-                  <span className="material-symbols-outlined text-[10px]">add</span>
+                  <span className="material-symbols-outlined text-[11px]">add</span>
                 </button>
               </div>
             </div>
@@ -301,8 +301,8 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
             onMouseEnter={(e) => { e.currentTarget.style.color = C.accent; e.currentTarget.style.background = C.accentDim; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = "transparent"; }}
           >
-            <span className="material-symbols-outlined text-[10px]">add</span>
-            <span className="text-[8px]">Video Track</span>
+            <span className="material-symbols-outlined text-[11px]">add</span>
+            <span className="text-[11px]">Video Track</span>
           </button>
 
           {/* Audio tracks */}
@@ -318,9 +318,9 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                   className="p-0.5 rounded transition-colors"
                   style={{ color: C.textDim }}
                 >
-                  <span className="material-symbols-outlined text-[10px]">{track.isCollapsed ? "expand_more" : "expand_less"}</span>
+                  <span className="material-symbols-outlined text-[11px]">{track.isCollapsed ? "expand_more" : "expand_less"}</span>
                 </button>
-                <span className="text-[9px] font-bold" style={{ color: C.textDim }}>{track.label}</span>
+                <span className="text-[11px] font-bold" style={{ color: C.textDim }}>{track.label}</span>
               </div>
               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
@@ -329,7 +329,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                   style={{ color: track.isMuted ? C.playhead : C.textMuted }}
                   title={track.isMuted ? "Unmute" : "Mute"}
                 >
-                  <span className="material-symbols-outlined text-[10px]">{track.isMuted ? "volume_off" : "volume_up"}</span>
+                  <span className="material-symbols-outlined text-[11px]">{track.isMuted ? "volume_off" : "volume_up"}</span>
                 </button>
                 <button
                   onClick={() => updateTrack(track.id, { isLocked: !track.isLocked })}
@@ -337,7 +337,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                   style={{ color: track.isLocked ? C.accent : C.textMuted }}
                   title={track.isLocked ? "Unlock" : "Lock"}
                 >
-                  <span className="material-symbols-outlined text-[10px]">{track.isLocked ? "lock" : "lock_open"}</span>
+                  <span className="material-symbols-outlined text-[11px]">{track.isLocked ? "lock" : "lock_open"}</span>
                 </button>
                 <button
                   onClick={() => handleImportClick(track.id)}
@@ -345,7 +345,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                   style={{ color: C.textMuted }}
                   title="Import audio"
                 >
-                  <span className="material-symbols-outlined text-[10px]">add</span>
+                  <span className="material-symbols-outlined text-[11px]">add</span>
                 </button>
               </div>
             </div>
@@ -359,8 +359,8 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
             onMouseEnter={(e) => { e.currentTarget.style.color = C.accent; e.currentTarget.style.background = C.accentDim; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = "transparent"; }}
           >
-            <span className="material-symbols-outlined text-[10px]">add</span>
-            <span className="text-[8px]">Audio Track</span>
+            <span className="material-symbols-outlined text-[11px]">add</span>
+            <span className="text-[11px]">Audio Track</span>
           </button>
         </div>
 
@@ -429,7 +429,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                               className="flex items-center justify-center h-full w-full opacity-40"
                               style={{ border: `1px dashed ${C.border}`, borderRadius: 4 }}
                             >
-                              <span className="text-[9px]" style={{ color: C.textMuted }}>Drop video/image here</span>
+                              <span className="text-[11px]" style={{ color: C.textMuted }}>Drop video/image here</span>
                             </div>
                           )}
                         </div>
@@ -478,7 +478,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                               className="flex items-center justify-center h-full w-full opacity-40"
                               style={{ border: `1px dashed ${C.border}`, borderRadius: 4 }}
                             >
-                              <span className="text-[9px]" style={{ color: C.textMuted }}>Drop audio here</span>
+                              <span className="text-[11px]" style={{ color: C.textMuted }}>Drop audio here</span>
                             </div>
                           )}
                         </div>
@@ -497,7 +497,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
 
       {/* Bottom bar: zoom */}
       <div className="flex items-center justify-between px-3 flex-shrink-0" style={{ background: C.bg, borderTop: `1px solid ${C.border}`, height: 34 }}>
-        <div className="flex items-center gap-3 text-[10px] font-mono" style={{ color: C.textMuted }}>
+        <div className="flex items-center gap-3 text-[11px] font-mono" style={{ color: C.textMuted }}>
           <span>{scenes.length} clips</span>
           <span>{tracks.length} tracks</span>
         </div>
@@ -517,7 +517,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
           >
             <span className="material-symbols-outlined text-[14px]">add</span>
           </button>
-          <span className="text-[9px] font-mono" style={{ color: C.textMuted }}>{zoom}px/s</span>
+          <span className="text-[11px] font-mono" style={{ color: C.textMuted }}>{zoom}px/s</span>
         </div>
         <button
           onClick={() => {
@@ -531,7 +531,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
             setZoom(idealZoom);
             el.scrollLeft = 0;
           }}
-          className="text-[10px] px-2.5 py-0.5 rounded-md transition-colors"
+          className="text-[11px] px-2.5 py-0.5 rounded-md transition-colors"
           style={{ color: C.textMuted }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "var(--editor-text)"; e.currentTarget.style.background = "var(--editor-surface-hover)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = "transparent"; }}

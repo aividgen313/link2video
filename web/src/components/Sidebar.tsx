@@ -10,6 +10,7 @@ export default function Sidebar() {
 
   const navItems = [
     { href: "/", icon: "dashboard", label: "Home" },
+    { href: "/notepad", icon: "auto_stories", label: "Notepad" },
     { href: "/assets", icon: "folder_open", label: "Assets" },
     { href: "/script", icon: "edit_note", label: "Script" },
     { href: "/editor", icon: "movie_edit", label: "Editor" },
@@ -86,7 +87,7 @@ export default function Sidebar() {
       </aside>
 
       {/* Mobile Top Bar */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 h-14 glass border-b border-outline-variant/10 flex items-center justify-between px-4">
+      <div className="global-mobile-nav md:hidden fixed top-0 left-0 right-0 z-40 h-14 glass border-b border-outline-variant/10 flex items-center justify-between px-4">
         <button
           onClick={() => { router.push("/"); }}
           className="w-9 h-9 rounded-full glass-elevated flex items-center justify-center press-scale"

@@ -117,7 +117,7 @@ export default function StoryAngleGenerator() {
       <>
         <div className="flex flex-col items-center justify-center py-20 text-center max-w-md mx-auto">
           <span className="material-symbols-outlined text-6xl text-outline/30 mb-4">auto_awesome_motion</span>
-          <h3 className="font-headline font-bold text-xl text-on-surface mb-2">No Topic Selected</h3>
+          <h3 className="font-headline font-extrabold text-xl text-on-surface mb-2">No Topic Selected</h3>
           <p className="text-outline text-sm mb-6">Enter a topic or paste a link on the dashboard to generate story angles.</p>
           <a href="/" className="primary-gradient text-white px-6 py-3 rounded-xl font-headline font-bold flex items-center gap-2 shadow-md">
             <span className="material-symbols-outlined">home</span>
@@ -157,7 +157,7 @@ export default function StoryAngleGenerator() {
               <div className="flex items-start gap-4">
                 <span className="material-symbols-outlined text-error text-3xl">error</span>
                 <div>
-                  <h3 className="font-headline font-bold text-xl text-on-error-container mb-2">Unable to Generate Angles</h3>
+                  <h3 className="font-headline font-extrabold text-xl text-on-error-container mb-2">Unable to Generate Angles</h3>
                   <p className="text-on-error-container/80 mb-4">{errorMessage}</p>
                   <div className="flex items-center gap-3 flex-wrap">
                     <button
@@ -191,7 +191,7 @@ export default function StoryAngleGenerator() {
               <span className="material-symbols-outlined absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary text-2xl">psychology</span>
             </div>
             <div className="text-center space-y-2">
-              <p className="font-headline font-bold text-xl">Brainstorming Angles...</p>
+              <p className="font-headline font-extrabold text-xl">Brainstorming Angles...</p>
               <p className="text-sm text-outline">
                 {loadingElapsed < 3 ? "Connecting to AI model..." : loadingElapsed < 8 ? "Analyzing your topic..." : loadingElapsed < 18 ? "AI is crafting unique story angles..." : loadingElapsed < 35 ? "Polishing narrative options..." : loadingElapsed < 50 ? "Taking longer than usual — switching to backup model..." : "Almost there — finalizing..."}
               </p>

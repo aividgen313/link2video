@@ -86,8 +86,8 @@ export async function POST(req: NextRequest) {
   try {
     const { topic, url, angle, visualStyle = "Cinematic Documentary", durationMinutes = 3, continueFrom, endStory, existingTitle, mode, storyText, characterProfiles, lyrics, musicSegments, youtubeStyleSuffix, activeStyle, settingText } = await req.json();
 
-    // Short Story and Music Video modes don't need topic/url
-    if (!topic && !url && mode !== "short-story" && mode !== "music-video" && mode !== "extract-characters" && mode !== "extract-subjects") {
+    // Short Story, Music Video, and Notepad modes don't need topic/url
+    if (!topic && !url && mode !== "short-story" && mode !== "music-video" && mode !== "notepad" && mode !== "extract-characters" && mode !== "extract-subjects") {
       return NextResponse.json({ error: "URL or Topic is required" }, { status: 400 });
     }
 
@@ -158,7 +158,9 @@ Return ONLY raw JSON (no markdown fences):
     }
 
     let extractedText = "";
-    if (mode === "short-story" && storyText) {
+    if (mode === "notepad" && storyText) {
+      extractedText = storyText.substring(0, 12000);
+    } else if (mode === "short-story" && storyText) {
       extractedText = storyText.substring(0, 8000);
     } else if (mode === "music-video" && lyrics) {
       extractedText = lyrics.substring(0, 5000);

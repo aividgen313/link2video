@@ -38,11 +38,11 @@ function Section({ title, defaultOpen = false, children }: { title: string; defa
     <div className="border-b" style={{ borderColor: "var(--editor-border)" }}>
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-1 py-1.5 text-[9px] uppercase tracking-wider font-semibold transition-colors"
+        className="w-full flex items-center justify-between px-1 py-1.5 text-[11px] uppercase tracking-wider font-semibold transition-colors"
         style={{ color: "var(--editor-text-dim)" }}
       >
         {title}
-        <span className="material-symbols-outlined text-[10px]">{open ? "expand_less" : "expand_more"}</span>
+        <span className="material-symbols-outlined text-[11px]">{open ? "expand_less" : "expand_more"}</span>
       </button>
       {open && <div className="px-1 pb-2 space-y-2">{children}</div>}
     </div>
@@ -51,7 +51,7 @@ function Section({ title, defaultOpen = false, children }: { title: string; defa
 
 // Shared small label
 function Label({ children }: { children: React.ReactNode }) {
-  return <span className="text-[8px] block mb-0.5" style={{ color: "var(--editor-text-dim)" }}>{children}</span>;
+  return <span className="text-[11px] block mb-0.5" style={{ color: "var(--editor-text-dim)" }}>{children}</span>;
 }
 
 // Small number input
@@ -65,12 +65,12 @@ function NumInput({ value, onChange, min, max, step = 1, suffix = "" }: {
         value={value}
         onChange={e => onChange(Math.min(max, Math.max(min, Number(e.target.value))))}
         min={min} max={max} step={step}
-        className="w-14 rounded px-1.5 py-0.5 text-[10px] focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        className="w-14 rounded px-1.5 py-0.5 text-[11px] focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         style={{ background: "var(--editor-panel-alt)", color: "var(--editor-text)", border: "1px solid var(--editor-border)", outline: "none" }}
         onFocus={e => { e.currentTarget.style.borderColor = "var(--editor-border-active)"; }}
         onBlur={e => { e.currentTarget.style.borderColor = "var(--editor-border)"; }}
       />
-      {suffix && <span className="text-[8px]" style={{ color: "var(--editor-text-dim)" }}>{suffix}</span>}
+      {suffix && <span className="text-[11px]" style={{ color: "var(--editor-text-dim)" }}>{suffix}</span>}
     </div>
   );
 }
@@ -140,10 +140,10 @@ export default function TextOverlayEditor() {
     <div className="space-y-1">
       {/* Header */}
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[9px] uppercase tracking-wider" style={{ color: "var(--editor-text-dim)" }}>Text Overlays</span>
+        <span className="text-[11px] uppercase tracking-wider" style={{ color: "var(--editor-text-dim)" }}>Text Overlays</span>
         <button
           onClick={handleAdd}
-          className="text-[9px] flex items-center gap-0.5 px-1.5 py-0.5 rounded-md transition-colors"
+          className="text-[11px] flex items-center gap-0.5 px-1.5 py-0.5 rounded-md transition-colors"
           style={{ color: "var(--editor-accent)" }}
         >
           <span className="material-symbols-outlined text-xs">add</span> Add Text
@@ -151,7 +151,7 @@ export default function TextOverlayEditor() {
       </div>
 
       {selectedScene.overlays.length === 0 && (
-        <p className="text-[9px] italic text-center py-3" style={{ color: "var(--editor-text-dim)" }}>No text overlays — click Add Text to start</p>
+        <p className="text-[11px] italic text-center py-3" style={{ color: "var(--editor-text-dim)" }}>No text overlays — click Add Text to start</p>
       )}
 
       {selectedScene.overlays.map(overlay => (
@@ -190,7 +190,7 @@ export default function TextOverlayEditor() {
                         shadowColor: (ps as any).shadowColor,
                         shadowBlur: (ps as any).shadowBlur,
                       })}
-                      className="text-[8px] px-2 py-1 rounded transition-colors"
+                      className="text-[11px] px-2 py-1 rounded transition-colors"
                       style={{ background: "var(--editor-surface-hover)", color: "var(--editor-text-dim)" }}
                     >
                       {ps.label}
@@ -208,7 +208,7 @@ export default function TextOverlayEditor() {
                     <select
                       value={overlay.fontFamily || "Inter"}
                       onChange={e => u(overlay.id, { fontFamily: e.target.value })}
-                      className="w-full editor-input rounded px-1.5 py-1 text-[10px] focus:outline-none"
+                      className="w-full editor-input rounded px-1.5 py-1 text-[11px] focus:outline-none"
                       style={{ fontFamily: overlay.fontFamily || "Inter" }}
                     >
                       {FONTS.map(f => (
@@ -224,7 +224,7 @@ export default function TextOverlayEditor() {
                       <select
                         value={overlay.fontWeight}
                         onChange={e => u(overlay.id, { fontWeight: e.target.value as any })}
-                        className="w-full editor-input rounded px-1.5 py-1 text-[10px] focus:outline-none"
+                        className="w-full editor-input rounded px-1.5 py-1 text-[11px] focus:outline-none"
                       >
                         {FONT_WEIGHTS.map(w => (
                           <option key={w.value} value={w.value}>{w.label}</option>
@@ -250,21 +250,21 @@ export default function TextOverlayEditor() {
                     {/* Italic */}
                     <button
                       onClick={() => u(overlay.id, { fontStyle: overlay.fontStyle === "italic" ? "normal" : "italic" })}
-                      className={`text-[10px] w-6 h-6 rounded flex items-center justify-center italic transition-colors ${
+                      className={`text-[11px] w-6 h-6 rounded flex items-center justify-center italic transition-colors ${
                         overlay.fontStyle === "italic" ? "editor-btn-active" : "editor-btn-inactive"
                       }`}
                     >I</button>
                     {/* Underline */}
                     <button
                       onClick={() => u(overlay.id, { textDecoration: overlay.textDecoration === "underline" ? "none" : "underline" })}
-                      className={`text-[10px] w-6 h-6 rounded flex items-center justify-center underline transition-colors ${
+                      className={`text-[11px] w-6 h-6 rounded flex items-center justify-center underline transition-colors ${
                         overlay.textDecoration === "underline" ? "editor-btn-active" : "editor-btn-inactive"
                       }`}
                     >U</button>
                     {/* Strikethrough */}
                     <button
                       onClick={() => u(overlay.id, { textDecoration: overlay.textDecoration === "line-through" ? "none" : "line-through" })}
-                      className={`text-[10px] w-6 h-6 rounded flex items-center justify-center line-through transition-colors ${
+                      className={`text-[11px] w-6 h-6 rounded flex items-center justify-center line-through transition-colors ${
                         overlay.textDecoration === "line-through" ? "editor-btn-active" : "editor-btn-inactive"
                       }`}
                     >S</button>
@@ -293,7 +293,7 @@ export default function TextOverlayEditor() {
                       <button
                         key={t.v}
                         onClick={() => u(overlay.id, { textTransform: overlay.textTransform === t.v ? "none" : t.v })}
-                        className={`text-[8px] px-1 h-6 rounded flex items-center justify-center transition-colors ${
+                        className={`text-[11px] px-1 h-6 rounded flex items-center justify-center transition-colors ${
                           overlay.textTransform === t.v ? "editor-btn-active" : "editor-btn-inactive"
                         }`}
                       >{t.l}</button>
@@ -321,7 +321,7 @@ export default function TextOverlayEditor() {
                     <button
                       key={pos}
                       onClick={() => u(overlay.id, { position: pos, ...presetPositions[pos] })}
-                      className={`text-[8px] px-2 py-1 rounded-md transition-colors ${
+                      className={`text-[11px] px-2 py-1 rounded-md transition-colors ${
                         overlay.position === pos ? "editor-btn-active" : "editor-btn-inactive hover:editor-btn-inactive"
                       }`}
                     >{pos}</button>
@@ -346,12 +346,12 @@ export default function TextOverlayEditor() {
               {/* ── Background ── */}
               <Section title="Background">
                 <div className="flex items-center gap-1 flex-wrap">
-                  <button onClick={() => u(overlay.id, { backgroundColor: "" })} className={`text-[8px] px-1.5 py-0.5 rounded transition-colors ${!overlay.backgroundColor ? "editor-btn-active" : "editor-btn-inactive"}`}>None</button>
-                  <button onClick={() => u(overlay.id, { backgroundColor: "rgba(0,0,0,0.5)" })} className={`text-[8px] px-1.5 py-0.5 rounded transition-colors ${overlay.backgroundColor === "rgba(0,0,0,0.5)" ? "editor-btn-active" : "editor-btn-inactive"}`}>50% Black</button>
-                  <button onClick={() => u(overlay.id, { backgroundColor: "rgba(0,0,0,0.8)" })} className={`text-[8px] px-1.5 py-0.5 rounded transition-colors ${overlay.backgroundColor === "rgba(0,0,0,0.8)" ? "editor-btn-active" : "editor-btn-inactive"}`}>80% Black</button>
-                  <button onClick={() => u(overlay.id, { backgroundColor: "rgba(255,255,255,0.9)" })} className={`text-[8px] px-1.5 py-0.5 rounded transition-colors ${overlay.backgroundColor === "rgba(255,255,255,0.9)" ? "editor-btn-active" : "editor-btn-inactive"}`}>White</button>
-                  <button onClick={() => u(overlay.id, { backgroundColor: "rgba(234,67,53,0.85)" })} className={`text-[8px] px-1.5 py-0.5 rounded transition-colors ${overlay.backgroundColor?.includes("234,67") ? "editor-btn-active" : "editor-btn-inactive"}`}>Red</button>
-                  <button onClick={() => u(overlay.id, { backgroundColor: "rgba(74,158,237,0.85)" })} className={`text-[8px] px-1.5 py-0.5 rounded transition-colors ${overlay.backgroundColor?.includes("74,158") ? "editor-btn-active" : "editor-btn-inactive"}`}>Blue</button>
+                  <button onClick={() => u(overlay.id, { backgroundColor: "" })} className={`text-[11px] px-1.5 py-0.5 rounded transition-colors ${!overlay.backgroundColor ? "editor-btn-active" : "editor-btn-inactive"}`}>None</button>
+                  <button onClick={() => u(overlay.id, { backgroundColor: "rgba(0,0,0,0.5)" })} className={`text-[11px] px-1.5 py-0.5 rounded transition-colors ${overlay.backgroundColor === "rgba(0,0,0,0.5)" ? "editor-btn-active" : "editor-btn-inactive"}`}>50% Black</button>
+                  <button onClick={() => u(overlay.id, { backgroundColor: "rgba(0,0,0,0.8)" })} className={`text-[11px] px-1.5 py-0.5 rounded transition-colors ${overlay.backgroundColor === "rgba(0,0,0,0.8)" ? "editor-btn-active" : "editor-btn-inactive"}`}>80% Black</button>
+                  <button onClick={() => u(overlay.id, { backgroundColor: "rgba(255,255,255,0.9)" })} className={`text-[11px] px-1.5 py-0.5 rounded transition-colors ${overlay.backgroundColor === "rgba(255,255,255,0.9)" ? "editor-btn-active" : "editor-btn-inactive"}`}>White</button>
+                  <button onClick={() => u(overlay.id, { backgroundColor: "rgba(234,67,53,0.85)" })} className={`text-[11px] px-1.5 py-0.5 rounded transition-colors ${overlay.backgroundColor?.includes("234,67") ? "editor-btn-active" : "editor-btn-inactive"}`}>Red</button>
+                  <button onClick={() => u(overlay.id, { backgroundColor: "rgba(74,158,237,0.85)" })} className={`text-[11px] px-1.5 py-0.5 rounded transition-colors ${overlay.backgroundColor?.includes("74,158") ? "editor-btn-active" : "editor-btn-inactive"}`}>Blue</button>
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-1">
                   <div>
@@ -378,7 +378,7 @@ export default function TextOverlayEditor() {
                       <select
                         value={overlay.borderStyle ?? "solid"}
                         onChange={e => u(overlay.id, { borderStyle: e.target.value as any })}
-                        className="w-full editor-input rounded px-1 py-0.5 text-[10px] focus:outline-none"
+                        className="w-full editor-input rounded px-1 py-0.5 text-[11px] focus:outline-none"
                       >
                         <option value="solid">Solid</option>
                         <option value="dashed">Dashed</option>
@@ -417,7 +417,7 @@ export default function TextOverlayEditor() {
                       onChange={e => u(overlay.id, { shadowEnabled: e.target.checked })}
                       className="rounded accent-primary"
                     />
-                    <span className="text-[9px]" style={{ color: "var(--editor-text)" }}>Enable Shadow</span>
+                    <span className="text-[11px]" style={{ color: "var(--editor-text)" }}>Enable Shadow</span>
                   </label>
                   {overlay.shadowEnabled && (
                     <>
@@ -451,7 +451,7 @@ export default function TextOverlayEditor() {
                     <button
                       key={a.value}
                       onClick={() => u(overlay.id, { animation: a.value })}
-                      className={`text-[8px] px-2 py-0.5 rounded transition-colors ${
+                      className={`text-[11px] px-2 py-0.5 rounded transition-colors ${
                         (overlay.animation || "none") === a.value ? "editor-btn-active" : "editor-btn-inactive"
                       }`}
                     >{a.label}</button>
@@ -488,18 +488,18 @@ export default function TextOverlayEditor() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <button onClick={() => setEditingId(null)} className="text-[9px] text-primary hover:underline">Done</button>
-                  <button onClick={() => { removeOverlay(selectedScene.id, overlay.id); setEditingId(null); }} className="text-[9px] text-red-400 hover:underline">Delete</button>
+                  <button onClick={() => setEditingId(null)} className="text-[11px] text-primary hover:underline">Done</button>
+                  <button onClick={() => { removeOverlay(selectedScene.id, overlay.id); setEditingId(null); }} className="text-[11px] text-red-400 hover:underline">Delete</button>
                 </div>
               </div>
             </div>
           ) : (
             /* Collapsed view */
             <div className="flex items-center justify-between p-2">
-              <button onClick={() => setEditingId(overlay.id)} className="text-[10px] truncate flex-1 text-left hover:text-primary flex items-center gap-1.5 transition-colors" style={{ color: "var(--editor-text)" }}>
+              <button onClick={() => setEditingId(overlay.id)} className="text-[11px] truncate flex-1 text-left hover:text-primary flex items-center gap-1.5 transition-colors" style={{ color: "var(--editor-text)" }}>
                 <span className="material-symbols-outlined text-[12px] text-on-surface-variant">text_fields</span>
                 <span style={{ fontFamily: overlay.fontFamily || "Inter" }}>{overlay.text}</span>
-                <span className="text-[8px] text-on-surface-variant ml-1">{overlay.fontFamily}</span>
+                <span className="text-[11px] text-on-surface-variant ml-1">{overlay.fontFamily}</span>
               </button>
               <div className="flex items-center gap-0.5 ml-1">
                 <button onClick={() => {

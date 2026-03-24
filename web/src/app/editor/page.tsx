@@ -48,7 +48,7 @@ function PanelTab({ label, active, onClick }: { label: string; active?: boolean;
   return (
     <button
       onClick={onClick}
-      className="px-3 py-1.5 text-[11px] font-medium transition-all relative rounded-t-md"
+      className="px-4 py-2 text-[12px] font-medium transition-all relative rounded-t-md"
       style={{
         color: active ? C.text : C.textDim,
         background: active ? C.panel : "transparent",
@@ -72,7 +72,7 @@ function TBtn({ icon, label, onClick, active, disabled, danger, badge, filled }:
       onClick={onClick}
       disabled={disabled}
       title={label}
-      className="relative flex items-center justify-center w-8 h-8 rounded-lg transition-all"
+      className="relative flex items-center justify-center w-9 h-9 rounded-lg transition-all"
       style={{
         opacity: disabled ? 0.25 : 1,
         cursor: disabled ? "not-allowed" : "pointer",
@@ -82,9 +82,9 @@ function TBtn({ icon, label, onClick, active, disabled, danger, badge, filled }:
       onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.background = active ? C.accentBg : hoverBg; e.currentTarget.style.color = danger ? C.danger : C.accent; } }}
       onMouseLeave={(e) => { e.currentTarget.style.background = active ? C.accentBg : "transparent"; e.currentTarget.style.color = danger ? C.danger : active ? C.accent : C.textDim; }}
     >
-      <span className="material-symbols-outlined text-[17px]" style={filled ? { fontVariationSettings: "'FILL' 1" } : undefined}>{icon}</span>
+      <span className="material-symbols-outlined text-[18px]" style={filled ? { fontVariationSettings: "'FILL' 1" } : undefined}>{icon}</span>
       {badge && (
-        <span className="absolute -top-0.5 -right-0.5 text-white text-[7px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold" style={{ background: C.accent }}>{badge}</span>
+        <span className="absolute -top-0.5 -right-0.5 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold" style={{ background: C.accent }}>{badge}</span>
       )}
     </button>
   );
@@ -92,7 +92,7 @@ function TBtn({ icon, label, onClick, active, disabled, danger, badge, filled }:
 
 function TSep() {
   const { theme: C } = useEditorTheme();
-  return <div className="w-px h-5 mx-1" style={{ background: C.border }} />;
+  return <div className="w-px h-5 mx-1.5" style={{ background: C.border }} />;
 }
 
 // ── Source Monitor (Scene Browser + Media Browser) ──
@@ -154,23 +154,23 @@ function SourceMonitor() {
     <div className="flex flex-col h-full" style={{ background: C.panel, borderRight: `1px solid ${C.border}` }}>
       <input ref={mediaInputRef} type="file" accept="image/*,video/*,audio/*" multiple onChange={handleMediaUpload} className="hidden" />
       {/* Panel header with tabs */}
-      <div className="flex items-center justify-between px-1 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 28 }}>
+      <div className="flex items-center justify-between px-2 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 34 }}>
         <div className="flex">
           <PanelTab label="Scenes" active={activeTab === "scenes"} onClick={() => setActiveTab("scenes")} />
           <PanelTab label="Media" active={activeTab === "media"} onClick={() => setActiveTab("media")} />
         </div>
-        <span className="text-[10px] font-mono pr-2" style={{ color: C.textMuted }}>
+        <span className="text-[11px] font-mono pr-2" style={{ color: C.textMuted }}>
           {activeTab === "scenes" ? `${scenes.length} clips` : `${mediaAssets.length} files`}
         </span>
       </div>
 
       {activeTab === "media" ? (
         /* ── Media Browser ── */
-        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+        <div className="flex-1 overflow-y-auto p-3 space-y-3">
           {/* Upload button */}
           <button
             onClick={() => mediaInputRef.current?.click()}
-            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold transition-all hover:scale-[1.01]"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[11px] font-bold transition-all hover:scale-[1.01]"
             style={{ background: `${C.accent}15`, color: C.accent, border: `1px dashed ${C.accent}40` }}
           >
             <span className="material-symbols-outlined text-sm">upload</span>
@@ -178,7 +178,7 @@ function SourceMonitor() {
           </button>
 
           {/* Asset grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))", gap: 6 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(76px, 1fr))", gap: 8 }}>
             {mediaAssets.map(asset => (
               <div
                 key={asset.id}
@@ -200,27 +200,27 @@ function SourceMonitor() {
                     </div>
                   )}
                   {/* Type badge */}
-                  <div className="absolute top-0.5 left-0.5 px-1 py-0.5 rounded text-[7px] font-bold uppercase text-white" style={{ background: "rgba(0,0,0,0.7)" }}>
+                  <div className="absolute top-0.5 left-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase text-white" style={{ background: "rgba(0,0,0,0.7)" }}>
                     {asset.type === "image" ? "IMG" : asset.type === "audio" ? "AUD" : "VID"}
                   </div>
                 </div>
-                <div className="px-1 py-0.5">
-                  <p className="text-[8px] truncate" style={{ color: C.textDim }}>{asset.label}</p>
+                <div className="px-1.5 py-1">
+                  <p className="text-[9px] truncate" style={{ color: C.textDim }}>{asset.label}</p>
                 </div>
               </div>
             ))}
           </div>
 
           {mediaAssets.length === 0 && (
-            <div className="text-center py-6" style={{ color: C.textMuted }}>
-              <span className="material-symbols-outlined text-2xl mb-1 block" style={{ opacity: 0.2 }}>perm_media</span>
-              <p className="text-[10px]">No media assets yet</p>
+            <div className="text-center py-8" style={{ color: C.textMuted }}>
+              <span className="material-symbols-outlined text-3xl mb-2 block" style={{ opacity: 0.2 }}>perm_media</span>
+              <p className="text-[11px]">No media assets yet</p>
             </div>
           )}
         </div>
       ) : (
         /* ── Scene Grid (original) ── */
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 gap-1.5" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", alignContent: "start" }}>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 gap-2" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", alignContent: "start" }}>
         {scenes.map((scene, index) => {
           const isSelected = selectedSceneId === scene.id;
           const isDragTarget = dragOver === index && dragFrom !== index;
@@ -252,23 +252,23 @@ function SourceMonitor() {
                     <span className="material-symbols-outlined text-sm" style={{ color: C.textMuted }}>image</span>
                   </div>
                 )}
-                <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md text-[8px] font-bold text-white" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
+                <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold text-white" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
                   {scene.orderIndex + 1}
                 </div>
-                <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md text-[8px] font-mono text-white/80" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
+                <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md text-[9px] font-mono text-white/80" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
                   {Math.round(scene.duration * 10) / 10}s
                 </div>
                 {(scene.overlays.length > 0 || scene.filter !== "none") && (
                   <div className="absolute top-1 right-1 flex gap-0.5">
-                    {scene.overlays.length > 0 && <span className="w-3 h-3 rounded-full flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.accent }}>T</span>}
-                    {scene.filter !== "none" && <span className="w-3 h-3 rounded-full flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.warn }}>F</span>}
+                    {scene.overlays.length > 0 && <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[7px] font-bold" style={{ background: C.accent }}>T</span>}
+                    {scene.filter !== "none" && <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[7px] font-bold" style={{ background: C.warn }}>F</span>}
                   </div>
                 )}
                 {/* Hover overlay */}
                 <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/20 transition-colors" />
               </div>
-              <div className="px-1.5 py-1" style={{ background: isSelected ? C.accentBg : "transparent" }}>
-                <p className="text-[9px] truncate" style={{ color: isSelected ? C.accent : C.textDim }}>{scene.narration.slice(0, 40)}</p>
+              <div className="px-2 py-1.5" style={{ background: isSelected ? C.accentBg : "transparent" }}>
+                <p className="text-[10px] truncate" style={{ color: isSelected ? C.accent : C.textDim }}>{scene.narration.slice(0, 40)}</p>
               </div>
             </div>
           );
@@ -294,12 +294,12 @@ function TrimPanel() {
   const maxDuration = Math.max(selectedScene.duration, 30);
 
   return (
-    <div className="p-2.5 space-y-2" style={{ borderBottom: `1px solid ${C.border}` }}>
+    <div className="p-3 space-y-2.5" style={{ borderBottom: `1px solid ${C.border}` }}>
       <div className="flex items-center justify-between">
-        <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: C.textMuted }}>Trim</span>
-        <span className="text-[9px] font-mono" style={{ color: C.textDim }}>{trimEnd - trimStart}s / {selectedScene.duration}s</span>
+        <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: C.textMuted }}>Trim</span>
+        <span className="text-[10px] font-mono" style={{ color: C.textDim }}>{trimEnd - trimStart}s / {selectedScene.duration}s</span>
       </div>
-      <div className="relative h-8 rounded overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
+      <div className="relative h-9 rounded-lg overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
         {selectedScene.imageUrl && <img src={selectedScene.imageUrl} className="absolute inset-0 w-full h-full object-cover opacity-25" alt="" />}
         <div className="absolute top-0 bottom-0" style={{
           left: `${(trimStart / maxDuration) * 100}%`,
@@ -307,20 +307,20 @@ function TrimPanel() {
           background: `${C.accent}20`, borderLeft: `2px solid ${C.accent}`, borderRight: `2px solid ${C.accent}`,
         }} />
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <span className="text-[8px] block mb-0.5" style={{ color: C.textMuted }}>In: {trimStart}s</span>
-          <input type="range" min={0} max={Math.max(0, trimEnd - 2)} value={trimStart} onChange={e => setTrimStart(Number(e.target.value))} className="w-full h-0.5" style={{ accentColor: C.accent }} />
+          <span className="text-[10px] block mb-1" style={{ color: C.textMuted }}>In: {trimStart}s</span>
+          <input type="range" min={0} max={Math.max(0, trimEnd - 2)} value={trimStart} onChange={e => setTrimStart(Number(e.target.value))} className="w-full h-1" style={{ accentColor: C.accent }} />
         </div>
         <div>
-          <span className="text-[8px] block mb-0.5" style={{ color: C.textMuted }}>Out: {trimEnd}s</span>
-          <input type="range" min={trimStart + 2} max={maxDuration} value={trimEnd} onChange={e => setTrimEnd(Number(e.target.value))} className="w-full h-0.5" style={{ accentColor: C.accent }} />
+          <span className="text-[10px] block mb-1" style={{ color: C.textMuted }}>Out: {trimEnd}s</span>
+          <input type="range" min={trimStart + 2} max={maxDuration} value={trimEnd} onChange={e => setTrimEnd(Number(e.target.value))} className="w-full h-1" style={{ accentColor: C.accent }} />
         </div>
       </div>
-      <div className="flex gap-1 flex-wrap">
+      <div className="flex gap-1.5 flex-wrap">
         {[4, 6, 8, 10, 12, 15, 20].map(d => (
           <button key={d} onClick={() => { setTrimStart(0); setTrimEnd(d); }}
-            className="text-[8px] px-1.5 py-0.5 rounded transition-colors"
+            className="text-[10px] px-2 py-1 rounded-md transition-colors"
             style={{
               background: trimEnd - trimStart === d ? C.accentBg : "rgba(255,255,255,0.04)",
               color: trimEnd - trimStart === d ? C.accent : C.textDim,
@@ -331,7 +331,7 @@ function TrimPanel() {
       <button
         onClick={() => updateScene(selectedScene.id, { duration: Math.max(2, trimEnd - trimStart) })}
         disabled={trimEnd - trimStart === selectedScene.duration && trimStart === 0}
-        className="w-full py-1 rounded text-[9px] font-bold transition-all disabled:opacity-30"
+        className="w-full py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-30"
         style={{ background: C.accentBg, color: C.accent }}
       >
         Apply ({trimEnd - trimStart}s)
@@ -344,9 +344,9 @@ function TrimPanel() {
 function TextToolPanel({ onClose }: { onClose: () => void }) {
   const { theme: C } = useEditorTheme();
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-30 max-h-[280px] overflow-y-auto" style={{ background: C.panel, borderTop: `1px solid ${C.border}` }}>
-      <div className="flex items-center justify-between px-3 py-1" style={{ borderBottom: `1px solid ${C.border}` }}>
-        <span className="text-[10px] font-semibold" style={{ color: C.text }}>Text Overlays</span>
+    <div className="absolute bottom-0 left-0 right-0 z-30 max-h-[320px] overflow-y-auto" style={{ background: C.panel, borderTop: `1px solid ${C.border}` }}>
+      <div className="flex items-center justify-between px-4 py-2" style={{ borderBottom: `1px solid ${C.border}` }}>
+        <span className="text-[12px] font-semibold" style={{ color: C.text }}>Text Overlays</span>
         <button onClick={onClose} className="p-0.5 rounded transition-colors" style={{ color: C.textDim }}
           onMouseEnter={(e) => { e.currentTarget.style.color = C.text; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = C.textDim; }}
@@ -502,9 +502,9 @@ function EditorInner() {
   };
 
   // ── Resizable panel widths and timeline height ──
-  const DEFAULT_SOURCE_W = 220;
-  const DEFAULT_PROPS_W = 340;
-  const DEFAULT_TIMELINE_H = 200;
+  const DEFAULT_SOURCE_W = 250;
+  const DEFAULT_PROPS_W = 360;
+  const DEFAULT_TIMELINE_H = 220;
   const [sourceWidth, setSourceWidth] = useState(DEFAULT_SOURCE_W);
   const [propsWidth, setPropsWidth] = useState(DEFAULT_PROPS_W);
   const [timelineHeight, setTimelineHeight] = useState(DEFAULT_TIMELINE_H);
@@ -767,15 +767,15 @@ function EditorInner() {
       )}
 
       {/* ═══ Menu Bar ═══ */}
-      <div className="flex items-center gap-0 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 36 }}>
+      <div className="flex items-center gap-0 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 40 }}>
         {/* App logo + back */}
-        <button onClick={() => router.push("/script")} className="flex items-center gap-1.5 px-3 h-full transition-colors"
+        <button onClick={() => router.push("/script")} className="flex items-center gap-2 px-4 h-full transition-colors"
           style={{ color: C.textDim }}
           onMouseEnter={(e) => { e.currentTarget.style.color = C.accent; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = C.textDim; }}
         >
-          <span className="material-symbols-outlined text-[15px]">arrow_back</span>
-          <span className="text-[12px] font-semibold tracking-tight">Link2Video</span>
+          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+          <span className="text-[13px] font-semibold tracking-tight">Link2Video</span>
         </button>
         <div style={{ width: 1, height: 18, background: C.border }} />
 
@@ -831,7 +831,7 @@ function EditorInner() {
         ].map(menu => (
           <div key={menu.label} className="relative">
             <button
-              className="px-3 h-full text-[11px] transition-colors"
+              className="px-3 h-full text-[12px] transition-colors"
               style={{ color: openMenu === menu.label ? C.text : C.textDim, background: openMenu === menu.label ? (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)") : "transparent" }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
@@ -857,7 +857,7 @@ function EditorInner() {
                         key={i}
                         disabled={item.disabled}
                         onClick={() => { if (!item.disabled) { item.action?.(); setOpenMenu(null); } }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-left transition-colors"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-left transition-colors"
                         style={{
                           color: item.danger ? C.danger : item.disabled ? C.textMuted : C.text,
                           opacity: item.disabled ? 0.4 : 1,
@@ -865,10 +865,10 @@ function EditorInner() {
                         onMouseEnter={(e) => { if (!item.disabled) e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       >
-                        <span className="material-symbols-outlined text-[14px]" style={{ color: item.active ? C.accent : "inherit" }}>{item.icon}</span>
+                        <span className="material-symbols-outlined text-[15px]" style={{ color: item.active ? C.accent : "inherit" }}>{item.icon}</span>
                         <span className="flex-1">{item.label}</span>
-                        {item.active && <span className="material-symbols-outlined text-[12px]" style={{ color: C.accent }}>check</span>}
-                        {item.shortcut && <span className="text-[9px] font-mono" style={{ color: C.textMuted }}>{item.shortcut}</span>}
+                        {item.active && <span className="material-symbols-outlined text-[13px]" style={{ color: C.accent }}>check</span>}
+                        {item.shortcut && <span className="text-[10px] font-mono" style={{ color: C.textMuted }}>{item.shortcut}</span>}
                       </button>
                     )
                   )}
@@ -882,8 +882,8 @@ function EditorInner() {
 
         {/* Center: Project info */}
         <div className="flex items-center gap-3">
-          <span className="text-[12px] font-semibold" style={{ color: C.text }}>{scriptData?.title || "Untitled Sequence"}</span>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full" style={{ background: C.accentBg, color: C.accent }}>
+          <span className="text-[13px] font-semibold" style={{ color: C.text }}>{scriptData?.title || "Untitled Sequence"}</span>
+          <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full" style={{ background: C.accentBg, color: C.accent }}>
             {scenes.length} clips
           </span>
         </div>
@@ -891,21 +891,21 @@ function EditorInner() {
         <div className="flex-1" />
 
         {/* Right: credits + workspace controls */}
-        <div className="flex items-center gap-2 pr-2">
+        <div className="flex items-center gap-2 pr-3">
           {/* Credits indicator */}
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg" style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", border: `1px solid ${C.border}` }}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", border: `1px solid ${C.border}` }}
             title={`Quality: ${qualityTier.charAt(0).toUpperCase() + qualityTier.slice(1)} · Est. Pollen: ${pollenUsed.toFixed(4)}`}
           >
-            <span className="material-symbols-outlined text-[14px]" style={{ color: pollenUsed > 0 ? C.warn : C.success, fontVariationSettings: "'FILL' 1" }}>
+            <span className="material-symbols-outlined text-[15px]" style={{ color: pollenUsed > 0 ? C.warn : C.success, fontVariationSettings: "'FILL' 1" }}>
               {pollenUsed > 0 ? "eco" : "stars"}
             </span>
             <div className="flex flex-col leading-none">
-              <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: C.textMuted }}>Est. Pollen</span>
-              <span className="text-[11px] font-bold tabular-nums" style={{ color: pollenUsed > 0 ? C.text : C.success }}>
+              <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: C.textMuted }}>Est. Pollen</span>
+              <span className="text-[12px] font-bold tabular-nums" style={{ color: pollenUsed > 0 ? C.text : C.success }}>
                 {pollenUsed > 0 ? `${pollenUsed.toFixed(2)} ⚘` : "Free"}
               </span>
             </div>
-            <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase" style={{
+            <span className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase" style={{
               background: qualityTier === "pro" ? "rgba(168,85,247,0.15)" : qualityTier === "medium" ? C.accentBg : "rgba(74,222,128,0.12)",
               color: qualityTier === "pro" ? "#a855f7" : qualityTier === "medium" ? C.accent : C.success,
             }}>
@@ -932,7 +932,7 @@ function EditorInner() {
           >
             <span className="material-symbols-outlined text-[14px]">keyboard</span>
           </button>
-          <button onClick={() => setShowExport(true)} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-bold text-white transition-all shadow-sm"
+          <button onClick={() => setShowExport(true)} className="flex items-center gap-2 px-5 py-2 rounded-lg text-[12px] font-bold text-white transition-all shadow-sm"
             style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.accentDim})` }}
             onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; e.currentTarget.style.transform = "scale(1.02)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "scale(1)"; }}
@@ -944,7 +944,7 @@ function EditorInner() {
       </div>
 
       {/* ═══ Toolbar ═══ */}
-      <div className="flex items-center px-2 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 38 }}>
+      <div className="flex items-center px-3 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 44 }}>
         <div className="flex items-center gap-0.5">
           <TBtn icon="save" label="Save Project (Ctrl+S)" onClick={handleSaveProject} active={isSaving} />
           <TSep />
@@ -991,7 +991,7 @@ function EditorInner() {
               }
               setIsPlaying(!isPlaying);
             }}
-            className="flex items-center justify-center w-9 h-9 rounded-lg transition-all shadow-sm"
+            className="flex items-center justify-center w-10 h-10 rounded-lg transition-all shadow-sm"
             style={{ background: isPlaying ? C.danger : C.accent, color: "#fff" }}
             onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.85"; }}
             onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
@@ -1011,14 +1011,14 @@ function EditorInner() {
 
         {/* Timecode display */}
         <div className="flex items-center gap-2">
-          <div className="px-3 py-1 rounded-md font-mono text-[12px] tabular-nums font-semibold" style={{ background: isDark ? "rgba(0,0,0,0.5)" : "#e8e8e8", color: C.accent, letterSpacing: "0.5px" }}>
+          <div className="px-3 py-1.5 rounded-md font-mono text-[13px] tabular-nums font-semibold" style={{ background: isDark ? "rgba(0,0,0,0.5)" : "#e8e8e8", color: C.accent, letterSpacing: "0.5px" }}>
             {fmt(playheadPosition)}
           </div>
-          <span className="text-[10px]" style={{ color: C.textMuted }}>/ {fmtShort(totalDuration)}</span>
+          <span className="text-[11px]" style={{ color: C.textMuted }}>/ {fmtShort(totalDuration)}</span>
         </div>
 
         {/* Panel toggles + reset */}
-        <div className="flex items-center gap-0.5 ml-3">
+        <div className="flex items-center gap-1 ml-3">
           <TBtn icon="view_sidebar" label="Source" onClick={() => setShowSource(!showSource)} active={showSource} />
           <TBtn icon="tune" label="Properties" onClick={() => setShowProperties(!showProperties)} active={showProperties} />
           <TBtn icon="fit_screen" label="Reset Layout" onClick={resetLayout} />
@@ -1047,15 +1047,15 @@ function EditorInner() {
         {/* Center: Program Monitor (Preview) */}
         <div className="flex-1 min-w-0 flex flex-col" style={{ background: C.panel }}>
           {/* Program monitor header */}
-          <div className="flex items-center px-1 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 28 }}>
+          <div className="flex items-center px-2 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 34 }}>
             <PanelTab label="Program" active />
             <div className="flex-1" />
-            <span className="text-[10px] font-mono pr-2" style={{ color: C.textMuted }}>
+            <span className="text-[11px] font-mono pr-2" style={{ color: C.textMuted }}>
               {selectedScene ? `Scene ${selectedScene.orderIndex + 1}` : "No selection"}
             </span>
           </div>
           {/* Preview area */}
-          <div className="flex-1 relative min-h-0 p-1.5" style={{ background: "#0a0a0c" }}>
+          <div className="flex-1 relative min-h-0 p-2" style={{ background: "#0a0a0c" }}>
             <PreviewPlayer />
             {showTextTool && <TextToolPanel onClose={() => setShowTextTool(false)} />}
           </div>
@@ -1074,7 +1074,7 @@ function EditorInner() {
             </div>
             <div className="flex-shrink-0 flex flex-col min-w-[240px] max-w-[500px]" style={{ width: propsWidth, background: C.panel }}>
               {/* Tabs */}
-              <div className="flex items-center px-1 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 28 }}>
+              <div className="flex items-center px-2 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 34 }}>
                 <PanelTab label="Properties" active={activeRightTab === "properties"} onClick={() => setActiveRightTab("properties")} />
                 <PanelTab label="Text" active={activeRightTab === "text"} onClick={() => setActiveRightTab("text")} />
               </div>
@@ -1101,18 +1101,18 @@ function EditorInner() {
       </div>
 
       {/* ═══ Status Bar ═══ */}
-      <div className="flex items-center justify-between px-4 flex-shrink-0" style={{ background: C.headerBg, borderTop: `1px solid ${C.border}`, height: 26 }}>
+      <div className="flex items-center justify-between px-4 flex-shrink-0" style={{ background: C.headerBg, borderTop: `1px solid ${C.border}`, height: 30 }}>
         <div className="flex items-center gap-3">
-          <span className="text-[10px]" style={{ color: C.textDim }}>
+          <span className="text-[11px]" style={{ color: C.textDim }}>
             {selectedSceneIds.size > 1 ? `${selectedSceneIds.size} selected` : selectedScene ? `Scene ${selectedScene.orderIndex + 1} — ${selectedScene.duration}s` : "Ready"}
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-[10px] font-mono" style={{ color: C.textMuted }}>{scenes.length} scenes</span>
-          <span className="text-[10px] font-mono" style={{ color: C.textMuted }}>{fmtShort(totalDuration)} total</span>
+          <span className="text-[11px] font-mono" style={{ color: C.textMuted }}>{scenes.length} scenes</span>
+          <span className="text-[11px] font-mono" style={{ color: C.textMuted }}>{fmtShort(totalDuration)} total</span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full" style={{ background: isPlaying ? C.danger : C.success }} />
-            <span className="text-[10px]" style={{ color: C.textDim }}>{isPlaying ? "Playing" : "Ready"}</span>
+            <span className="text-[11px]" style={{ color: C.textDim }}>{isPlaying ? "Playing" : "Ready"}</span>
           </span>
         </div>
       </div>

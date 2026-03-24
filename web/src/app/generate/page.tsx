@@ -33,7 +33,7 @@ export default function VideoGeneration() {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <span className="material-symbols-outlined text-6xl text-outline/30 mb-4">movie</span>
-        <h3 className="font-headline font-bold text-xl text-on-surface mb-2">No Video to Generate</h3>
+        <h3 className="font-headline font-extrabold text-xl text-on-surface mb-2">No Video to Generate</h3>
         <p className="text-outline text-sm max-w-md mb-6">Create a script first, then generate your video.</p>
         <Link href="/" className="primary-gradient text-white px-6 py-3 rounded-xl font-headline font-bold flex items-center gap-2 shadow-md">
           <span className="material-symbols-outlined">home</span>

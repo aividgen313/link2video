@@ -76,7 +76,7 @@ export default function ScriptBuilder() {
   // Redirect if no input data
   useEffect(() => {
     if (!hasMounted) return;
-    const hasInput = url || storyText || audioFile;
+    const hasInput = url || storyText || audioFile || (mode === "notepad" && storyText);
     if (!hasInput && !scriptData) {
       router.push("/");
     }
@@ -234,7 +234,8 @@ export default function ScriptBuilder() {
     // Only auto-generate if user explicitly requested generation (not sidebar browsing)
     const hasValidInput = (mode === "link" && url) ||
                           (mode === "short-story" && storyText) ||
-                          (mode === "music-video" && audioFile);
+                          (mode === "music-video" && audioFile) ||
+                          (mode === "notepad" && storyText);
     if (!hasValidInput || !generateRequested) {
       setIsLoading(false);
       return;
@@ -277,7 +278,7 @@ export default function ScriptBuilder() {
           ...(activeStyle ? { activeStyle } : {}),
           ...(settingText ? { settingText } : {}),
         };
-        if (mode === "short-story") {
+        if (mode === "short-story" || mode === "notepad") {
           requestBody.storyText = storyText;
           requestBody.characterProfiles = characterProfiles;
         } else if (mode === "music-video") {
@@ -476,7 +477,7 @@ export default function ScriptBuilder() {
           <div className="flex flex-col items-start justify-center text-left mb-10">
             <div className="flex items-center gap-3 mb-2">
               <span className="material-symbols-outlined text-4xl text-primary">history_edu</span>
-              <h3 className="font-headline font-black text-3xl text-on-surface">Past Scripts</h3>
+              <h3 className="font-headline font-extrabold text-2xl md:text-3xl text-on-surface tracking-tight">Past Scripts</h3>
             </div>
             <p className="text-outline text-sm max-w-lg">
               Here are your previously generated story scripts. Open one to continue editing, regenerate scenes, or generate a final video.
@@ -615,7 +616,7 @@ export default function ScriptBuilder() {
         <div className="flex flex-col md:flex-row items-start md:items-end justify-between border-b border-outline-variant/5 pb-8 gap-6">
           <div>
             <span className="font-label text-tertiary text-xs font-bold uppercase tracking-[0.2em] block mb-2">Editor Phase 02</span>
-            <h2 className="font-headline text-4xl font-extrabold tracking-tight text-on-surface">Generated Story Script</h2>
+            <h2 className="font-headline text-3xl md:text-4xl font-extrabold tracking-tighter text-on-surface">Generated Story Script</h2>
           </div>
 
           {/* Quality + Settings bar */}
@@ -763,7 +764,7 @@ export default function ScriptBuilder() {
                       <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-headline font-bold text-sm ${activeScene?.id === scene.id ? 'bg-primary/10 text-primary' : 'bg-surface-variant text-outline'}`}>
                         {String(index + 1).padStart(2, '0')}
                       </span>
-                      <h3 className={`font-headline font-bold text-lg ${activeScene?.id === scene.id ? '' : 'text-outline'}`}>Scene {index + 1}</h3>
+                      <h3 className={`font-headline font-extrabold text-lg ${activeScene?.id === scene.id ? '' : 'text-outline'}`}>Scene {index + 1}</h3>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="font-label text-xs text-outline bg-surface-container-low px-2 py-1 rounded">
@@ -885,7 +886,7 @@ export default function ScriptBuilder() {
             <div className="sticky top-8 glass-card rounded-3xl p-8 shadow-2xl space-y-8">
 
               <div className="flex items-center justify-between">
-                <h3 className="font-headline font-bold text-xl flex items-center gap-2">
+                <h3 className="font-headline font-extrabold text-lg flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary">auto_videocam</span>
                   Scene Visual Prompt
                 </h3>

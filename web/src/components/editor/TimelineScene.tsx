@@ -133,20 +133,20 @@ function TimelineSceneInner({ scene, width, trackHeight, zoom = 40 }: Props) {
 
       {/* Bottom info bar */}
       <div className="absolute inset-x-0 bottom-0 h-5 flex items-center justify-between px-1.5" style={{ background: "var(--editor-surface-overlay)" }}>
-        <span className="text-[9px] font-bold text-white tabular-nums">{scene.orderIndex + 1}</span>
-        <span className="text-[8px] text-white/70 font-mono tabular-nums">{Math.round(scene.duration * 10) / 10}s</span>
+        <span className="text-[10px] font-bold text-white tabular-nums">{scene.orderIndex + 1}</span>
+        <span className="text-[9px] text-white/70 font-mono tabular-nums">{Math.round(scene.duration * 10) / 10}s</span>
       </div>
 
       {/* Badges row */}
       <div className="absolute top-1 right-1 flex gap-0.5 z-10">
         {scene.filter !== "none" && (
-          <div className="w-3 h-3 rounded-full flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.warn }} title={`Filter: ${scene.filter}`}>F</div>
+          <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[7px] font-bold" style={{ background: C.warn }} title={`Filter: ${scene.filter}`}>F</div>
         )}
         {scene.overlays.length > 0 && (
-          <div className="w-3 h-3 rounded-full flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.accent }} title={`${scene.overlays.length} overlay(s)`}>T</div>
+          <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[7px] font-bold" style={{ background: C.accent }} title={`${scene.overlays.length} overlay(s)`}>T</div>
         )}
         {scene.marker && (
-          <div className="w-3 h-3 rounded-full flex items-center justify-center text-white text-[6px] font-bold" style={{ background: C.success }} title={scene.marker}>M</div>
+          <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[7px] font-bold" style={{ background: C.success }} title={scene.marker}>M</div>
         )}
       </div>
 
