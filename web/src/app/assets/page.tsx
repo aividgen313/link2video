@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useMemo, useEffect } from "react";
-import { useAppContext } from "@/context/AppContext";
+import { useRouter } from "next/navigation";
+import { useAppContext, VIDEO_DIMENSIONS } from "@/context/AppContext";
 import { getHistory, loadProjectState } from "@/lib/videoHistory";
 
 type AssetType = "all" | "image" | "audio" | "video";
@@ -24,7 +25,8 @@ type ProjectGroup = {
 };
 
 export default function AssetLibrary() {
-  const { storyboardImages, scriptData, sceneAudioUrls, sceneVideoUrls, finalVideoUrl } = useAppContext();
+  const { storyboardImages, scriptData, sceneAudioUrls, sceneVideoUrls, finalVideoUrl, setScriptData, setStoryboardImages, setSceneAudioUrls, setSceneVideoUrls, setSceneDurations, setFinalVideoUrl, setQualityTier, setVideoDimension, setUrl, setAngle } = useAppContext();
+  const router = useRouter();
   const [filter, setFilter] = useState<AssetType>("all");
   const [search, setSearch] = useState("");
   const [uploadedAssets, setUploadedAssets] = useState<Asset[]>([]);
@@ -32,6 +34,7 @@ export default function AssetLibrary() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
+  const [isOpening, setIsOpening] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleFolder = (folderId: string) => {
@@ -215,6 +218,39 @@ export default function AssetLibrary() {
     a.click();
   };
 
+  const handleOpenProject = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpening(projectId);
+    try {
+      const state = await loadProjectState(projectId);
+      if (state && state.scriptData) {
+        setScriptData({ ...state.scriptData, editorScenes: state.editorScenes, editorTracks: state.editorTracks });
+        setStoryboardImages(state.storyboardImages || {});
+        setSceneAudioUrls(state.sceneAudioUrls || {});
+        setSceneVideoUrls(state.sceneVideoUrls || {});
+        setSceneDurations(state.sceneDurations || {});
+        setFinalVideoUrl(state.finalVideoUrl || null);
+        
+        const history = getHistory();
+        const item = history.find(h => h.id === projectId);
+        if (item) {
+          if (item.quality) setQualityTier(item.quality as any);
+          if (item.dimensionId) {
+            const dim = VIDEO_DIMENSIONS.find((d: any) => d.id === item.dimensionId);
+            if (dim) setVideoDimension(dim);
+          }
+          if (item.topic) setUrl(item.topic);
+          if (item.angle) setAngle(item.angle);
+        }
+        
+        router.push("/editor");
+      }
+    } catch (err) {
+      console.error("Failed to open project:", err);
+      setIsOpening(null);
+    }
+  };
+
   const totalAssetsCount = groupedProjects.reduce((sum, p) => sum + p.assets.length, 0);
 
   return (
@@ -296,9 +332,25 @@ export default function AssetLibrary() {
                       <span className="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest">{project.assets.length} items • {project.date}</span>
                     </div>
                   </div>
-                  <span className={`material-symbols-outlined text-outline/40 transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`}>
-                    expand_more
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className={`material-symbols-outlined text-outline/40 transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`}>
+                      expand_more
+                    </span>
+                    {project.id !== 'current' && project.id !== 'uploads' && (
+                      <button 
+                        onClick={(e) => handleOpenProject(project.id, e)}
+                        disabled={isOpening !== null}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-lg hover:bg-primary hover:text-on-primary transition-all ml-2"
+                      >
+                        {isOpening === project.id ? (
+                          <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <span className="material-symbols-outlined text-sm">open_in_new</span>
+                        )}
+                        Open in Editor
+                      </button>
+                    )}
+                  </div>
                 </button>
 
                 {/* Collapsible Content */}

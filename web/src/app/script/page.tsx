@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAppContext, Scene, QUALITY_TIERS, calculateTotalCost } from "@/context/AppContext";
 import { pipelineManager } from "@/lib/pipelineManager";
+import { getHistory, deleteFromHistory, loadProjectState, VideoHistoryItem } from "@/lib/videoHistory";
 
 export default function ScriptBuilder() {
   const router = useRouter();
@@ -33,6 +34,7 @@ export default function ScriptBuilder() {
     audioDuration,
     youtubeStyleSuffix,
     generateRequested, setGenerateRequested,
+    activeStyle, settingText,
   } = useAppContext();
   const [isLoading, setIsLoading] = useState(!scriptData);
   const [hasMounted, setHasMounted] = useState(false);
@@ -47,10 +49,18 @@ export default function ScriptBuilder() {
   const [imageErrors, setImageErrors] = useState<Record<number, string>>({});
   // Track if auto-generation has been triggered
   const autoGenTriggered = useRef<Set<number>>(new Set());
+  const [pastScripts, setPastScripts] = useState<VideoHistoryItem[]>([]);
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
+
+  // Fetch past scripts on mount or when empty state appears
+  useEffect(() => {
+    if (hasMounted && !scriptData && !isLoading) {
+      setPastScripts(getHistory());
+    }
+  }, [hasMounted, scriptData, isLoading]);
 
   // Loading timer for ETA
   useEffect(() => {
@@ -264,6 +274,8 @@ export default function ScriptBuilder() {
           durationMinutes: targetDurationMinutes,
           mode,
           ...(youtubeStyleSuffix ? { youtubeStyleSuffix } : {}),
+          ...(activeStyle ? { activeStyle } : {}),
+          ...(settingText ? { settingText } : {}),
         };
         if (mode === "short-story") {
           requestBody.storyText = storyText;
@@ -456,16 +468,76 @@ export default function ScriptBuilder() {
         <span className="font-headline font-bold text-on-surface truncate max-w-[200px]">{scriptData?.title || url || "Draft Script"}</span>
       </div>
 
-      {/* Empty State */}
+      {/* Past Scripts State */}
       {showEmptyState && (
-        <div className="flex flex-col items-center justify-center py-20 text-center max-w-md mx-auto">
-          <span className="material-symbols-outlined text-6xl text-outline/30 mb-4">edit_note</span>
-          <h3 className="font-headline font-bold text-xl text-on-surface mb-2">No Script Yet</h3>
-          <p className="text-outline text-sm mb-6">Start from the home page — enter a topic, choose a style, and generate your video script.</p>
-          <a href="/" className="primary-gradient text-white px-6 py-3 rounded-xl font-headline font-bold flex items-center gap-2 shadow-md">
-            <span className="material-symbols-outlined">home</span>
-            Go to Dashboard
-          </a>
+        <div className="max-w-6xl mx-auto py-12 px-4">
+          <div className="flex flex-col items-start justify-center text-left mb-10">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="material-symbols-outlined text-4xl text-primary">history_edu</span>
+              <h3 className="font-headline font-black text-3xl text-on-surface">Past Scripts</h3>
+            </div>
+            <p className="text-outline text-sm max-w-lg">
+              Here are your previously generated story scripts. Open one to continue editing, regenerate scenes, or generate a final video.
+            </p>
+          </div>
+
+          {pastScripts.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {pastScripts.map((item) => (
+                <div key={item.id} className="glass-card p-5 rounded-2xl border border-outline/10 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all flex flex-col group cursor-pointer h-[160px]"
+                  onClick={async () => {
+                    // Load the script
+                    try {
+                      const state = await loadProjectState(item.id);
+                      if (state && state.scriptData) {
+                        setScriptData(state.scriptData);
+                        setStoryboardImages(state.storyboardImages || {});
+                        setSceneAudioUrls(state.sceneAudioUrls || {});
+                        setSceneVideoUrls(state.sceneVideoUrls || {});
+                        setSceneDurations(state.sceneDurations || {});
+                        setFinalVideoUrl(state.finalVideoUrl || null);
+                      }
+                    } catch (e) {
+                      console.error("Failed to load script", e);
+                    }
+                  }}
+                >
+                  <div className="flex justify-between items-start mb-3 gap-2">
+                    <h4 className="font-bold text-on-surface line-clamp-2 leading-snug group-hover:text-primary transition-colors">{item.title || "Untitled Script"}</h4>
+                    <button 
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (confirm("Delete this script from history?")) {
+                          await deleteFromHistory(item.id);
+                          setPastScripts(pastScripts.filter(s => s.id !== item.id));
+                        }
+                      }}
+                      className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg text-outline hover:text-error hover:bg-error/10 transition-all flex-shrink-0 bg-surface-variant/30"
+                      title="Delete Script"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">delete</span>
+                    </button>
+                  </div>
+                  <div className="mt-auto pt-4 border-t border-outline/5 flex justify-between items-center text-[10px]">
+                    <span className="text-outline-variant font-medium bg-surface-container-low px-2 py-1 rounded-md">{new Date(item.createdAt).toLocaleDateString()}</span>
+                    <span className="font-bold uppercase tracking-widest text-primary/80 flex items-center gap-1 group-hover:text-primary transition-colors">
+                      Open <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 bg-surface-container-low/50 rounded-3xl border border-outline/5 border-dashed">
+              <span className="material-symbols-outlined text-5xl text-outline/20 mb-4">edit_off</span>
+              <p className="text-on-surface-variant font-medium text-lg">No scripts found</p>
+              <p className="text-outline text-sm mb-6 max-w-sm text-center">Your generated scripts will appear here. Start by creating a new video from your dashboard.</p>
+              <a href="/" className="primary-gradient text-white px-6 py-3 rounded-xl font-headline font-bold flex items-center gap-2 shadow-sm hover:scale-105 transition-transform">
+                <span className="material-symbols-outlined text-sm">add</span>
+                Create New Script
+              </a>
+            </div>
+          )}
         </div>
       )}
 

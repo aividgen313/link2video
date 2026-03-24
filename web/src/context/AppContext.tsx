@@ -228,6 +228,10 @@ interface AppContextType {
   setStoryText: (text: string) => void;
   characterProfiles: CharacterProfile[];
   setCharacterProfiles: (profiles: CharacterProfile[]) => void;
+  activeStyle: string | null;
+  setActiveStyle: (style: string | null) => void;
+  settingText: string;
+  setSettingText: (text: string) => void;
   // Music Video Mode
   audioFile: string | null; // base64 data URL of uploaded audio
   setAudioFile: (file: string | null) => void;
@@ -318,6 +322,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Short Story Mode
   const [storyText, setStoryText] = useState("");
   const [characterProfiles, setCharacterProfiles] = useState<CharacterProfile[]>([]);
+  const [activeStyle, setActiveStyle] = useState<string | null>(null);
+  const [settingText, setSettingText] = useState("");
   // Music Video Mode
   const [audioFile, setAudioFile] = useState<string | null>(null);
   const [audioFileName, setAudioFileName] = useState<string | null>(null);
@@ -346,6 +352,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (saved.youtubeStyleSuffix) setYoutubeStyleSuffix(saved.youtubeStyleSuffix);
     if (saved.storyText) setStoryText(saved.storyText);
     if (saved.characterProfiles) setCharacterProfiles(saved.characterProfiles);
+    if (saved.activeStyle) setActiveStyle(saved.activeStyle);
+    if (saved.settingText) setSettingText(saved.settingText);
     if (saved.audioFileName) setAudioFileName(saved.audioFileName);
     if (saved.lyrics) setLyrics(saved.lyrics);
     if (saved.musicSegments) setMusicSegments(saved.musicSegments);
@@ -364,7 +372,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         videoDimension, selectedVoice, musicEnabled, captionsEnabled,
         targetDurationMinutes, referenceImages, sceneDurations,
         storyboardImages,
-        storyText, characterProfiles, audioFileName,
+        storyText, characterProfiles, activeStyle, settingText, audioFileName,
         lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -378,7 +386,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           videoDimension, selectedVoice, musicEnabled, captionsEnabled,
           targetDurationMinutes, referenceImages, sceneDurations,
           storyboardImages: {},
-          storyText, characterProfiles, audioFileName,
+          storyText, characterProfiles, activeStyle, settingText, audioFileName,
           lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(fallbackState));
@@ -389,7 +397,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     videoDimension, selectedVoice, musicEnabled, captionsEnabled,
     targetDurationMinutes, referenceImages, sceneDurations,
     storyboardImages,
-    storyText, characterProfiles, audioFileName,
+    storyText, characterProfiles, settingText, audioFileName,
     lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
   ]);
 
@@ -423,6 +431,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       youtubeStyleSuffix, setYoutubeStyleSuffix,
       storyText, setStoryText,
       characterProfiles, setCharacterProfiles,
+      activeStyle, setActiveStyle,
+      settingText, setSettingText,
       audioFile, setAudioFile,
       audioFileName, setAudioFileName,
       lyrics, setLyrics,

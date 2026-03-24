@@ -201,7 +201,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [showSafeZones, setShowSafeZones] = useState(false);
-  const [previewScale, setPreviewScale] = useState<"fit" | "fill" | "100">("fit");
+  const [previewScale, setPreviewScale] = useState<"fit" | "fill" | "100">("fill");
 
   // Undo/Redo history
   const historyRef = useRef<HistoryEntry[]>([]);

@@ -451,6 +451,20 @@ function EditorInner() {
     }
   };
 
+  // Auto-save effect
+  useEffect(() => {
+    if (!scriptData || scenes.length === 0) return;
+    
+    const timeout = setTimeout(() => {
+      if (!isSaving) {
+        handleSaveProject();
+      }
+    }, 4000); // Auto-save 4 seconds after the last change is made
+    
+    return () => clearTimeout(timeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenes, tracks, storyboardImages, sceneAudioUrls, sceneVideoUrls, qualityTier, videoDimension]);
+
   const handleLoadProject = async (item: VideoHistoryItem) => {
     setLoadingProjectId(item.id);
     setErrorMsg(null);

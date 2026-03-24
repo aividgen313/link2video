@@ -167,10 +167,11 @@ export default function Home() {
     audioDuration, setAudioDuration,
     setStoryboardImages, setSceneAudioUrls, setSceneVideoUrls, setSceneDurations,
     setYoutubeStyleSuffix, setGenerateRequested,
+    settingText, setSettingText,
+    activeStyle, setActiveStyle,
   } = useAppContext();
 
   const [inputValue, setInputValue] = useState(url || "");
-  const [activeStyle, setActiveStyle] = useState<string | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
   const [recentVideos, setRecentVideos] = useState<VideoHistoryItem[]>([]);
   const [isExtractingChars, setIsExtractingChars] = useState(false);
@@ -576,7 +577,7 @@ export default function Home() {
                       return (
                         <button
                           key={s.label}
-                          onClick={() => { setInputValue(s.example); setActiveStyle(s.label); }}
+                          onClick={() => setActiveStyle(s.label)}
                           className={`flex flex-col items-start gap-1 p-3 rounded-xl spring-transition press-scale text-left ${isActive ? "glass-elevated text-primary" : "glass-subtle text-outline hover:text-primary hover:border-primary/20"}`}
                         >
                           <div className="flex items-center gap-1.5">
@@ -595,12 +596,14 @@ export default function Home() {
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Character References (optional)</label>
                     {characterProfiles.length === 0 && (
-                      <button
-                        onClick={() => setCharacterProfiles([{ id: `char_${Date.now()}`, name: "", appearance: "", role: "protagonist" }])}
-                        className="text-xs text-primary flex items-center gap-1 hover:underline"
-                      >
-                        <span className="material-symbols-outlined text-sm">add</span> Add Character
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setCharacterProfiles([{ id: `char_${Date.now()}`, name: "", appearance: "", role: "protagonist" }])}
+                          className="text-xs text-primary flex items-center gap-1 hover:underline"
+                        >
+                          <span className="material-symbols-outlined text-sm">person_add</span> Add Character
+                        </button>
+                      </div>
                     )}
                     {characterProfiles.length > 0 && (
                       <button
@@ -657,6 +660,19 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+
+             {/* Global Setting / Location Input */}
+                <div className="space-y-2 mt-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Setting / Location (optional)</label>
+                  </div>
+                  <input
+                    className="w-full bg-surface-container-lowest/50 border border-outline-variant/10 rounded-2xl py-3 px-4 text-on-surface placeholder:text-outline/50 focus:ring-2 focus:ring-primary/40 focus:outline-none transition-all text-sm"
+                    placeholder="e.g. A neon-lit cyberpunk city alleyway at night..."
+                    value={settingText}
+                    onChange={(e) => setSettingText(e.target.value)}
+                  />
+                </div>
               </>
             )}
 
@@ -686,6 +702,19 @@ export default function Home() {
                       )}
                     </button>
                   </div>
+                </div>
+
+                {/* Global Setting / Location Input */}
+                <div className="space-y-2 mt-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Setting / Location (optional)</label>
+                  </div>
+                  <input
+                    className="w-full bg-surface-container-lowest/50 border border-outline-variant/10 rounded-2xl py-3 px-4 text-on-surface placeholder:text-outline/50 focus:ring-2 focus:ring-primary/40 focus:outline-none transition-all text-sm"
+                    placeholder="e.g. A dusty western town at high noon..."
+                    value={settingText}
+                    onChange={(e) => setSettingText(e.target.value)}
+                  />
                 </div>
 
                 {/* Character Profiles */}
@@ -875,7 +904,7 @@ export default function Home() {
                       onClick={() => setCharacterProfiles([...characterProfiles, { id: `char_${Date.now()}`, name: "", appearance: "", role: "protagonist" }])}
                       className="text-xs text-primary flex items-center gap-1 hover:underline"
                     >
-                      <span className="material-symbols-outlined text-sm">add</span> Add
+                      <span className="material-symbols-outlined text-sm">person_add</span> Add Character
                     </button>
                   </div>
                   {characterProfiles.length > 0 && (

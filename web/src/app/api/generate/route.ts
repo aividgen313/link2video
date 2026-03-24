@@ -84,7 +84,7 @@ function parseAndReturnScript(responseText: string): NextResponse {
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, url, angle, visualStyle = "Cinematic Documentary", durationMinutes = 3, continueFrom, endStory, existingTitle, mode, storyText, characterProfiles, lyrics, musicSegments, youtubeStyleSuffix } = await req.json();
+    const { topic, url, angle, visualStyle = "Cinematic Documentary", durationMinutes = 3, continueFrom, endStory, existingTitle, mode, storyText, characterProfiles, lyrics, musicSegments, youtubeStyleSuffix, activeStyle, settingText } = await req.json();
 
     // Short Story and Music Video modes don't need topic/url
     if (!topic && !url && mode !== "short-story" && mode !== "music-video" && mode !== "extract-characters" && mode !== "extract-subjects") {
@@ -204,28 +204,41 @@ Return ONLY raw JSON (no markdown fences):
       }
     }
 
-    // Detect narrative style from the USER'S ORIGINAL INPUT only (topic/angle), NOT from extracted article content
-    // This prevents article words like "acquitted" matching "quit" and derailing the script
+    // Detect narrative style from activeStyle or USER'S ORIGINAL INPUT
     const userInput = ((topic || "") + " " + (angle || "")).toLowerCase().trim();
-    const topicLower = userInput;
     let narrativeStyle = "documentary";
-    if (topicLower.startsWith("pov:") || topicLower.startsWith("pov |") || topicLower.startsWith("pov:")) {
-      if (topicLower.includes("every") || topicLower.includes("level") || topicLower.includes("tier")) {
-        narrativeStyle = "pov_levels";
-      } else {
-        narrativeStyle = "pov_scenario";
+
+    if (activeStyle) {
+      const styleMap: Record<string, string> = {
+        "POV Scenario": "pov_scenario",
+        "POV Levels": "pov_levels",
+        "Every Level": "every_level",
+        "Origin Story": "rich_story",
+        "Quit Your Job": "quit_job",
+        "Dark Truth": "dark_truth",
+        "Explainer": "explainer",
+        "Documentary": "documentary"
+      };
+      narrativeStyle = styleMap[activeStyle] || "documentary";
+    } else {
+      if (userInput.startsWith("pov:") || userInput.startsWith("pov |") || userInput.startsWith("pov:")) {
+        if (userInput.includes("every") || userInput.includes("level") || userInput.includes("tier")) {
+          narrativeStyle = "pov_levels";
+        } else {
+          narrativeStyle = "pov_scenario";
+        }
+      } else if (userInput.includes("every level") || userInput.includes("every tier") || userInput.includes("every type")) {
+        narrativeStyle = "every_level";
+      } else if (userInput.startsWith("simply explaining") || userInput.startsWith("explain") || userInput.includes("questions everyone") || userInput.includes("q&a")) {
+        narrativeStyle = "explainer";
+      } else if ((userInput.includes("how") && (userInput.includes("billionaire") || userInput.includes("millionaire") || userInput.includes("empire") || userInput.includes("rich") || userInput.includes("wealthy") || userInput.includes("built"))) ||
+                 (userInput.includes("broke") && userInput.includes("billion"))) {
+        narrativeStyle = "rich_story";
+      } else if (userInput.includes("dark truth") || userInput.includes("dark side") || userInput.includes("secretly") || userInput.includes("exposé") || userInput.includes("no one talks about")) {
+        narrativeStyle = "dark_truth";
+      } else if (userInput.includes("quit") || userInput.includes("9-5") || userInput.includes("9 to 5") || userInput.includes("side hustle") || userInput.includes("passive income") || userInput.includes("from home") || userInput.includes("fire your boss")) {
+        narrativeStyle = "quit_job";
       }
-    } else if (topicLower.includes("every level") || topicLower.includes("every tier") || topicLower.includes("every type")) {
-      narrativeStyle = "every_level";
-    } else if (topicLower.startsWith("simply explaining") || topicLower.startsWith("explain") || topicLower.includes("questions everyone") || topicLower.includes("q&a")) {
-      narrativeStyle = "explainer";
-    } else if ((topicLower.includes("how") && (topicLower.includes("billionaire") || topicLower.includes("millionaire") || topicLower.includes("empire") || topicLower.includes("rich") || topicLower.includes("wealthy") || topicLower.includes("built"))) ||
-               (topicLower.includes("broke") && topicLower.includes("billion"))) {
-      narrativeStyle = "rich_story";
-    } else if (topicLower.includes("dark truth") || topicLower.includes("dark side") || topicLower.includes("secretly") || topicLower.includes("exposé") || topicLower.includes("no one talks about")) {
-      narrativeStyle = "dark_truth";
-    } else if (topicLower.includes("quit") || topicLower.includes("9-5") || topicLower.includes("9 to 5") || topicLower.includes("side hustle") || topicLower.includes("passive income") || topicLower.includes("from home") || topicLower.includes("fire your boss")) {
-      narrativeStyle = "quit_job";
     }
 
     let narrativeInstructions = "";
@@ -384,7 +397,9 @@ Structure: HOOK → SETUP → RISING TENSION → CLIMAX → RESOLUTION → FINAL
 
     const styleDesc = STYLE_MAP[visualStyle] || STYLE_MAP["Cinematic Documentary"];
     const suffixRule = youtubeStyleSuffix ? `\nADDITIONAL STYLE SUFFIX — Append the following to EVERY visual_prompt: "${youtubeStyleSuffix}"` : "";
-    const aestheticRules = `CRITICAL AESTHETIC: You must write visual_prompts in the style of: ${styleDesc}. Every scene's visual_prompt MUST reflect this aesthetic consistently.${suffixRule}`;
+    const activeStyleModifier = activeStyle ? `\nThe visual mood and framing should also strongly reflect a "${activeStyle}" narrative format.` : "";
+    const settingRules = settingText ? `\nCRITICAL SETTING / LOCATION: The user has specified the following setting/location for the story: "${settingText}". You MUST use this setting prominently in the visual_prompts and adapt the narrative to fit this environment.` : "";
+    const aestheticRules = `CRITICAL AESTHETIC: You must write visual_prompts in the style of: ${styleDesc}.${activeStyleModifier}\nEvery scene's visual_prompt MUST reflect this aesthetic consistently.${suffixRule}${settingRules}`;
 
     // ========== SHORT STORY MODE ==========
     if (mode === "short-story") {
