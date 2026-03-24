@@ -392,23 +392,23 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
               <div className="absolute -top-[1px] left-1/2 -translate-x-1/2" style={{ width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: `7px solid ${C.playhead}` }} />
             </div>
 
-            {/* Video track lanes */}
-            {videoTracks.map((track) => {
-              const trackScenes = getTrackScenes(track.id);
-              const trackH = track.isCollapsed ? 20 : perTrackHeight;
-              return (
-                <div
-                  key={track.id}
-                  className="relative"
-                  style={{
-                    height: trackH,
-                    borderBottom: `1px solid ${C.border}`,
-                    background: track.isMuted ? "var(--editor-surface-hover)" : C.videoTrack,
-                    opacity: track.isMuted ? 0.5 : 1,
-                  }}
-                >
-                  {!track.isCollapsed && (
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              {/* Video track lanes */}
+              {videoTracks.map((track) => {
+                const trackScenes = getTrackScenes(track.id);
+                const trackH = track.isCollapsed ? 20 : perTrackHeight;
+                return (
+                  <div
+                    key={track.id}
+                    className="relative"
+                    style={{
+                      height: trackH,
+                      borderBottom: `1px solid ${C.border}`,
+                      background: track.isMuted ? "var(--editor-surface-hover)" : C.videoTrack,
+                      opacity: track.isMuted ? 0.5 : 1,
+                    }}
+                  >
+                    {!track.isCollapsed && (
                       <SortableContext items={trackScenes.map(s => s.id)} strategy={horizontalListSortingStrategy}>
                         <div className="flex gap-0.5 p-0.5 h-full items-stretch">
                           {trackScenes.map(scene => {
@@ -434,32 +434,30 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                           )}
                         </div>
                       </SortableContext>
-                    </DndContext>
-                  )}
-                </div>
-              );
-            })}
+                    )}
+                  </div>
+                );
+              })}
 
-            {/* Add video track placeholder */}
-            <div style={{ height: 20, borderBottom: `1px solid ${C.border}` }} />
+              {/* Add video track placeholder */}
+              <div style={{ height: 20, borderBottom: `1px solid ${C.border}` }} />
 
-            {/* Audio track lanes */}
-            {audioTracks.map((track) => {
-              const trackScenes = getTrackScenes(track.id);
-              const trackH = track.isCollapsed ? 20 : perTrackHeight;
-              return (
-                <div
-                  key={track.id}
-                  className="relative"
-                  style={{
-                    height: trackH,
-                    borderBottom: `1px solid ${C.border}`,
-                    background: track.isMuted ? "var(--editor-surface-hover)" : C.audioTrack,
-                    opacity: track.isMuted ? 0.5 : 1,
-                  }}
-                >
-                  {!track.isCollapsed && (
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              {/* Audio track lanes */}
+              {audioTracks.map((track) => {
+                const trackScenes = getTrackScenes(track.id);
+                const trackH = track.isCollapsed ? 20 : perTrackHeight;
+                return (
+                  <div
+                    key={track.id}
+                    className="relative"
+                    style={{
+                      height: trackH,
+                      borderBottom: `1px solid ${C.border}`,
+                      background: track.isMuted ? "var(--editor-surface-hover)" : C.audioTrack,
+                      opacity: track.isMuted ? 0.5 : 1,
+                    }}
+                  >
+                    {!track.isCollapsed && (
                       <SortableContext items={trackScenes.map(s => s.id)} strategy={horizontalListSortingStrategy}>
                         <div className="flex gap-0.5 p-0.5 h-full items-stretch">
                           {trackScenes.map(scene => {
@@ -485,11 +483,11 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                           )}
                         </div>
                       </SortableContext>
-                    </DndContext>
-                  )}
-                </div>
-              );
-            })}
+                    )}
+                  </div>
+                );
+              })}
+            </DndContext>
 
             {/* Add audio track placeholder */}
             <div style={{ height: 20, borderBottom: `1px solid ${C.border}` }} />

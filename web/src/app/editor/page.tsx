@@ -38,10 +38,12 @@ const EditorThemeContext = createContext<{ theme: EditorTheme; isDark: boolean; 
 export function useEditorTheme() { return useContext(EditorThemeContext); }
 
 // Current theme — used as default, will be overridden by context in the provider
-let C = DARK;
+// Delete the global 'C' variable - theme should always come from context
+
 
 // ── Panel Header Tab ──
 function PanelTab({ label, active, onClick }: { label: string; active?: boolean; onClick?: () => void }) {
+  const { theme: C } = useEditorTheme();
   return (
     <button
       onClick={onClick}
@@ -62,6 +64,7 @@ function PanelTab({ label, active, onClick }: { label: string; active?: boolean;
 function TBtn({ icon, label, onClick, active, disabled, danger, badge, filled }: {
   icon: string; label: string; onClick?: () => void; active?: boolean; disabled?: boolean; danger?: boolean; badge?: string | number; filled?: boolean;
 }) {
+  const { theme: C } = useEditorTheme();
   const hoverBg = C.bg === DARK.bg ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
   return (
     <button
@@ -87,11 +90,13 @@ function TBtn({ icon, label, onClick, active, disabled, danger, badge, filled }:
 }
 
 function TSep() {
+  const { theme: C } = useEditorTheme();
   return <div className="w-px h-5 mx-1" style={{ background: C.border }} />;
 }
 
 // ── Source Monitor (Scene Browser) ──
 function SourceMonitor() {
+  const { theme: C, isDark } = useEditorTheme();
   const {
     scenes, selectedSceneId, setSelectedSceneId, setPlayheadPosition,
     getSceneStartTime, reorderScene,
@@ -186,6 +191,7 @@ function SourceMonitor() {
 
 // ── Trim Panel ──
 function TrimPanel() {
+  const { theme: C } = useEditorTheme();
   const { selectedScene, updateScene } = useEditorContext();
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(0);
@@ -246,6 +252,7 @@ function TrimPanel() {
 
 // ── Text Tool Panel ──
 function TextToolPanel({ onClose }: { onClose: () => void }) {
+  const { theme: C } = useEditorTheme();
   return (
     <div className="absolute bottom-0 left-0 right-0 z-30 max-h-[280px] overflow-y-auto" style={{ background: C.panel, borderTop: `1px solid ${C.border}` }}>
       <div className="flex items-center justify-between px-3 py-1" style={{ borderBottom: `1px solid ${C.border}` }}>
@@ -436,32 +443,8 @@ function EditorInner() {
     setActiveRightTab("text");
   };
 
-  if (!scriptData?.scenes?.length) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: C.bg }}>
-        <div className="text-center space-y-5 p-8 rounded-2xl" style={{ background: C.panel, border: `1px solid ${C.border}`, maxWidth: 420 }}>
-          <span className="material-symbols-outlined text-6xl" style={{ color: C.textMuted, opacity: 0.3 }}>movie_edit</span>
-          <h2 className="text-xl font-bold" style={{ color: C.text }}>No Project Loaded</h2>
-          <p className="text-sm leading-relaxed" style={{ color: C.textDim }}>Create a video from the dashboard, or open a previous project from your video history.</p>
-          <a href="/" className="inline-flex items-center gap-2 mt-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.accentDim})` }}>
-            <span className="material-symbols-outlined text-[18px]">home</span>
-            Go to Dashboard
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isInitialized || scenes.length === 0) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: C.bg }}>
-        <div className="flex items-center gap-3" style={{ color: C.textDim }}>
-          <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm">Loading editor...</span>
-        </div>
-      </div>
-    );
-  }
+  const isNoProject = !scriptData?.scenes?.length;
+  const isLoading = !isInitialized || scenes.length === 0;
 
   return (
     <div
@@ -471,6 +454,27 @@ function EditorInner() {
       onDragLeave={(e) => { if (e.currentTarget === e.target) setIsDragOverEditor(false); }}
       onDrop={handleEditorDrop}
     >
+      {/* ── Conditional Loading/Empty Views (inside main return to fix hook issues) ── */}
+      {isNoProject ? (
+        <div className="absolute inset-0 z-[60] flex items-center justify-center" style={{ background: C.bg }}>
+          <div className="text-center space-y-5 p-8 rounded-2xl" style={{ background: C.panel, border: `1px solid ${C.border}`, maxWidth: 420 }}>
+            <span className="material-symbols-outlined text-6xl" style={{ color: C.textMuted, opacity: 0.3 }}>movie_edit</span>
+            <h2 className="text-xl font-bold" style={{ color: C.text }}>No Project Loaded</h2>
+            <p className="text-sm leading-relaxed" style={{ color: C.textDim }}>Create a video from the dashboard, or open a previous project from your video history.</p>
+            <a href="/" className="inline-flex items-center gap-2 mt-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.accentDim})` }}>
+              <span className="material-symbols-outlined text-[18px]">home</span>
+              Go to Dashboard
+            </a>
+          </div>
+        </div>
+      ) : isLoading ? (
+        <div className="absolute inset-0 z-[60] flex items-center justify-center" style={{ background: C.bg }}>
+          <div className="flex items-center gap-3" style={{ color: C.textDim }}>
+            <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm">Loading editor...</span>
+          </div>
+        </div>
+      ) : null}
       {/* Hidden file input for import */}
       <input ref={importFileRef} type="file" accept="image/*,video/*,audio/*" multiple onChange={handleImportFiles} className="hidden" />
 
@@ -866,7 +870,9 @@ function EditorInner() {
                 ["End", "Go to End"],
                 ["?", "Shortcuts"],
               ].map(([key, desc]) => (
-                <div key={key} className="flex items-center justify-between py-1.5 px-1 rounded-md transition-colors"
+                <div
+                  key={key}
+                  className="flex items-center justify-between p-2 rounded-xl transition-all"
                   onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
@@ -884,36 +890,23 @@ function EditorInner() {
 
 function EditorThemeProvider({ children }: { children: React.ReactNode }) {
   // Sync with next-themes: check for .dark class on <html>
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== "undefined") {
-      return document.documentElement.classList.contains("dark");
-    }
-    return true;
-  });
+  const [isDark, setIsDark] = useState(true);
 
-  // Watch for theme changes from next-themes
   useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setIsDark(document.documentElement.classList.contains("dark"));
-    });
+    const checkDark = () => setIsDark(document.documentElement.classList.contains("dark"));
+    checkDark();
+    const observer = new MutationObserver(checkDark);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     return () => observer.disconnect();
   }, []);
 
   const theme = isDark ? DARK : LIGHT;
-  C = theme;
 
   const toggle = () => {
-    // Toggle the global theme via next-themes by dispatching to the ThemeProvider
-    const html = document.documentElement;
-    const isCurrentlyDark = html.classList.contains("dark");
-    if (isCurrentlyDark) {
-      html.classList.remove("dark");
-      html.style.colorScheme = "light";
-    } else {
-      html.classList.add("dark");
-      html.style.colorScheme = "dark";
-    }
+    const nextTheme = isDark ? "light" : "dark";
+    document.documentElement.classList.remove(isDark ? "dark" : "light");
+    document.documentElement.classList.add(nextTheme);
+    setIsDark(!isDark);
   };
 
   return (

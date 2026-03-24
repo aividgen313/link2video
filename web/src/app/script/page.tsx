@@ -318,6 +318,7 @@ export default function ScriptBuilder() {
     setIsExtending(true);
     try {
       const lastScenes = scriptData.scenes.slice(-3);
+      console.log("Extending script... Mode: short-story, Title:", scriptData.title);
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -326,6 +327,7 @@ export default function ScriptBuilder() {
           angle: scriptData.angle,
           visualStyle: globalVisualStyle,
           durationMinutes: 1,
+          mode: "short-story",
           continueFrom: lastScenes.map(s => s.narration).join(" "),
           existingTitle: scriptData.title,
         }),
