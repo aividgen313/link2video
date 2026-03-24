@@ -128,17 +128,9 @@ function PipelineCard() {
   const [data, setData] = useState<PipelineProgressData>(pipelineManager.getState());
   const autoAdvanced = useRef(false);
 
-  useEffect(() => pipelineManager.subscribe(setData), []);
-
-  // Auto-advance to editor when pipeline completes
   useEffect(() => {
-    if (data.phase === "complete" && !autoAdvanced.current) {
-      autoAdvanced.current = true;
-      // Small delay so user sees the "complete" state
-      setTimeout(() => router.push("/editor"), 1500);
-    }
-    if (data.phase === "idle") autoAdvanced.current = false;
-  }, [data.phase, router]);
+    pipelineManager.subscribe(setData);
+  }, []);
 
   if (data.phase === "idle") return null;
 
@@ -214,7 +206,7 @@ function PipelineCard() {
         </div>
       )}
 
-      {isComplete && <p className="text-[11px] text-green-400 mb-2">Opening editor automatically...</p>}
+
       {isError && <p className="text-[11px] text-error/80 mb-2 truncate" title={data.error || ""}>{data.error || "Unknown error"}</p>}
 
       <div className="mt-3 flex gap-2">

@@ -258,9 +258,9 @@ class PipelineManager {
 
   // ── Determine video strategy ────────────────────────────────
 
-  private getVideoSceneIndices(tier: typeof QUALITY_TIERS.basic, totalScenes: number): Set<number> {
+  private getVideoSceneIndices(tier: (typeof QUALITY_TIERS)[keyof typeof QUALITY_TIERS], totalScenes: number): Set<number> {
     const indices = new Set<number>();
-    const strategy = tier.videoSceneStrategy || "none";
+    const strategy = (tier.videoSceneStrategy as string) || "none";
 
     if (strategy === "all") {
       for (let i = 0; i < totalScenes; i++) indices.add(i);
@@ -489,6 +489,7 @@ class PipelineManager {
         audio: a.audio ?? undefined,
         duration: a.duration,
         narration: a.narration,
+        video: a.aiVideoUrl ?? undefined,
       }));
 
       // Fake-progress ticker while server works

@@ -79,6 +79,17 @@ export default function AssetLibrary() {
               });
             });
           }
+          // Final Video
+          if (state.finalVideoUrl) {
+            allAssets.push({
+              id: `saved-final-${item.id}`,
+              name: `${projName}_Completed_Video.mp4`,
+              type: "video",
+              url: state.finalVideoUrl,
+              date,
+              project: projName,
+            });
+          }
         }
 
         setSavedProjectAssets(allAssets);
@@ -140,6 +151,20 @@ export default function AssetLibrary() {
       });
     });
 
+    // Add final video from current session
+    const { finalVideoUrl } = useAppContext();
+    if (finalVideoUrl) {
+      seenUrls.add(finalVideoUrl);
+      items.push({
+        id: `final-video-current`,
+        name: `${scriptData?.title || "Project"}_Completed_Video.mp4`,
+        type: "video",
+        url: finalVideoUrl,
+        date: new Date().toLocaleDateString(),
+        project: scriptData?.title || "Current Session",
+      });
+    }
+
     // Add assets from saved projects (deduplicated)
     for (const asset of savedProjectAssets) {
       if (!seenUrls.has(asset.url)) {
@@ -152,7 +177,7 @@ export default function AssetLibrary() {
     items.push(...uploadedAssets);
 
     return items;
-  }, [storyboardImages, scriptData, sceneAudioUrls, sceneVideoUrls, uploadedAssets, savedProjectAssets]);
+  }, [storyboardImages, scriptData, sceneAudioUrls, sceneVideoUrls, useAppContext().finalVideoUrl, uploadedAssets, savedProjectAssets]);
 
   const filtered = assets.filter(a => {
     if (filter !== "all" && a.type !== filter) return false;

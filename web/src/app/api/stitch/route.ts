@@ -13,9 +13,9 @@ export const dynamic = "force-dynamic";
 const execAsync = promisify(exec);
 
 /**
- * Lightweight server-side video stitching using system ffmpeg.
- * Designed to run within Render free tier (512MB RAM).
- * Uses simple image-loop approach (no zoompan) for speed and low memory.
+ * Server-side video stitching using system ffmpeg.
+ * Restored Ken Burns zoompan effect for image-only scenes.
+ * Support for AI Video clips if provided.
  */
 export async function POST(req: NextRequest) {
   const workDir = join(tmpdir(), `stitch_${randomUUID()}`);
@@ -49,15 +49,12 @@ export async function POST(req: NextRequest) {
         const b64 = scene.image.replace(/^data:[^;]+;base64,/, "");
         await writeFile(imgPath, Buffer.from(b64, "base64"));
       } else if (typeof scene.image === "string") {
-        // URL fetch
         const r = await fetch(scene.image, { signal: AbortSignal.timeout(15_000) });
         if (!r.ok) throw new Error(`Image fetch failed for scene ${i}: ${r.status}`);
         await writeFile(imgPath, Buffer.from(await r.arrayBuffer()));
-      } else {
-        throw new Error(`Invalid image for scene ${i}`);
       }
 
-      // Write audio (base64 data URL)
+      // Write audio
       const audPath = join(workDir, `aud_${i}.mp3`);
       let hasAudio = false;
       if (scene.audio) {
@@ -66,39 +63,86 @@ export async function POST(req: NextRequest) {
         hasAudio = true;
       }
 
-      // ── Render scene clip (lightweight: scale only, no zoom/pan) ──────────
-      const clipPath = join(workDir, `clip_${i}.mp4`);
-
-      // Simple: scale to target size, loop image, mux with audio
-      // Uses much less memory than zoompan approach
-      const vf = `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black`;
-
-      let cmd: string;
-      if (hasAudio) {
-        cmd = [
-          "ffmpeg -y",
-          `-loglevel error`,
-          `-loop 1 -t ${dur} -i "${imgPath}"`,
-          `-i "${audPath}"`,
-          `-vf "${vf}"`,
-          `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r 25`,
-          `-c:a aac -b:a 96k -shortest`,
-          `"${clipPath}"`
-        ].join(" ");
-      } else {
-        cmd = [
-          "ffmpeg -y",
-          `-loglevel error`,
-          `-loop 1 -t ${dur} -i "${imgPath}"`,
-          `-f lavfi -i "anullsrc=r=44100:cl=stereo"`,
-          `-vf "${vf}"`,
-          `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r 25`,
-          `-c:a aac -b:a 96k -t ${dur}`,
-          `"${clipPath}"`
-        ].join(" ");
+      // Write video if present
+      const vidPath = join(workDir, `vid_${i}.mp4`);
+      let hasVideo = false;
+      if (typeof scene.video === "string") {
+        try {
+          if (scene.video.startsWith("data:")) {
+             const b64 = scene.video.replace(/^data:[^;]+;base64,/, "");
+             await writeFile(vidPath, Buffer.from(b64, "base64"));
+             hasVideo = true;
+          } else {
+             const vRes = await fetch(scene.video, { signal: AbortSignal.timeout(45_000) });
+             if (vRes.ok) {
+                 await writeFile(vidPath, Buffer.from(await vRes.arrayBuffer()));
+                 hasVideo = true;
+             }
+          }
+        } catch (e) {
+          console.warn(`Failed to fetch video for scene ${i}, falling back to Ken Burns image.`);
+        }
       }
 
-      await execAsync(cmd, { timeout: 60_000 });
+      // ── Render scene clip ──────────
+      const clipPath = join(workDir, `clip_${i}.mp4`);
+      let cmd: string;
+
+      if (hasVideo) {
+        // Pad/Scale AI Video to fit standard WxH
+        const vfScale = `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}:(in_w-${W})/2:(in_h-${H})/2`;
+        if (hasAudio) {
+          cmd = [
+            "ffmpeg -y",
+            `-loglevel error`,
+            `-i "${vidPath}"`,
+            `-i "${audPath}"`,
+            `-vf "${vfScale}"`,
+            `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r 25`,
+            `-c:a aac -b:a 96k -shortest`,
+            `"${clipPath}"`
+          ].join(" ");
+        } else {
+          cmd = [
+            "ffmpeg -y",
+            `-loglevel error`,
+            `-i "${vidPath}"`,
+            `-f lavfi -i "anullsrc=r=44100:cl=stereo"`,
+            `-vf "${vfScale}"`,
+            `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r 25`,
+            `-c:a aac -b:a 96k -t ${dur}`,
+            `"${clipPath}"`
+          ].join(" ");
+        }
+      } else {
+        // Ken Burns zoom-pan effect from image
+        const videoFilter = `scale=${W * 2}:${H * 2},zoompan=z='min(zoom+0.0015,1.5)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${dur * 25}:s=${W}x${H}:fps=25`;
+        if (hasAudio) {
+          cmd = [
+            "ffmpeg -y",
+            `-loglevel error`,
+            `-loop 1 -t ${dur} -i "${imgPath}"`,
+            `-i "${audPath}"`,
+            `-vf "${videoFilter}"`,
+            `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r 25`,
+            `-c:a aac -b:a 96k -shortest`,
+            `"${clipPath}"`
+          ].join(" ");
+        } else {
+          cmd = [
+            "ffmpeg -y",
+            `-loglevel error`,
+            `-loop 1 -t ${dur} -i "${imgPath}"`,
+            `-f lavfi -i "anullsrc=r=44100:cl=stereo"`,
+            `-vf "${videoFilter}"`,
+            `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r 25`,
+            `-c:a aac -b:a 96k -t ${dur}`,
+            `"${clipPath}"`
+          ].join(" ");
+        }
+      }
+
+      await execAsync(cmd, { timeout: 120_000 });
       clipPaths.push(clipPath);
     }
 
