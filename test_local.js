@@ -82,7 +82,7 @@ async function run() {
       durationMinutes: 1,
       visualStyle: "Cinematic Documentary",
     },
-    { expectFields: ["script"] }
+    { expectFields: ["title", "scenes"] }
   );
 
   // 3. TTS — should always work (Edge TTS fallback requires no key)
@@ -115,15 +115,16 @@ async function run() {
     { expectFields: ["images"] }
   );
 
-  // 6. Social Copy
+  // 6. Social Copy — expects { title, angle, scenes }; returns { success, youtube, tiktok, ... }
   await test(
     "Social Copy",
     "/api/social-copy",
     {
-      topic: "The history of the internet",
+      title: "The History of the Internet",
       angle: "The untold story of how the internet was born",
+      scenes: [],
     },
-    { expectFields: ["title", "description", "hashtags"] }
+    { expectFields: ["success", "youtube"] }
   );
 
   // Summary
