@@ -91,16 +91,62 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
         const imgFile = `img${i}.jpg`;
         const vidFile = `vid${i}.mp4`;
 
+        // Build overlay drawtext filters for this scene
+        const buildOverlayFilter = (): string => {
+          if (!scene.overlays?.length) return "";
+          return scene.overlays.map((ov) => {
+            const safeText = (ov.text || "").replace(/'/g, "\\'").replace(/:/g, "\\:");
+            const x = ov.position === "center" ? "(w-text_w)/2"
+              : ov.position === "lower-third" ? "(w-text_w)/2"
+              : ov.position === "top" ? "(w-text_w)/2"
+              : `${Math.round((ov.x / 100) * (videoDimension?.width || 1280))}`;
+            const y = ov.position === "center" ? "(h-text_h)/2"
+              : ov.position === "lower-third" ? "h-text_h-60"
+              : ov.position === "top" ? "30"
+              : `${Math.round((ov.y / 100) * (videoDimension?.height || 720))}`;
+            const color = (ov.color || "#ffffff").replace("#", "0x");
+            const shadow = ov.shadowEnabled
+              ? `:shadowcolor=${(ov.shadowColor || "#000000").replace("#", "0x")}:shadowx=${ov.shadowX || 2}:shadowy=${ov.shadowY || 2}`
+              : "";
+            return `drawtext=text='${safeText}':fontsize=${ov.fontSize || 48}:fontcolor=${color}:x=${x}:y=${y}:font='sans-serif'${shadow}`;
+          }).join(",");
+        };
+
         if (scene.aiVideoUrl) {
           await ffmpeg.writeFile(vidFile, await fetchFile(scene.aiVideoUrl));
+          // Apply text overlays to AI video if any
+          const overlayFilter = buildOverlayFilter();
+          if (overlayFilter) {
+            const overlaidFile = `ovl${i}.mp4`;
+            await ffmpeg.exec(["-i", vidFile, "-vf", overlayFilter, "-c:a", "copy", overlaidFile]);
+            await ffmpeg.writeFile(vidFile, await ffmpeg.readFile(overlaidFile));
+          }
         } else if (scene.imageUrl) {
           await ffmpeg.writeFile(imgFile, await fetchFile(scene.imageUrl));
           const w = videoDimension?.width || 1280;
           const h = videoDimension?.height || 720;
 
+          // Ken Burns zoom/pan direction per scene
+          const kenBurnsFilter = (() => {
+            const d = scene.duration * preset.fps;
+            switch (scene.kenBurns) {
+              case "zoom-out": return `zoompan=z='max(1.3-0.0015*on,1.0)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
+              case "pan-left": return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)+on*0.5':y='ih/2-(ih/zoom/2)':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
+              case "pan-right": return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)-on*0.5':y='ih/2-(ih/zoom/2)':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
+              case "pan-up": return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)+on*0.3':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
+              case "pan-down": return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)-on*0.3':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
+              default: return `zoompan=z='min(zoom+0.0015,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
+            }
+          })();
+
+          const overlayFilter = buildOverlayFilter();
+          const vf = overlayFilter
+            ? `scale=${w * 2}:${h * 2},${kenBurnsFilter},${overlayFilter}`
+            : `scale=${w * 2}:${h * 2},${kenBurnsFilter}`;
+
           await ffmpeg.exec([
             "-loop", "1", "-i", imgFile,
-            "-vf", `scale=${w * 2}:${h * 2},zoompan=z='min(zoom+0.0015,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${scene.duration * preset.fps}:s=${w}x${h}:fps=${preset.fps}`,
+            "-vf", vf,
             "-c:v", "libx264", "-t", String(scene.duration),
             "-pix_fmt", "yuv420p", "-r", String(preset.fps),
             "-crf", String(preset.crf),
@@ -176,6 +222,13 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
       const url = URL.createObjectURL(blob);
       setDownloadUrl(url);
       setProgress(100);
+      setStatus("Export complete! Downloading...");
+      // Auto-trigger download
+      const a = document.createElement("a");
+      a.href = url;
+      const timestamp = new Date().toISOString().slice(0, 16).replace(/[:-]/g, "");
+      a.download = `video_${timestamp}.mp4`;
+      a.click();
       setStatus("Export complete!");
     } catch (err) {
       console.error("Export error:", err);

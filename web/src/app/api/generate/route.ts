@@ -46,8 +46,13 @@ function parseScriptData(responseText: string): any {
       console.log("Parsed script after completion with", scriptData.scenes?.length || 0, "scenes");
     } catch (e2) {
       try {
-        scriptData = (new Function('return ' + repairJson(jsonStr)))();
-        console.log("Parsed script via eval with", scriptData.scenes?.length || 0, "scenes");
+        // Safe last-resort: strip non-JSON syntax (trailing commas, unquoted keys, control chars)
+        const stripped = repairJson(jsonStr)
+          .replace(/[\x00-\x1F\x7F]/g, " ")
+          .replace(/,(\s*[}\]])/g, "$1")
+          .replace(/([{,]\s*)([A-Za-z_]\w*)(\s*:)/g, '$1"$2"$3');
+        scriptData = JSON.parse(stripped);
+        console.log("Parsed script after sanitize with", scriptData.scenes?.length || 0, "scenes");
       } catch (e3) {
         console.error("JSON Parse failed for response:", responseText.substring(0, 1000));
         throw new Error("Failed to parse AI response as JSON.");

@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 
-export const RUNWARE_API_KEY = process.env.RUNWARE_API_KEY || "phxWMTInUtyjTPQnYDJX9k77A1evN9F6";
+export const RUNWARE_API_KEY = process.env.RUNWARE_API_KEY || "";
 export const RUNWARE_API_URL = "https://api.runware.ai/v1";
 
 export function generateTaskUUID(): string {

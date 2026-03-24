@@ -55,18 +55,30 @@ export default function ScriptBuilder() {
     ? (tier.usdPerScene * scriptData.scenes.length).toFixed(4)
     : "0.00";
 
+  // Build an enriched prompt by appending character appearance descriptions
+  const enrichPromptWithCharacters = useCallback((scene: Scene): string => {
+    if (!scene.characters?.length || !characterProfiles?.length) return scene.visual_prompt;
+    const relevant = characterProfiles.filter(cp => scene.characters!.includes(cp.id));
+    if (!relevant.length) return scene.visual_prompt;
+    const charDesc = relevant.map(cp =>
+      `${cp.name} (${cp.appearance}${cp.clothing ? `, wearing ${cp.clothing}` : ""})`
+    ).join("; ");
+    return `${scene.visual_prompt}, featuring ${charDesc}`;
+  }, [characterProfiles]);
+
   // Generate image for a single scene
   const generateSceneImage = useCallback(async (scene: Scene) => {
     if (!scene.visual_prompt || generatingImages[scene.id]) return;
 
     setGeneratingImages(prev => ({ ...prev, [scene.id]: true }));
     try {
+      const enrichedPrompt = enrichPromptWithCharacters(scene);
       // All tiers use Pollinations (nanobanana-pro/seedream-pro) for images — NO flux
       const res = await fetch("/api/runware/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: scene.visual_prompt,
+          prompt: enrichedPrompt,
           width: 1280,
           height: 768,
         }),
@@ -83,7 +95,7 @@ export default function ScriptBuilder() {
     } finally {
       setGeneratingImages(prev => ({ ...prev, [scene.id]: false }));
     }
-  }, [qualityTier, generatingImages, setStoryboardImages]);
+  }, [qualityTier, generatingImages, setStoryboardImages, enrichPromptWithCharacters]);
 
   // Search for reference images of key subjects (people, locations, brands)
   const searchReferenceImages = useCallback(async (data: any) => {

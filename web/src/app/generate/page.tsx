@@ -47,6 +47,7 @@ export default function VideoGeneration() {
     creditsUsed, setCreditsUsed,
     storyboardImages,
     referenceImages,
+    characterProfiles,
     url,
     mode,
     audioFile,
@@ -95,6 +96,17 @@ export default function VideoGeneration() {
     }));
   }, []);
 
+  // Build an enriched prompt by appending character appearance descriptions
+  const enrichPromptWithCharacters = useCallback((scene: Scene): string => {
+    if (!scene.characters?.length || !characterProfiles?.length) return scene.visual_prompt;
+    const relevant = characterProfiles.filter((cp: { id: string }) => scene.characters!.includes(cp.id)) as typeof characterProfiles;
+    if (!relevant.length) return scene.visual_prompt;
+    const charDesc = relevant.map((cp: typeof characterProfiles[0]) =>
+      `${cp.name} (${cp.appearance}${cp.clothing ? `, wearing ${cp.clothing}` : ""})`
+    ).join("; ");
+    return `${scene.visual_prompt}, featuring ${charDesc}`;
+  }, [characterProfiles]);
+
   // Generate image for a scene — uses storyboard cache if available
   const generateSceneImage = useCallback(async (scene: Scene): Promise<{ imageURL: string; imageUUID: string } | null> => {
     try {
@@ -105,12 +117,13 @@ export default function VideoGeneration() {
       }
 
       updateSceneStatus(scene.id, { phase: "image", progress: 20 });
+      const enrichedPrompt = enrichPromptWithCharacters(scene);
       // All tiers use Pollinations (nanobanana-pro/seedream-pro) for images — NO flux
       const res = await fetch("/api/runware/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: scene.visual_prompt,
+          prompt: enrichedPrompt,
           width: 1280,
           height: 768,
         }),
@@ -128,7 +141,7 @@ export default function VideoGeneration() {
       updateSceneStatus(scene.id, { phase: "error", error: errorMsg });
       return null;
     }
-  }, [updateSceneStatus]);
+  }, [updateSceneStatus, enrichPromptWithCharacters, storyboardImages]);
 
   // Generate TTS voiceover for a scene via Pollinations
   const generateSceneAudio = useCallback(async (scene: Scene): Promise<string | null> => {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { mediaGet, mediaSet } from "@/lib/mediaStore";
 
 export type AppMode = "link" | "short-story" | "music-video";
 
@@ -227,31 +228,71 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [captionsEnabled, setCaptionsEnabled] = useState(() => loadSaved("captionsEnabled", false));
   const [creditsUsed, setCreditsUsed] = useState(0);
   const [targetDurationMinutes, setTargetDurationMinutes] = useState(() => loadSaved("targetDurationMinutes", 3));
-  const [storyboardImages, setStoryboardImages] = useState<Record<number, string>>(() => loadSaved("storyboardImages", {}));
+  // Large binary blobs — initialized empty, populated async from IndexedDB (not localStorage)
+  const [storyboardImages, setStoryboardImages] = useState<Record<number, string>>({});
   const [referenceImages, setReferenceImages] = useState<Record<string, string[]>>(() => loadSaved("referenceImages", {}));
-  const [sceneAudioUrls, setSceneAudioUrls] = useState<Record<number, string>>(() => loadSaved("sceneAudioUrls", {}));
-  const [sceneVideoUrls, setSceneVideoUrls] = useState<Record<number, string>>(() => loadSaved("sceneVideoUrls", {}));
+  const [sceneAudioUrls, setSceneAudioUrls] = useState<Record<number, string>>({});
+  const [sceneVideoUrls, setSceneVideoUrls] = useState<Record<number, string>>({});
   const [youtubeStyleSuffix, setYoutubeStyleSuffix] = useState(() => loadSaved("youtubeStyleSuffix", ""));
   const [globalScriptModel] = useState("pollinations");
   // Short Story Mode
   const [storyText, setStoryText] = useState(() => loadSaved("storyText", ""));
   const [characterProfiles, setCharacterProfiles] = useState<CharacterProfile[]>(() => loadSaved("characterProfiles", []));
   // Music Video Mode
-  const [audioFile, setAudioFile] = useState<string | null>(() => loadSaved("audioFile", null));
+  // Audio file is also a large blob — loaded async from IndexedDB
+  const [audioFile, setAudioFile] = useState<string | null>(null);
   const [audioFileName, setAudioFileName] = useState<string | null>(() => loadSaved("audioFileName", null));
   const [lyrics, setLyrics] = useState(() => loadSaved("lyrics", ""));
   const [musicSegments, setMusicSegments] = useState<MusicSegment[]>(() => loadSaved("musicSegments", []));
   const [audioDuration, setAudioDuration] = useState(() => loadSaved("audioDuration", 0));
 
-  // Persist key state to sessionStorage
+  // Load large binary assets from IndexedDB on mount (async — avoids localStorage quota)
+  useEffect(() => {
+    mediaGet("storyboardImages").then(raw => {
+      if (raw) { try { setStoryboardImages(JSON.parse(raw)); } catch {} }
+    });
+    mediaGet("sceneAudioUrls").then(raw => {
+      if (raw) { try { setSceneAudioUrls(JSON.parse(raw)); } catch {} }
+    });
+    mediaGet("sceneVideoUrls").then(raw => {
+      if (raw) { try { setSceneVideoUrls(JSON.parse(raw)); } catch {} }
+    });
+    mediaGet("audioFile").then(raw => {
+      if (raw) setAudioFile(raw);
+    });
+  }, []);
+
+  // Persist binary blobs to IndexedDB (not localStorage) whenever they change
+  useEffect(() => {
+    if (Object.keys(storyboardImages).length > 0) {
+      mediaSet("storyboardImages", JSON.stringify(storyboardImages));
+    }
+  }, [storyboardImages]);
+
+  useEffect(() => {
+    if (Object.keys(sceneAudioUrls).length > 0) {
+      mediaSet("sceneAudioUrls", JSON.stringify(sceneAudioUrls));
+    }
+  }, [sceneAudioUrls]);
+
+  useEffect(() => {
+    if (Object.keys(sceneVideoUrls).length > 0) {
+      mediaSet("sceneVideoUrls", JSON.stringify(sceneVideoUrls));
+    }
+  }, [sceneVideoUrls]);
+
+  useEffect(() => {
+    if (audioFile) mediaSet("audioFile", audioFile);
+  }, [audioFile]);
+
+  // Persist small scalar state to localStorage (no blobs)
   useEffect(() => {
     try {
       const state = {
         mode, url, angle, scriptData, qualityTier, globalVisualStyle,
         videoDimension, selectedVoice, musicEnabled, captionsEnabled,
-        targetDurationMinutes, storyboardImages, referenceImages,
-        sceneAudioUrls, sceneVideoUrls,
-        storyText, characterProfiles, audioFile, audioFileName,
+        targetDurationMinutes, referenceImages,
+        storyText, characterProfiles, audioFileName,
         lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -262,9 +303,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [
     mode, url, angle, scriptData, qualityTier, globalVisualStyle,
     videoDimension, selectedVoice, musicEnabled, captionsEnabled,
-    targetDurationMinutes, storyboardImages, referenceImages,
-    sceneAudioUrls, sceneVideoUrls,
-    storyText, characterProfiles, audioFile, audioFileName,
+    targetDurationMinutes, referenceImages,
+    storyText, characterProfiles, audioFileName,
     lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
   ]);
 
