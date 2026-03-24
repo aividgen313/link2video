@@ -11,7 +11,7 @@ const ELEVENLABS_CUSTOM_VOICE_ID = process.env.ELEVENLABS_CUSTOM_VOICE_ID || "";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { text, voice = "adam", useEdgeTTS = false } = body;
+    let { text, voice = "adam", useEdgeTTS = false } = body;
 
     if (!text || typeof text !== "string" || text.trim().length === 0) {
       return NextResponse.json({ error: "Text must be a non-empty string" }, { status: 400 });
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
         }
       } else {
         console.warn("Custom voice requested but ELEVENLABS_API_KEY or ELEVENLABS_CUSTOM_VOICE_ID not set. Falling back to Edge TTS.");
+        useEdgeTTS = true;
       }
     }
 
