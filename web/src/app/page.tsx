@@ -585,6 +585,74 @@ export default function Home() {
                     })}
                   </div>
                 </div>
+
+                {/* Optional Character References for Link Mode */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-label text-outline uppercase tracking-widest pl-1">Character References (optional)</label>
+                    {characterProfiles.length === 0 && (
+                      <button
+                        onClick={() => setCharacterProfiles([{ id: `char_${Date.now()}`, name: "", appearance: "", role: "protagonist" }])}
+                        className="text-xs text-primary flex items-center gap-1 hover:underline"
+                      >
+                        <span className="material-symbols-outlined text-sm">add</span> Add Character
+                      </button>
+                    )}
+                    {characterProfiles.length > 0 && (
+                      <button
+                        onClick={() => setCharacterProfiles([...characterProfiles, { id: `char_${Date.now()}`, name: "", appearance: "", role: "supporting" }])}
+                        className="text-xs text-primary flex items-center gap-1 hover:underline"
+                      >
+                        <span className="material-symbols-outlined text-sm">add</span> Add
+                      </button>
+                    )}
+                  </div>
+                  {characterProfiles.length === 0 && (
+                    <p className="text-[10px] text-outline/60 pl-1">Upload photos of people in the video. AI will auto-search if left empty.</p>
+                  )}
+                  {characterProfiles.length > 0 && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {characterProfiles.map((cp, idx) => (
+                        <div key={cp.id} className="glass p-2.5 rounded-xl border border-outline-variant/10">
+                          <div className="flex items-start gap-2.5">
+                            <label className="flex-shrink-0 cursor-pointer group/photo">
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  const updated = [...characterProfiles];
+                                  updated[idx] = { ...updated[idx], referencePhotoUrl: reader.result as string };
+                                  setCharacterProfiles(updated);
+                                };
+                                reader.readAsDataURL(file);
+                              }} />
+                              {cp.referencePhotoUrl ? (
+                                <div className="w-11 h-11 rounded-lg overflow-hidden relative">
+                                  <img src={cp.referencePhotoUrl} alt={cp.name} className="w-full h-full object-cover" />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-white text-xs">edit</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="w-11 h-11 rounded-lg bg-surface-container-highest border border-dashed border-outline-variant/30 flex items-center justify-center group-hover/photo:border-primary/40 transition-all">
+                                  <span className="material-symbols-outlined text-outline/40 group-hover/photo:text-primary text-base">add_a_photo</span>
+                                </div>
+                              )}
+                            </label>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <input className="flex-1 bg-transparent border-none text-sm font-bold text-on-surface placeholder:text-outline/50 focus:ring-0 p-0" placeholder="Name" value={cp.name} onChange={(e) => { const u = [...characterProfiles]; u[idx] = { ...u[idx], name: e.target.value }; setCharacterProfiles(u); }} />
+                                <button onClick={() => setCharacterProfiles(characterProfiles.filter((_, i) => i !== idx))} className="text-outline hover:text-error"><span className="material-symbols-outlined text-sm">close</span></button>
+                              </div>
+                              <input className="w-full bg-transparent border-none text-[11px] text-on-surface/70 placeholder:text-outline/40 focus:ring-0 p-0 mt-0.5" placeholder="Appearance (optional)..." value={cp.appearance} onChange={(e) => { const u = [...characterProfiles]; u[idx] = { ...u[idx], appearance: e.target.value }; setCharacterProfiles(u); }} />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
@@ -628,51 +696,86 @@ export default function Home() {
                         <span className="material-symbols-outlined text-sm">add</span> Add Character
                       </button>
                     </div>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
                       {characterProfiles.map((cp, idx) => (
                         <div key={cp.id} className="glass p-3 rounded-xl border border-outline-variant/10 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <input
-                              className="flex-1 bg-transparent border-none text-sm font-bold text-on-surface placeholder:text-outline/50 focus:ring-0 p-0"
-                              placeholder="Character Name"
-                              value={cp.name}
-                              onChange={(e) => {
-                                const updated = [...characterProfiles];
-                                updated[idx] = { ...updated[idx], name: e.target.value };
-                                setCharacterProfiles(updated);
-                              }}
-                            />
-                            <select
-                              value={cp.role}
-                              onChange={(e) => {
-                                const updated = [...characterProfiles];
-                                updated[idx] = { ...updated[idx], role: e.target.value };
-                                setCharacterProfiles(updated);
-                              }}
-                              className="bg-surface-container-low border-none rounded-lg px-2 py-1 text-[10px] font-bold text-outline appearance-none"
-                            >
-                              <option value="protagonist">Protagonist</option>
-                              <option value="antagonist">Antagonist</option>
-                              <option value="supporting">Supporting</option>
-                            </select>
-                            <button
-                              onClick={() => setCharacterProfiles(characterProfiles.filter((_, i) => i !== idx))}
-                              className="text-outline hover:text-error transition-colors"
-                            >
-                              <span className="material-symbols-outlined text-sm">close</span>
-                            </button>
+                          <div className="flex items-start gap-3">
+                            {/* Reference Photo */}
+                            <label className="flex-shrink-0 cursor-pointer group/photo">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    const updated = [...characterProfiles];
+                                    updated[idx] = { ...updated[idx], referencePhotoUrl: reader.result as string };
+                                    setCharacterProfiles(updated);
+                                  };
+                                  reader.readAsDataURL(file);
+                                }}
+                              />
+                              {cp.referencePhotoUrl ? (
+                                <div className="w-14 h-14 rounded-xl overflow-hidden relative">
+                                  <img src={cp.referencePhotoUrl} alt={cp.name} className="w-full h-full object-cover" />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-white text-sm">edit</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="w-14 h-14 rounded-xl bg-surface-container-highest border border-dashed border-outline-variant/30 flex items-center justify-center group-hover/photo:border-primary/40 group-hover/photo:bg-primary/5 transition-all">
+                                  <span className="material-symbols-outlined text-outline/40 group-hover/photo:text-primary text-lg">add_a_photo</span>
+                                </div>
+                              )}
+                            </label>
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  className="flex-1 bg-transparent border-none text-sm font-bold text-on-surface placeholder:text-outline/50 focus:ring-0 p-0"
+                                  placeholder="Character Name"
+                                  value={cp.name}
+                                  onChange={(e) => {
+                                    const updated = [...characterProfiles];
+                                    updated[idx] = { ...updated[idx], name: e.target.value };
+                                    setCharacterProfiles(updated);
+                                  }}
+                                />
+                                <select
+                                  value={cp.role}
+                                  onChange={(e) => {
+                                    const updated = [...characterProfiles];
+                                    updated[idx] = { ...updated[idx], role: e.target.value };
+                                    setCharacterProfiles(updated);
+                                  }}
+                                  className="bg-surface-container-low border-none rounded-lg px-2 py-1 text-[10px] font-bold text-outline appearance-none"
+                                >
+                                  <option value="protagonist">Protagonist</option>
+                                  <option value="antagonist">Antagonist</option>
+                                  <option value="supporting">Supporting</option>
+                                </select>
+                                <button
+                                  onClick={() => setCharacterProfiles(characterProfiles.filter((_, i) => i !== idx))}
+                                  className="text-outline hover:text-error transition-colors"
+                                >
+                                  <span className="material-symbols-outlined text-sm">close</span>
+                                </button>
+                              </div>
+                              <textarea
+                                className="w-full bg-transparent border-none text-[11px] text-on-surface/70 placeholder:text-outline/40 focus:ring-0 p-0 resize-none leading-relaxed"
+                                placeholder="Physical appearance: skin tone, hair, build, age, clothing..."
+                                rows={2}
+                                value={cp.appearance}
+                                onChange={(e) => {
+                                  const updated = [...characterProfiles];
+                                  updated[idx] = { ...updated[idx], appearance: e.target.value };
+                                  setCharacterProfiles(updated);
+                                }}
+                              />
+                            </div>
                           </div>
-                          <textarea
-                            className="w-full bg-transparent border-none text-[11px] text-on-surface/70 placeholder:text-outline/40 focus:ring-0 p-0 resize-none leading-relaxed"
-                            placeholder="Physical appearance: skin tone, hair, build, age, clothing..."
-                            rows={2}
-                            value={cp.appearance}
-                            onChange={(e) => {
-                              const updated = [...characterProfiles];
-                              updated[idx] = { ...updated[idx], appearance: e.target.value };
-                              setCharacterProfiles(updated);
-                            }}
-                          />
                         </div>
                       ))}
                     </div>
@@ -772,32 +875,69 @@ export default function Home() {
                     </button>
                   </div>
                   {characterProfiles.length > 0 && (
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
                       {characterProfiles.map((cp, idx) => (
-                        <div key={cp.id} className="glass p-3 rounded-xl border border-outline-variant/10 flex items-center gap-2">
-                          <input
-                            className="flex-1 bg-transparent border-none text-sm font-bold text-on-surface placeholder:text-outline/50 focus:ring-0 p-0"
-                            placeholder="Name"
-                            value={cp.name}
-                            onChange={(e) => {
-                              const updated = [...characterProfiles];
-                              updated[idx] = { ...updated[idx], name: e.target.value };
-                              setCharacterProfiles(updated);
-                            }}
-                          />
-                          <input
-                            className="flex-[2] bg-transparent border-none text-[11px] text-on-surface/70 placeholder:text-outline/40 focus:ring-0 p-0"
-                            placeholder="Appearance description..."
-                            value={cp.appearance}
-                            onChange={(e) => {
-                              const updated = [...characterProfiles];
-                              updated[idx] = { ...updated[idx], appearance: e.target.value };
-                              setCharacterProfiles(updated);
-                            }}
-                          />
-                          <button onClick={() => setCharacterProfiles(characterProfiles.filter((_, i) => i !== idx))} className="text-outline hover:text-error">
-                            <span className="material-symbols-outlined text-sm">close</span>
-                          </button>
+                        <div key={cp.id} className="glass p-3 rounded-xl border border-outline-variant/10 space-y-2">
+                          <div className="flex items-start gap-3">
+                            {/* Reference Photo */}
+                            <label className="flex-shrink-0 cursor-pointer group/photo">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    const updated = [...characterProfiles];
+                                    updated[idx] = { ...updated[idx], referencePhotoUrl: reader.result as string };
+                                    setCharacterProfiles(updated);
+                                  };
+                                  reader.readAsDataURL(file);
+                                }}
+                              />
+                              {cp.referencePhotoUrl ? (
+                                <div className="w-12 h-12 rounded-xl overflow-hidden relative">
+                                  <img src={cp.referencePhotoUrl} alt={cp.name} className="w-full h-full object-cover" />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-white text-xs">edit</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="w-12 h-12 rounded-xl bg-surface-container-highest border border-dashed border-outline-variant/30 flex items-center justify-center group-hover/photo:border-primary/40 group-hover/photo:bg-primary/5 transition-all">
+                                  <span className="material-symbols-outlined text-outline/40 group-hover/photo:text-primary text-base">add_a_photo</span>
+                                </div>
+                              )}
+                            </label>
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  className="flex-1 bg-transparent border-none text-sm font-bold text-on-surface placeholder:text-outline/50 focus:ring-0 p-0"
+                                  placeholder="Name"
+                                  value={cp.name}
+                                  onChange={(e) => {
+                                    const updated = [...characterProfiles];
+                                    updated[idx] = { ...updated[idx], name: e.target.value };
+                                    setCharacterProfiles(updated);
+                                  }}
+                                />
+                                <button onClick={() => setCharacterProfiles(characterProfiles.filter((_, i) => i !== idx))} className="text-outline hover:text-error">
+                                  <span className="material-symbols-outlined text-sm">close</span>
+                                </button>
+                              </div>
+                              <input
+                                className="w-full bg-transparent border-none text-[11px] text-on-surface/70 placeholder:text-outline/40 focus:ring-0 p-0"
+                                placeholder="Appearance description..."
+                                value={cp.appearance}
+                                onChange={(e) => {
+                                  const updated = [...characterProfiles];
+                                  updated[idx] = { ...updated[idx], appearance: e.target.value };
+                                  setCharacterProfiles(updated);
+                                }}
+                              />
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>

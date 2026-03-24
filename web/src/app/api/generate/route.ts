@@ -640,6 +640,10 @@ VISUAL REFERENCE SHEET — USE THESE EXACT DESCRIPTIONS IN EVERY VISUAL PROMPT:
 ${visualReferenceSheet}
 
 You MUST use the physical descriptions from the reference sheet above when writing visual_prompts. Copy key details directly into each prompt.` : ""}
+${characterProfiles && characterProfiles.length > 0 ? `
+USER-PROVIDED CHARACTER REFERENCES (these take priority over auto-generated descriptions):
+${characterProfiles.map((cp: any) => `${(cp.role || "CHARACTER").toUpperCase()} - ${cp.name}: ${cp.appearance}${cp.clothing ? `, wearing ${cp.clothing}` : ""}`).join("\n")}
+IMPORTANT: Use these user-provided character descriptions for EVERY visual_prompt that features these characters. Their appearance details are authoritative.` : ""}
 
 ${aestheticRules}
 

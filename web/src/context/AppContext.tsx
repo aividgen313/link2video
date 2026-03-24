@@ -34,6 +34,7 @@ export type CharacterProfile = {
   gender?: string;
   clothing?: string;
   role: string; // protagonist, antagonist, supporting, etc.
+  referencePhotoUrl?: string; // user-uploaded photo for AI likeness matching
 };
 
 export type MusicSegment = {

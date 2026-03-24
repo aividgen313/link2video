@@ -247,6 +247,9 @@ export default function ScriptBuilder() {
         } else {
           requestBody.url = url || "https://example.com/mock";
           requestBody.angle = resolvedAngle;
+          if (characterProfiles.length > 0) {
+            requestBody.characterProfiles = characterProfiles;
+          }
         }
         const res = await fetch("/api/generate", {
           method: "POST",
