@@ -512,6 +512,7 @@ class PipelineManager {
             scenes: stitchScenes,
             resolution: { width: config.videoDimension.width, height: config.videoDimension.height },
             musicUrl: (!isMusicVideo && resolvedMusicUrl) ? resolvedMusicUrl : null,
+            userAudioDataUrl: isMusicVideo ? config.audioFile : null,
             captionsEnabled: config.captionsEnabled,
           }),
           signal,

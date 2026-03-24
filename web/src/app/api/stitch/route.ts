@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
       scenes,       // Array<{ image: string; audio?: string; duration: number; narration?: string }>
       resolution,   // { width: number; height: number }
       musicUrl,     // optional background music
+      userAudioDataUrl, // base64 data URL of user-uploaded audio (music-video mode)
+      captionsEnabled,
     } = body;
 
     if (!scenes || !Array.isArray(scenes) || scenes.length === 0) {
@@ -158,9 +160,36 @@ export async function POST(req: NextRequest) {
       { timeout: 120_000 }
     );
 
-    // ── Optional: Mix background music ────────────────────────────────────────
+    // ── Optional: Mix background music or user audio ────────────────────────
     const outputPath = join(workDir, "output.mp4");
-    if (musicUrl && typeof musicUrl === "string") {
+
+    // Music-video mode: user-uploaded audio becomes the PRIMARY audio track
+    if (userAudioDataUrl && typeof userAudioDataUrl === "string") {
+      try {
+        console.log(`[/api/stitch] Writing user audio for music-video mode...`);
+        const userAudioPath = join(workDir, "user_audio.mp3");
+
+        // Decode base64 data URL
+        const base64Match = userAudioDataUrl.match(/^data:[^;]+;base64,(.+)$/);
+        if (base64Match) {
+          await writeFile(userAudioPath, Buffer.from(base64Match[1], "base64"));
+        } else {
+          // Try fetching as regular URL
+          const uRes = await fetch(userAudioDataUrl, { signal: AbortSignal.timeout(15_000) });
+          if (uRes.ok) await writeFile(userAudioPath, Buffer.from(await uRes.arrayBuffer()));
+        }
+
+        console.log(`[/api/stitch] Overlaying user audio as primary track...`);
+        await execAsync([
+          `ffmpeg -y -loglevel error`,
+          `-i "${masterPath}" -i "${userAudioPath}"`,
+          `-map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest "${outputPath}"`
+        ].join(" "), { timeout: 60_000 });
+      } catch (err) {
+        console.error(`[/api/stitch] User audio overlay failed:`, err);
+        await execAsync(`ffmpeg -y -loglevel error -i "${masterPath}" -c copy "${outputPath}"`, { timeout: 30_000 });
+      }
+    } else if (musicUrl && typeof musicUrl === "string") {
       try {
         console.log(`[/api/stitch] Downloading background music...`);
         const musicPath = join(workDir, "music.mp3");
