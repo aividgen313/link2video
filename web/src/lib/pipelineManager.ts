@@ -74,10 +74,27 @@ type Subscriber = (data: PipelineProgressData) => void;
 // ─── Audio duration helper ───────────────────────────────────
 function getAudioDuration(dataUrl: string): Promise<number> {
   return new Promise((resolve) => {
-    const audio = new Audio(dataUrl);
-    audio.addEventListener("loadedmetadata", () => resolve(audio.duration || 8));
-    audio.addEventListener("error", () => resolve(8));
-    setTimeout(() => resolve(8), 5000);
+    let resolved = false;
+    const done = (dur: number) => { if (!resolved) { resolved = true; resolve(dur); } };
+    try {
+      const audio = new Audio(dataUrl);
+      audio.addEventListener("loadedmetadata", () => {
+        console.log(`[pipeline] Audio duration measured: ${audio.duration}s`);
+        done(audio.duration || 8);
+      });
+      audio.addEventListener("error", () => {
+        console.warn("[pipeline] Audio duration measurement failed, using fallback");
+        done(8);
+      });
+    } catch {
+      console.warn("[pipeline] Audio element creation failed, using fallback");
+      done(8);
+    }
+    // Hard timeout — never hang
+    setTimeout(() => {
+      if (!resolved) console.warn("[pipeline] Audio duration timeout, using fallback");
+      done(8);
+    }, 3000);
   });
 }
 
@@ -347,7 +364,10 @@ class PipelineManager {
       // ── Process all scenes (overlapped: image+audio → video) ──
 
       const scenePromises = scenes.map(async (scene, index) => {
+        try {
         if (signal.aborted) return;
+
+        console.log(`[pipeline] Scene ${index + 1}/${totalScenes}: starting image + audio...`);
 
         // Step A: Image + Audio in parallel
         const [imgResult, audioResult] = await Promise.allSettled([
@@ -359,6 +379,8 @@ class PipelineManager {
 
         const img = imgResult.status === "fulfilled" ? imgResult.value : null;
         const audio = audioResult.status === "fulfilled" ? audioResult.value : null;
+
+        console.log(`[pipeline] Scene ${index + 1}: image=${img ? "ok" : "FAIL"}, audio=${audio ? "ok" : isMusicVideo ? "skipped" : "FAIL"}`);
 
         if (!img) {
           this.update({
@@ -375,6 +397,7 @@ class PipelineManager {
         if (!isMusicVideo && audio) {
           const audioDur = await getAudioDuration(audio);
           actualDuration = Math.max(audioDur + 1.5, scene.duration_estimate_seconds);
+          console.log(`[pipeline] Scene ${index + 1}: duration=${actualDuration}s`);
         }
 
         imageMap[scene.id] = img.imageURL;
@@ -435,13 +458,26 @@ class PipelineManager {
           completedScenes: completedCount,
           status: `Scene ${completedCount}/${totalScenes} complete`,
         });
+        console.log(`[pipeline] Scene ${index + 1} fully complete`);
+        } catch (sceneErr) {
+          console.error(`[pipeline] Scene ${index + 1} unexpected error:`, sceneErr);
+          this.update({
+            sceneStatuses: {
+              ...this.data.sceneStatuses,
+              [scene.id]: { ...this.data.sceneStatuses[scene.id], done: true, error: String(sceneErr) },
+            },
+          });
+        }
       });
 
-      await Promise.allSettled(scenePromises);
-      if (signal.aborted) return;
+      console.log(`[pipeline] Waiting for all ${totalScenes} scene promises to settle...`);
+      const settledResults = await Promise.allSettled(scenePromises);
+      console.log(`[pipeline] All scenes settled. Results:`, settledResults.map((r, i) => `Scene ${i + 1}: ${r.status}`));
+      if (signal.aborted) { console.log("[pipeline] Aborted after scenes"); return; }
 
       // Filter out failed scenes
       const validAssets = sceneAssets.filter(Boolean);
+      console.log(`[pipeline] Valid assets: ${validAssets.length}/${totalScenes}`);
       if (validAssets.length === 0) {
         throw new Error("Every scene failed to generate. Check your connection and try again.");
       }
@@ -480,6 +516,7 @@ class PipelineManager {
       });
 
       // ── Server stitch ──
+      console.log(`[pipeline] Starting stitch with ${validAssets.length} scenes...`);
       this.update({ phase: "stitch", progress: 75, status: "Stitching video on server..." });
 
       const resolvedMusicUrl = await musicPromise;
@@ -503,6 +540,7 @@ class PipelineManager {
         this.update({ progress: Math.round(fakeP), status: statusMsg });
       }, 800);
 
+      console.log(`[pipeline] Sending stitch request with ${stitchScenes.length} scenes, musicUrl=${!!resolvedMusicUrl}, userAudio=${isMusicVideo && !!config.audioFile}`);
       let stitchRes: Response;
       try {
         stitchRes = await fetch("/api/stitch", {
@@ -613,11 +651,12 @@ class PipelineManager {
         finalVideoUrl: videoObjectUrl,
       });
     } catch (err) {
-      if (signal.aborted) return;
+      if (signal.aborted) { console.log("[pipeline] Aborted"); return; }
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("Pipeline error:", err);
+      console.error("[pipeline] Pipeline error:", err);
       this.update({ phase: "error", status: "Generation failed", error: msg });
     } finally {
+      console.log("[pipeline] Pipeline finished. Final phase:", this.data.phase);
       bridge.setIsGenerating(false);
       this.cleanup();
     }
