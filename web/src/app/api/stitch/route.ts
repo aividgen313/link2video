@@ -142,11 +142,14 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      console.log(`[/api/stitch] Rendering clip ${i + 1}/${scenes.length} (video=${hasVideo}, duration=${dur}s)...`);
       await execAsync(cmd, { timeout: 120_000 });
+      console.log(`[/api/stitch] Finished clip ${i + 1}/${scenes.length}`);
       clipPaths.push(clipPath);
     }
 
     // ── Concatenate clips ─────────────────────────────────────────────────────
+    console.log(`[/api/stitch] Concatenating ${clipPaths.length} clips into master video...`);
     const concatTxt = join(workDir, "concat.txt");
     await writeFile(concatTxt, clipPaths.map(p => `file '${p}'`).join("\n"));
     const masterPath = join(workDir, "master.mp4");
@@ -159,10 +162,12 @@ export async function POST(req: NextRequest) {
     const outputPath = join(workDir, "output.mp4");
     if (musicUrl && typeof musicUrl === "string") {
       try {
+        console.log(`[/api/stitch] Downloading background music...`);
         const musicPath = join(workDir, "music.mp3");
         const mRes = await fetch(musicUrl, { signal: AbortSignal.timeout(15_000) });
         if (mRes.ok) {
           await writeFile(musicPath, Buffer.from(await mRes.arrayBuffer()));
+          console.log(`[/api/stitch] Mixing music into final output...`);
           await execAsync([
             `ffmpeg -y -loglevel error`,
             `-i "${masterPath}" -i "${musicPath}"`,
@@ -179,6 +184,8 @@ export async function POST(req: NextRequest) {
     } else {
       await execAsync(`ffmpeg -y -loglevel error -i "${masterPath}" -c copy "${outputPath}"`, { timeout: 30_000 });
     }
+
+    console.log(`[/api/stitch] Success! Streaming MP4 payload back to client...`);
 
     // ── Stream MP4 back to client ──────────────────────────────────────────────
     const videoData = await readFile(outputPath);
