@@ -1,4 +1,5 @@
 import type { QualityTier } from "@/context/AppContext";
+import { getCloudHistory, saveProjectToCloud, getCloudProjectState, deleteProjectFromCloud } from "./cloudStorage";
 
 export type VideoHistoryItem = {
   id: string;
@@ -15,20 +16,53 @@ export type VideoHistoryItem = {
 
 export type ProjectState = {
   id: string; // matches VideoHistoryItem id
-  scriptData: any; // using any to avoid circular imports of ScriptData if needed
+  scriptData: any; // original script metadata
   storyboardImages: Record<number, string>;
   sceneAudioUrls: Record<number, string>;
   sceneVideoUrls: Record<number, string>;
   sceneDurations: Record<number, number>;
   musicUrl: string | null;
   finalVideoUrl: string | null;
+  // Extended editor state
+  editorScenes?: any[]; 
+  editorTracks?: any[];
 };
 
 const HISTORY_KEY = "link2video_history";
 const IDB_DB_NAME = "link2video_db";
 const IDB_STORE_NAME = "projects";
-const MAX_ITEMS = 20;
+const MAX_ITEMS = 30;
 const MAX_THUMBNAIL_BYTES = 80000; // 80KB final compressed limit per item
+
+/**
+ * Sync local history with cloud history.
+ * Fetches from cloud and merges missing items into localStorage.
+ */
+export async function syncHistoryWithCloud(): Promise<VideoHistoryItem[]> {
+  try {
+    const cloud = await getCloudHistory();
+    const local = getHistory();
+    
+    // Merge: cloud items that aren't in local (or are newer)
+    const merged = [...local];
+    for (const remote of cloud) {
+      const idx = merged.findIndex(h => h.id === remote.id);
+      if (idx === -1) {
+        merged.push(remote);
+      } else if (new Date(remote.createdAt) > new Date(merged[idx].createdAt)) {
+        merged[idx] = remote;
+      }
+    }
+    
+    // Sort and limit
+    const final = merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, MAX_ITEMS);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(final));
+    return final;
+  } catch (err) {
+    console.warn("History sync failed:", err);
+    return getHistory();
+  }
+}
 
 /**
  * Compress a base64 data URL thumbnail to fit within size limits.
@@ -77,6 +111,7 @@ function compressThumbnail(dataUrl: string): Promise<string | undefined> {
 
 export function getHistory(): VideoHistoryItem[] {
   try {
+    if (typeof window === "undefined") return [];
     const raw = localStorage.getItem(HISTORY_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
@@ -89,15 +124,8 @@ export function getHistory(): VideoHistoryItem[] {
         typeof (item as VideoHistoryItem).title === "string" &&
         typeof (item as VideoHistoryItem).createdAt === "string"
     );
-    // Deduplicate by title+createdAt within 5 seconds (handles StrictMode double-saves)
-    const seen = new Set<string>();
-    return items.filter((item) => {
-      const ts = Math.floor(new Date(item.createdAt).getTime() / 5000);
-      const key = `${item.title}::${ts}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    // Deduplicate and sort
+    return items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   } catch {
     return [];
   }
@@ -118,6 +146,8 @@ export async function saveToHistory(item: VideoHistoryItem): Promise<void> {
     const existing = getHistory().filter((h) => h.id !== safe.id);
     const updated = [safe, ...existing].slice(0, MAX_ITEMS);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+
+    // Updated locally. Cloud sync is handled by saveProjectState.
   } catch {
     // localStorage full or unavailable — silently skip
   }
@@ -128,6 +158,7 @@ export function deleteFromHistory(id: string): void {
     const updated = getHistory().filter((h) => h.id !== id);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
     deleteProjectState(id); // Clean up IndexedDB space
+    deleteProjectFromCloud(id); // Clean up cloud
   } catch {}
 }
 
@@ -152,13 +183,20 @@ function openDB(): Promise<IDBDatabase> {
 export async function saveProjectState(state: ProjectState): Promise<void> {
   try {
     const db = await openDB();
-    return new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(IDB_STORE_NAME, "readwrite");
       const store = tx.objectStore(IDB_STORE_NAME);
       const req = store.put(state);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
+
+    // Background cloud sync
+    const history = getHistory();
+    const item = history.find(h => h.id === state.id);
+    if (item) {
+      saveProjectToCloud(state.id, state, item);
+    }
   } catch (err) {
     console.error("Failed to save project state to IndexedDB", err);
   }
@@ -167,13 +205,26 @@ export async function saveProjectState(state: ProjectState): Promise<void> {
 export async function loadProjectState(id: string): Promise<ProjectState | null> {
   try {
     const db = await openDB();
-    return new Promise((resolve, reject) => {
+    const localState = await new Promise<ProjectState | null>((resolve, reject) => {
       const tx = db.transaction(IDB_STORE_NAME, "readonly");
       const store = tx.objectStore(IDB_STORE_NAME);
       const req = store.get(id);
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => reject(req.error);
     });
+
+    if (localState) return localState;
+
+    // Fallback: load from cloud if missing locally
+    const cloudState = await getCloudProjectState(id);
+    if (cloudState) {
+      // Save local copy for next time
+      const tx = db.transaction(IDB_STORE_NAME, "readwrite");
+      tx.objectStore(IDB_STORE_NAME).put(cloudState);
+      return cloudState;
+    }
+
+    return null;
   } catch (err) {
     console.error("Failed to load project state from IndexedDB", err);
     return null;

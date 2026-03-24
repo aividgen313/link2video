@@ -694,7 +694,7 @@ class PipelineManager {
 
       await saveProjectState({
         id: projectId,
-        scriptData: config.scriptData,
+        scriptData: { ...config.scriptData, id: projectId },
         storyboardImages: cloudImages,
         sceneAudioUrls: cloudAudio,
         sceneVideoUrls: cloudVideo,

@@ -218,10 +218,20 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   }, [scenes, selectedSceneId]);
 
   // Initialize / re-initialize scenes whenever scriptData changes.
-  // Using useEffect (not a render-body if-block) so that it correctly reacts
-  // when scriptData arrives after navigation (e.g., restoring a project from history).
   useEffect(() => {
     if (!scriptData?.scenes?.length) return;
+
+    // Check if we have native editor scenes in AppContext (restored from storage)
+    // Using a type cast since we added these to ProjectState
+    const savedScenes = (scriptData as any).editorScenes;
+    const savedTracks = (scriptData as any).editorTracks;
+
+    if (savedScenes && Array.isArray(savedScenes) && savedScenes.length > 0) {
+      setScenesRaw(savedScenes);
+      if (savedTracks) setTracks(savedTracks);
+      setIsInitialized(true);
+      return;
+    }
 
     const editorScenes: EditorScene[] = [];
     scriptData.scenes.forEach((s: Scene, i: number) => {

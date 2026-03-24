@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, createContext, useCo
 import { useRouter } from "next/navigation";
 import { useAppContext, VIDEO_DIMENSIONS } from "@/context/AppContext";
 import { EditorProvider, useEditorContext, TextOverlay } from "@/context/EditorContext";
-import { getHistory, loadProjectState, type VideoHistoryItem } from "@/lib/videoHistory";
+import { getHistory, loadProjectState, saveToHistory, saveProjectState, syncHistoryWithCloud, type VideoHistoryItem, type ProjectState } from "@/lib/videoHistory";
 import PreviewPlayer from "@/components/editor/PreviewPlayer";
 import Timeline from "@/components/editor/Timeline";
 import PropertiesPanel from "@/components/editor/PropertiesPanel";
@@ -365,12 +365,14 @@ function EditorInner() {
   const router = useRouter();
   const {
     scriptData, pollenUsed, qualityTier,
+    url, angle, storyboardImages, videoDimension,
+    sceneAudioUrls, sceneVideoUrls, sceneDurations, finalVideoUrl,
     setScriptData, setStoryboardImages, setSceneAudioUrls,
     setSceneVideoUrls, setSceneDurations, setFinalVideoUrl,
     setQualityTier, setVideoDimension, setUrl, setAngle,
   } = useAppContext();
   const {
-    scenes, isInitialized, selectedScene, selectedSceneId, setSelectedSceneId,
+    scenes, tracks, isInitialized, selectedScene, selectedSceneId, setSelectedSceneId,
     undo, redo, canUndo, canRedo,
     insertScene, splitScene, duplicateScene, deleteScene, deleteSelected,
     selectAllScenes, clearSelection, selectedSceneIds,
@@ -390,25 +392,78 @@ function EditorInner() {
   const [showSource, setShowSource] = useState(true);
   const [activeRightTab, setActiveRightTab] = useState<"properties" | "text">("properties");
   const [isDragOverEditor, setIsDragOverEditor] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
 
-  // ── Recent Projects for empty state ──
   const [recentProjects, setRecentProjects] = useState<VideoHistoryItem[]>([]);
   const [loadingProjectId, setLoadingProjectId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!scriptData?.scenes?.length) {
-      setRecentProjects(getHistory().slice(0, 8));
+      // Sync cloud history on mount
+      syncHistoryWithCloud().then(synced => {
+        setRecentProjects(synced.slice(0, 8));
+      });
     }
   }, [scriptData]);
 
+  const handleSaveProject = async () => {
+    if (!scriptData || scenes.length === 0) return;
+    setIsSaving(true);
+    try {
+      const projectId = scriptData.id || `proj_${Date.now()}`;
+      
+      const historyItem: VideoHistoryItem = {
+        id: projectId,
+        title: scriptData.title || "Untitled",
+        topic: url || "",
+        angle: angle || "",
+        thumbnailUrl: storyboardImages[scenes[0]?.id/10] || "",
+        quality: qualityTier,
+        dimensionId: videoDimension.id,
+        dimensionLabel: videoDimension.label,
+        totalSeconds: totalDuration,
+        createdAt: new Date().toISOString(),
+      };
+
+      const state: ProjectState = {
+        id: projectId,
+        scriptData: { ...scriptData, id: projectId, editorScenes: scenes, editorTracks: tracks },
+        storyboardImages,
+        sceneAudioUrls,
+        sceneVideoUrls,
+        sceneDurations,
+        musicUrl: null,
+        finalVideoUrl,
+        editorScenes: scenes,
+        editorTracks: tracks,
+      };
+
+      await saveProjectState(state);
+      await saveToHistory(historyItem);
+      console.log("Project saved successfully.");
+    } catch (err) {
+      console.error("Save failed:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleLoadProject = async (item: VideoHistoryItem) => {
     setLoadingProjectId(item.id);
+    setErrorMsg(null);
     try {
       const state = await loadProjectState(item.id);
       if (state && state.scriptData) {
-        setScriptData(state.scriptData);
+        // Inject editor scenes/tracks into scriptData so EditorContext picks them up
+        const mergedScriptData = { 
+          ...state.scriptData, 
+          editorScenes: state.editorScenes, 
+          editorTracks: state.editorTracks 
+        };
+        setScriptData(mergedScriptData);
         setStoryboardImages(state.storyboardImages || {});
         setSceneAudioUrls(state.sceneAudioUrls || {});
         setSceneVideoUrls(state.sceneVideoUrls || {});
@@ -421,9 +476,12 @@ function EditorInner() {
         }
         if (item.topic) setUrl(item.topic);
         if (item.angle) setAngle(item.angle);
+      } else {
+        setErrorMsg("Failed to load project state. It might be missing from cloud storage.");
       }
     } catch (e) {
       console.error("Failed to load project:", e);
+      setErrorMsg("An unexpected error occurred while loading the project.");
     } finally {
       setLoadingProjectId(null);
     }
@@ -498,6 +556,7 @@ function EditorInner() {
     const meta = e.metaKey || e.ctrlKey;
 
     // Always allow undo/redo globally
+    if (meta && e.key === "s") { e.preventDefault(); handleSaveProject(); return; }
     if (meta && e.key === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
     if (meta && e.key === "z" && e.shiftKey) { e.preventDefault(); redo(); return; }
     if (meta && e.key === "y") { e.preventDefault(); redo(); return; }
@@ -531,7 +590,7 @@ function EditorInner() {
     if (e.key === "t" && !meta) { setShowTrim(prev => !prev); }
     if (e.key === "Home") { e.preventDefault(); setPlayheadPosition(0); }
     if (e.key === "End") { e.preventDefault(); setPlayheadPosition(totalDuration); }
-  }, [undo, redo, selectAllScenes, clearSelection, isPlaying, setIsPlaying, selectedScene, selectedSceneIds, deleteSelected, deleteScene, duplicateScene, scenes.length, snapEnabled, setSnapEnabled, setPlayheadPosition, totalDuration]);
+  }, [undo, redo, selectAllScenes, clearSelection, isPlaying, setIsPlaying, selectedScene, selectedSceneIds, deleteSelected, deleteScene, duplicateScene, scenes.length, snapEnabled, setSnapEnabled, setPlayheadPosition, totalDuration, handleSaveProject]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -595,6 +654,17 @@ function EditorInner() {
               <h2 className="text-2xl font-bold" style={{ color: C.text }}>Video Editor</h2>
               <p className="text-sm" style={{ color: C.textDim }}>Select a recent project to start editing, or create a new one from the dashboard.</p>
             </div>
+
+            {/* Error Message */}
+            {errorMsg && (
+              <div className="p-4 rounded-xl flex items-center gap-3 animate-fade-in" style={{ background: `${C.danger}15`, border: `1px solid ${C.danger}30`, color: C.danger }}>
+                <span className="material-symbols-outlined text-xl">error</span>
+                <p className="text-sm font-medium">{errorMsg}</p>
+                <button onClick={() => setErrorMsg(null)} className="ml-auto p-1 hover:bg-black/5 rounded-lg">
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+              </div>
+            )}
 
             {/* Recent Projects Grid */}
             {recentProjects.length > 0 ? (
@@ -698,6 +768,7 @@ function EditorInner() {
         {/* Menu items with dropdowns */}
         {[
           { label: "File", items: [
+            { label: "Save Project", icon: "save", action: handleSaveProject, shortcut: "Ctrl+S" },
             { label: "Open Project...", icon: "folder_open", action: () => { setScriptData(null); }, shortcut: "Ctrl+O" },
             { label: "Import Media...", icon: "upload", action: () => importFileRef.current?.click() },
             { divider: true },
@@ -860,8 +931,9 @@ function EditorInner() {
 
       {/* ═══ Toolbar ═══ */}
       <div className="flex items-center px-2 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 38 }}>
-        {/* Edit tools */}
         <div className="flex items-center gap-0.5">
+          <TBtn icon="save" label="Save Project (Ctrl+S)" onClick={handleSaveProject} active={isSaving} />
+          <TSep />
           <TBtn icon="undo" label="Undo (Ctrl+Z)" onClick={undo} disabled={!canUndo} />
           <TBtn icon="redo" label="Redo (Ctrl+Shift+Z)" onClick={redo} disabled={!canRedo} />
           <TSep />

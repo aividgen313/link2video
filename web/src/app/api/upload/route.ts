@@ -13,7 +13,7 @@ function getSupabase() {
 // Module-level cache so we only check/create the bucket once per process lifetime
 let bucketReady: boolean | null = null;
 
-async function ensureBucket(supabase: ReturnType<typeof createClient>): Promise<boolean> {
+async function ensureBucket(supabase: any): Promise<boolean> {
   if (bucketReady === true) return true;
   if (bucketReady === false) return false;
 
@@ -51,13 +51,31 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { dataUrl, path } = body;
+    const { dataUrl, json, path } = body;
 
-    if (!dataUrl || typeof dataUrl !== "string") {
-      return NextResponse.json({ error: "dataUrl is required" }, { status: 400 });
-    }
     if (!path || typeof path !== "string") {
       return NextResponse.json({ error: "path is required" }, { status: 400 });
+    }
+
+    let buffer: Buffer;
+    let contentType: string = "application/octet-stream";
+
+    if (json) {
+      // Direct JSON upload
+      buffer = Buffer.from(JSON.stringify(json));
+      contentType = "application/json";
+    } else if (dataUrl && typeof dataUrl === "string") {
+      // Data URL upload (base64)
+      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        contentType = match[1];
+        buffer = Buffer.from(match[2], "base64");
+      } else {
+        // It's already a URL, nothing to upload if we were expecting data
+        return NextResponse.json({ success: true, url: dataUrl });
+      }
+    } else {
+      return NextResponse.json({ error: "Either dataUrl or json is required" }, { status: 400 });
     }
 
     // Ensure bucket exists before attempting upload
@@ -67,14 +85,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Storage bucket unavailable" }, { status: 200 });
     }
 
-    // It's already a URL, not a data URL — return as-is
-    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) {
-      return NextResponse.json({ success: true, url: dataUrl });
-    }
+    // Skip the regex match if we already handled it above
 
-    const contentType = match[1];
-    const buffer = Buffer.from(match[2], "base64");
+    // Using contentType and buffer from above
 
     const { error } = await supabase.storage
       .from(BUCKET)
@@ -96,6 +109,72 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     return NextResponse.json(
       { error: "Upload failed: " + (err instanceof Error ? err.message : "Unknown error") },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Fetch a file from Supabase Storage by path.
+ * Query: ?path=projects/123/state.json
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return NextResponse.json({ error: "Cloud storage not configured." }, { status: 501 });
+
+    const { searchParams } = new URL(req.url);
+    const path = searchParams.get("path");
+
+    if (!path) return NextResponse.json({ error: "path is required" }, { status: 400 });
+
+    const { data, error } = await supabase.storage.from(BUCKET).download(path);
+
+    if (error || !data) {
+      return NextResponse.json({ error: error?.message || "File not found" }, { status: 404 });
+    }
+
+    const buffer = Buffer.from(await data.arrayBuffer());
+
+    // Stream the raw buffer directly to the client (more memory efficient)
+    return new Response(buffer, {
+      headers: {
+        "Content-Type": data.type || "application/octet-stream",
+        "Cache-Control": "public, max-age=3600",
+      },
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { error: "Fetch failed: " + (err instanceof Error ? err.message : "Unknown error") },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Delete a file from Supabase Storage by path.
+ * Query: ?path=projects/123/state.json
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return NextResponse.json({ error: "Cloud storage not configured." }, { status: 501 });
+
+    const { searchParams } = new URL(req.url);
+    const path = searchParams.get("path");
+
+    if (!path) return NextResponse.json({ error: "path is required" }, { status: 400 });
+
+    const { error } = await supabase.storage.from(BUCKET).remove([path]);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, path });
+  } catch (err) {
+    return NextResponse.json(
+      { error: "Delete failed: " + (err instanceof Error ? err.message : "Unknown error") },
       { status: 500 }
     );
   }

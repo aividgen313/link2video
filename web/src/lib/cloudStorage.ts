@@ -97,3 +97,108 @@ export async function uploadProjectAssets(
   await Promise.allSettled(uploads);
   return result;
 }
+
+/**
+ * Save the entire project state and history item to the cloud.
+ */
+export async function saveProjectToCloud(
+  projectId: string,
+  state: any,
+  historyItem: any
+): Promise<boolean> {
+  try {
+    // 1. Upload the state.json (using raw json field for efficiency)
+    await fetch("/api/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ json: state, path: `projects/${projectId}/state.json` }),
+    });
+
+    // 2. Update the projects.json index
+    const historyRes = await fetch("/api/upload?path=projects.json");
+    let cloudHistory: any[] = [];
+    if (historyRes.ok) {
+      const data = await historyRes.json();
+      if (Array.isArray(data)) cloudHistory = data;
+      else if (data.success && Array.isArray(data.data)) cloudHistory = data.data; // fallback for old format
+    }
+
+    // Merge current item into cloud history (deduplicate)
+    const existingIdx = cloudHistory.findIndex(h => h.id === projectId);
+    if (existingIdx >= 0) {
+      cloudHistory[existingIdx] = { ...cloudHistory[existingIdx], ...historyItem };
+    } else {
+      cloudHistory.unshift(historyItem);
+    }
+    // Limit to 50 items in cloud
+    cloudHistory = cloudHistory.slice(0, 50);
+
+    // 3. Upload the history (using raw json field for efficiency)
+    await fetch("/api/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ json: cloudHistory, path: "projects.json" }),
+    });
+
+    return true;
+  } catch (err) {
+    console.error("Cloud project sync failed:", err);
+    return false;
+  }
+}
+
+/**
+ * Fetch the project list from the cloud.
+ */
+export async function getCloudHistory(): Promise<any[]> {
+  try {
+    const res = await fetch("/api/upload?path=projects.json");
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (Array.isArray(data)) return data;
+    if (data.success && Array.isArray(data.data)) return data.data; // fallback
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch a specific project state from the cloud.
+ */
+export async function getCloudProjectState(projectId: string): Promise<any | null> {
+  try {
+    const res = await fetch(`/api/upload?path=projects/${projectId}/state.json`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data && (data.id || data.scriptData) ? data : data.success ? data.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Delete a project and its metadata from the cloud.
+ */
+export async function deleteProjectFromCloud(projectId: string): Promise<void> {
+  try {
+    // 1. Remove from projects.json index
+    const historyRes = await fetch("/api/upload?path=projects.json");
+    if (historyRes.ok) {
+      const data = await historyRes.json();
+      if (data.success && Array.isArray(data.data)) {
+        const updated = (data.data as any[]).filter((h: any) => h.id !== projectId);
+        // 1. Update index (using raw json field)
+        await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ json: updated, path: "projects.json" }),
+        });
+      }
+    }
+    // 2. Delete the state JSON
+    await fetch(`/api/upload?path=projects/${projectId}/state.json`, { method: "DELETE" });
+  } catch (err) {
+    console.error("Failed to delete project from cloud:", err);
+  }
+}

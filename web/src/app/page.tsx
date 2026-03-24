@@ -14,7 +14,7 @@ const DURATION_PRESETS = [
   { label: "60 min", value: 60 },
   { label: "120 min", value: 120 },
 ];
-import { getHistory, deleteFromHistory, loadProjectState, type VideoHistoryItem } from "@/lib/videoHistory";
+import { getHistory, deleteFromHistory, loadProjectState, syncHistoryWithCloud, type VideoHistoryItem } from "@/lib/videoHistory";
 import { getSavedStyles, saveStyle, deleteStyle, type SavedStyle } from "@/lib/savedStyles";
 
 function formatTimeAgo(date: Date): string {
@@ -154,31 +154,19 @@ function DownloadButton({ video, onError, onFallback }: { video: VideoHistoryIte
 export default function Home() {
   const router = useRouter();
   const {
-    url, setUrl,
-    mode, setMode,
-    qualityTier, setQualityTier,
-    globalVisualStyle, setGlobalVisualStyle,
-    videoDimension, setVideoDimension,
-    selectedVoice, setSelectedVoice,
-    musicEnabled, setMusicEnabled,
-    captionsEnabled, setCaptionsEnabled,
+    url, setUrl, angle, setAngle, scriptData, setScriptData,
+    isGenerating, setIsGenerating, finalVideoUrl, setFinalVideoUrl,
+    qualityTier, setQualityTier, globalVisualStyle, setGlobalVisualStyle,
+    videoDimension, setVideoDimension, selectedVoice, setSelectedVoice,
+    musicEnabled, setMusicEnabled, captionsEnabled, setCaptionsEnabled,
     targetDurationMinutes, setTargetDurationMinutes,
-    pollenUsed,
-    storyText, setStoryText,
+    pollenUsed, mode, setMode, storyText, setStoryText,
     characterProfiles, setCharacterProfiles,
-    audioFile, setAudioFile,
-    audioFileName, setAudioFileName,
-    lyrics, setLyrics,
-    musicSegments, setMusicSegments,
+    audioFile, setAudioFile, audioFileName, setAudioFileName,
+    lyrics, setLyrics, musicSegments, setMusicSegments,
     audioDuration, setAudioDuration,
-    setScriptData,
-    setStoryboardImages,
-    setSceneAudioUrls,
-    setSceneVideoUrls,
-    setSceneDurations,
-    setFinalVideoUrl,
-    setYoutubeStyleSuffix,
-    setGenerateRequested,
+    setStoryboardImages, setSceneAudioUrls, setSceneVideoUrls, setSceneDurations,
+    setYoutubeStyleSuffix, setGenerateRequested,
   } = useAppContext();
 
   const [inputValue, setInputValue] = useState(url || "");
@@ -205,7 +193,16 @@ export default function Home() {
   const [appliedStyleId, setAppliedStyleId] = useState<string | null>(null);
 
   useEffect(() => { setHasMounted(true); }, []);
-  useEffect(() => { if (hasMounted) { setRecentVideos(getHistory()); setSavedStyles(getSavedStyles()); } }, [hasMounted]);
+  useEffect(() => {
+    if (hasMounted) {
+      setRecentVideos(getHistory());
+      setSavedStyles(getSavedStyles());
+      // Background sync with cloud
+      syncHistoryWithCloud().then(synced => {
+        setRecentVideos(synced);
+      });
+    }
+  }, [hasMounted]);
 
   // Fetch Pollinations balance on mount
   useEffect(() => {
@@ -232,8 +229,13 @@ export default function Home() {
     try {
       const state = await loadProjectState(v.id);
       if (state && state.scriptData) {
-        // Restore full project state
-        setScriptData(state.scriptData);
+        // Inject editor scenes/tracks into scriptData so EditorContext picks them up
+        const mergedScriptData = { 
+          ...state.scriptData, 
+          editorScenes: state.editorScenes, 
+          editorTracks: state.editorTracks 
+        };
+        setScriptData(mergedScriptData);
         setStoryboardImages(state.storyboardImages || {});
         setSceneAudioUrls(state.sceneAudioUrls || {});
         setSceneVideoUrls(state.sceneVideoUrls || {});

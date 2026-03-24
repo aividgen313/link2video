@@ -19,6 +19,7 @@ export type Scene = {
 };
 
 export type ScriptData = {
+  id?: string;
   title: string;
   angle: string;
   scenes: Scene[];
