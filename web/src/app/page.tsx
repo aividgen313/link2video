@@ -232,19 +232,21 @@ export default function Home() {
     try {
       const state = await loadProjectState(v.id);
       if (state && state.scriptData) {
-        // Restore project state
+        // Restore full project state
         setScriptData(state.scriptData);
         setStoryboardImages(state.storyboardImages || {});
         setSceneAudioUrls(state.sceneAudioUrls || {});
         setSceneVideoUrls(state.sceneVideoUrls || {});
         setSceneDurations(state.sceneDurations || {});
         setFinalVideoUrl(state.finalVideoUrl || null);
-        // Restore quality tier and dimension from history metadata
+        // Restore metadata from history item
         if (v.quality) setQualityTier(v.quality);
         if (v.dimensionId) {
           const dim = VIDEO_DIMENSIONS.find(d => d.id === v.dimensionId);
           if (dim) setVideoDimension(dim);
         }
+        if (v.topic) setUrl(v.topic);
+        if (v.angle) setAngle(v.angle);
         router.push("/editor");
       } else {
         setErrorMsg("Project data not found — it may have been cleared by browser storage. Try regenerating.");

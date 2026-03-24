@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext } from "react";
 import { useRouter } from "next/navigation";
-import { useAppContext } from "@/context/AppContext";
+import { useAppContext, VIDEO_DIMENSIONS } from "@/context/AppContext";
 import { EditorProvider, useEditorContext, TextOverlay } from "@/context/EditorContext";
+import { getHistory, loadProjectState, type VideoHistoryItem } from "@/lib/videoHistory";
 import PreviewPlayer from "@/components/editor/PreviewPlayer";
 import Timeline from "@/components/editor/Timeline";
 import PropertiesPanel from "@/components/editor/PropertiesPanel";
@@ -94,16 +95,19 @@ function TSep() {
   return <div className="w-px h-5 mx-1" style={{ background: C.border }} />;
 }
 
-// ── Source Monitor (Scene Browser) ──
+// ── Source Monitor (Scene Browser + Media Browser) ──
 function SourceMonitor() {
   const { theme: C, isDark } = useEditorTheme();
   const {
     scenes, selectedSceneId, setSelectedSceneId, setPlayheadPosition,
-    getSceneStartTime, reorderScene,
+    getSceneStartTime, reorderScene, importMedia,
   } = useEditorContext();
+  const { storyboardImages, sceneAudioUrls, sceneVideoUrls } = useAppContext();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<"scenes" | "media">("scenes");
 
   const handleDragStart = (index: number) => setDragFrom(index);
   const handleDragOver = (e: React.DragEvent, index: number) => { e.preventDefault(); setDragOver(index); };
@@ -112,6 +116,31 @@ function SourceMonitor() {
     setDragFrom(null); setDragOver(null);
   };
   const handleDragEnd = () => { setDragFrom(null); setDragOver(null); };
+
+  // Collect all project media assets for the Media tab
+  const mediaAssets = useMemo(() => {
+    const assets: { id: string; type: "image" | "audio" | "video"; url: string; label: string }[] = [];
+    Object.entries(storyboardImages).forEach(([id, url]) => {
+      assets.push({ id: `img-${id}`, type: "image", url, label: `Scene ${id} Image` });
+    });
+    Object.entries(sceneAudioUrls).forEach(([id, url]) => {
+      assets.push({ id: `aud-${id}`, type: "audio", url, label: `Scene ${id} Audio` });
+    });
+    Object.entries(sceneVideoUrls).forEach(([id, url]) => {
+      assets.push({ id: `vid-${id}`, type: "video", url, label: `Scene ${id} Video` });
+    });
+    return assets;
+  }, [storyboardImages, sceneAudioUrls, sceneVideoUrls]);
+
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    for (const file of files) {
+      if (file.type.startsWith("image/") || file.type.startsWith("video/") || file.type.startsWith("audio/")) {
+        await importMedia(file);
+      }
+    }
+    e.target.value = "";
+  };
 
   useEffect(() => {
     if (!scrollRef.current || selectedSceneId === null) return;
@@ -123,15 +152,75 @@ function SourceMonitor() {
 
   return (
     <div className="flex flex-col h-full" style={{ background: C.panel, borderRight: `1px solid ${C.border}` }}>
-      {/* Panel header */}
+      <input ref={mediaInputRef} type="file" accept="image/*,video/*,audio/*" multiple onChange={handleMediaUpload} className="hidden" />
+      {/* Panel header with tabs */}
       <div className="flex items-center justify-between px-1 flex-shrink-0" style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, height: 28 }}>
         <div className="flex">
-          <PanelTab label="Source" active />
+          <PanelTab label="Scenes" active={activeTab === "scenes"} onClick={() => setActiveTab("scenes")} />
+          <PanelTab label="Media" active={activeTab === "media"} onClick={() => setActiveTab("media")} />
         </div>
-        <span className="text-[10px] font-mono pr-2" style={{ color: C.textMuted }}>{scenes.length} clips</span>
+        <span className="text-[10px] font-mono pr-2" style={{ color: C.textMuted }}>
+          {activeTab === "scenes" ? `${scenes.length} clips` : `${mediaAssets.length} files`}
+        </span>
       </div>
-      {/* Scene grid */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 gap-1.5" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", alignContent: "start" }}>
+
+      {activeTab === "media" ? (
+        /* ── Media Browser ── */
+        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+          {/* Upload button */}
+          <button
+            onClick={() => mediaInputRef.current?.click()}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold transition-all hover:scale-[1.01]"
+            style={{ background: `${C.accent}15`, color: C.accent, border: `1px dashed ${C.accent}40` }}
+          >
+            <span className="material-symbols-outlined text-sm">upload</span>
+            Upload Media
+          </button>
+
+          {/* Asset grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))", gap: 6 }}>
+            {mediaAssets.map(asset => (
+              <div
+                key={asset.id}
+                className="rounded-lg overflow-hidden cursor-grab group/asset"
+                style={{ background: C.panelDark, border: `1px solid ${C.border}` }}
+                draggable
+                title={asset.label}
+              >
+                <div className="aspect-square relative" style={{ background: "rgba(255,255,255,0.02)" }}>
+                  {asset.type === "image" ? (
+                    <img src={asset.url} alt="" className="w-full h-full object-cover" draggable={false} />
+                  ) : asset.type === "video" ? (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="material-symbols-outlined text-lg" style={{ color: C.accent, opacity: 0.5 }}>videocam</span>
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="material-symbols-outlined text-lg" style={{ color: C.success, opacity: 0.5 }}>graphic_eq</span>
+                    </div>
+                  )}
+                  {/* Type badge */}
+                  <div className="absolute top-0.5 left-0.5 px-1 py-0.5 rounded text-[7px] font-bold uppercase text-white" style={{ background: "rgba(0,0,0,0.7)" }}>
+                    {asset.type === "image" ? "IMG" : asset.type === "audio" ? "AUD" : "VID"}
+                  </div>
+                </div>
+                <div className="px-1 py-0.5">
+                  <p className="text-[8px] truncate" style={{ color: C.textDim }}>{asset.label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {mediaAssets.length === 0 && (
+            <div className="text-center py-6" style={{ color: C.textMuted }}>
+              <span className="material-symbols-outlined text-2xl mb-1 block" style={{ opacity: 0.2 }}>perm_media</span>
+              <p className="text-[10px]">No media assets yet</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── Scene Grid (original) ── */
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 gap-1.5" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", alignContent: "start" }}>
         {scenes.map((scene, index) => {
           const isSelected = selectedSceneId === scene.id;
           const isDragTarget = dragOver === index && dragFrom !== index;
@@ -185,6 +274,7 @@ function SourceMonitor() {
           );
         })}
       </div>
+      )}
     </div>
   );
 }
@@ -273,7 +363,12 @@ function TextToolPanel({ onClose }: { onClose: () => void }) {
 
 function EditorInner() {
   const router = useRouter();
-  const { scriptData, pollenUsed, qualityTier } = useAppContext();
+  const {
+    scriptData, pollenUsed, qualityTier,
+    setScriptData, setStoryboardImages, setSceneAudioUrls,
+    setSceneVideoUrls, setSceneDurations, setFinalVideoUrl,
+    setQualityTier, setVideoDimension, setUrl, setAngle,
+  } = useAppContext();
   const {
     scenes, isInitialized, selectedScene, selectedSceneId, setSelectedSceneId,
     undo, redo, canUndo, canRedo,
@@ -297,6 +392,42 @@ function EditorInner() {
   const [isDragOverEditor, setIsDragOverEditor] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
+
+  // ── Recent Projects for empty state ──
+  const [recentProjects, setRecentProjects] = useState<VideoHistoryItem[]>([]);
+  const [loadingProjectId, setLoadingProjectId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!scriptData?.scenes?.length) {
+      setRecentProjects(getHistory().slice(0, 8));
+    }
+  }, [scriptData]);
+
+  const handleLoadProject = async (item: VideoHistoryItem) => {
+    setLoadingProjectId(item.id);
+    try {
+      const state = await loadProjectState(item.id);
+      if (state && state.scriptData) {
+        setScriptData(state.scriptData);
+        setStoryboardImages(state.storyboardImages || {});
+        setSceneAudioUrls(state.sceneAudioUrls || {});
+        setSceneVideoUrls(state.sceneVideoUrls || {});
+        setSceneDurations(state.sceneDurations || {});
+        setFinalVideoUrl(state.finalVideoUrl || null);
+        if (item.quality) setQualityTier(item.quality);
+        if (item.dimensionId) {
+          const dim = VIDEO_DIMENSIONS.find(d => d.id === item.dimensionId);
+          if (dim) setVideoDimension(dim);
+        }
+        if (item.topic) setUrl(item.topic);
+        if (item.angle) setAngle(item.angle);
+      }
+    } catch (e) {
+      console.error("Failed to load project:", e);
+    } finally {
+      setLoadingProjectId(null);
+    }
+  };
 
   // ── Resizable panel widths and timeline height ──
   const DEFAULT_SOURCE_W = 220;
@@ -456,15 +587,77 @@ function EditorInner() {
     >
       {/* ── Conditional Loading/Empty Views (inside main return to fix hook issues) ── */}
       {isNoProject ? (
-        <div className="absolute inset-0 z-[60] flex items-center justify-center" style={{ background: C.bg }}>
-          <div className="text-center space-y-5 p-8 rounded-2xl" style={{ background: C.panel, border: `1px solid ${C.border}`, maxWidth: 420 }}>
-            <span className="material-symbols-outlined text-6xl" style={{ color: C.textMuted, opacity: 0.3 }}>movie_edit</span>
-            <h2 className="text-xl font-bold" style={{ color: C.text }}>No Project Loaded</h2>
-            <p className="text-sm leading-relaxed" style={{ color: C.textDim }}>Create a video from the dashboard, or open a previous project from your video history.</p>
-            <a href="/" className="inline-flex items-center gap-2 mt-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.accentDim})` }}>
-              <span className="material-symbols-outlined text-[18px]">home</span>
-              Go to Dashboard
-            </a>
+        <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center p-8 overflow-y-auto" style={{ background: C.bg }}>
+          <div className="w-full max-w-3xl space-y-8">
+            {/* Header */}
+            <div className="text-center space-y-3">
+              <span className="material-symbols-outlined text-5xl" style={{ color: C.accent, opacity: 0.7 }}>movie_edit</span>
+              <h2 className="text-2xl font-bold" style={{ color: C.text }}>Video Editor</h2>
+              <p className="text-sm" style={{ color: C.textDim }}>Select a recent project to start editing, or create a new one from the dashboard.</p>
+            </div>
+
+            {/* Recent Projects Grid */}
+            {recentProjects.length > 0 ? (
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-widest" style={{ color: C.textDim }}>Recent Projects</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {recentProjects.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => handleLoadProject(p)}
+                      disabled={!!loadingProjectId}
+                      className="group relative text-left rounded-xl overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                      style={{ background: C.panel, border: `1px solid ${C.border}` }}
+                    >
+                      {/* Thumbnail */}
+                      <div className="aspect-video w-full overflow-hidden" style={{ background: C.panelDark }}>
+                        {p.thumbnailUrl ? (
+                          <img src={p.thumbnailUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="material-symbols-outlined text-3xl" style={{ color: C.textMuted, opacity: 0.2 }}>movie</span>
+                          </div>
+                        )}
+                        {/* Loading overlay */}
+                        {loadingProjectId === p.id && (
+                          <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }}>
+                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        )}
+                        {/* Hover overlay */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(0,0,0,0.4)" }}>
+                          <span className="material-symbols-outlined text-white text-3xl">play_circle</span>
+                        </div>
+                      </div>
+                      {/* Info */}
+                      <div className="p-3 space-y-1">
+                        <h4 className="text-sm font-bold truncate" style={{ color: C.text }}>{p.title || "Untitled"}</h4>
+                        <div className="flex items-center gap-2 text-[10px]" style={{ color: C.textDim }}>
+                          <span>{new Date(p.createdAt).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>{Math.floor(p.totalSeconds / 60)}:{String(Math.round(p.totalSeconds % 60)).padStart(2, "0")}</span>
+                          <span>•</span>
+                          <span className="uppercase">{p.quality}</span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8" style={{ color: C.textDim }}>
+                <span className="material-symbols-outlined text-4xl mb-2 block" style={{ opacity: 0.2 }}>folder_open</span>
+                <p className="text-sm">No projects yet. Generate a video first!</p>
+              </div>
+            )}
+
+            {/* Create New button */}
+            <div className="text-center">
+              <a href="/" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg transition-all hover:scale-[1.02]" style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.accentDim})` }}>
+                <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                Create New Video
+              </a>
+            </div>
           </div>
         </div>
       ) : isLoading ? (
@@ -505,10 +698,12 @@ function EditorInner() {
         {/* Menu items with dropdowns */}
         {[
           { label: "File", items: [
+            { label: "Open Project...", icon: "folder_open", action: () => { setScriptData(null); }, shortcut: "Ctrl+O" },
             { label: "Import Media...", icon: "upload", action: () => importFileRef.current?.click() },
+            { divider: true },
             { label: "Export Video", icon: "movie", action: () => setShowExport(true), shortcut: "Ctrl+E" },
             { divider: true },
-            { label: "Back to Script", icon: "arrow_back", action: () => router.push("/script") },
+            { label: "Back to Dashboard", icon: "home", action: () => router.push("/") },
           ]},
           { label: "Edit", items: [
             { label: "Undo", icon: "undo", action: undo, disabled: !canUndo, shortcut: "Ctrl+Z" },
