@@ -563,6 +563,32 @@ export default function PropertiesPanel() {
                   Apply Filter
                 </button>
               </div>
+              <div className="flex gap-1 mt-1">
+                <button
+                  onClick={() => {
+                    scenes.forEach(s => updateScene(s.id, { transition: "none", transitionDuration: 0 }));
+                    showStatus("All transitions removed", "success");
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1 text-[9px] py-1.5 rounded-lg bg-red-500/10 text-red-400/80 hover:text-red-400 hover:bg-red-500/20 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[12px]">link_off</span>
+                  Remove All Transitions
+                </button>
+                <button
+                  onClick={() => {
+                    scenes.forEach((s) => {
+                      if (s.trackId === "v1") {
+                        updateScene(s.id, { transition: s.orderIndex === 0 ? "none" : "fade", transitionDuration: 0.5 });
+                      }
+                    });
+                    showStatus("Default transitions applied", "success");
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1 text-[9px] py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400/80 hover:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[12px]">auto_fix_high</span>
+                  Default Transitions
+                </button>
+              </div>
             </div>
           </>
         )}

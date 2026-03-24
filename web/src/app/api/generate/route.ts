@@ -412,7 +412,8 @@ ${extractedText}
 INSTRUCTIONS:
 - Parse the story into a series of visual scenes following a clear dramatic arc: HOOK → Setup → Rising Tension → Climax → Resolution
 - Scene 1 MUST be a cold open — drop viewers into the most dramatic or intriguing moment
-- Each scene should be 6-12 seconds of narration
+- Each scene should be 12-16 seconds of dense narration (approx. 3-4 sentences per scene)
+- Screenwriting rule: 1 page = 1 minute. Ensure you write ENOUGH dialogue for each scene!
 - The narration should be adapted from the story — rewrite as compelling cinematic voiceover (not word-for-word copy)
 - Vary the emotional tempo: tense → reflective → explosive → quiet → revelation
 - Include "breathing room" — not every scene should be high-intensity
@@ -448,9 +449,9 @@ Format as JSON:
   },
   "scenes": [
     {
-      "narration": "Voiceover text adapted from the story",
+      "narration": "Voiceover text adapted from the story. Must be 3-4 sentences (approx 12-16 seconds worth) to ensure the scene has enough dialogue.",
       "visual_prompt": "MUST START with the character's full physical description, then camera angle, lighting, mood, setting",
-      "duration_estimate_seconds": 8,
+      "duration_estimate_seconds": 15,
       "camera_angle": "medium wide shot",
       "lighting": "warm afternoon light",
       "mood": "contemplative",
@@ -679,12 +680,13 @@ ${aestheticRules}
 SCRIPT OUTPUT:
 The target video duration is ${durationMinutes} minute(s) (${durationMinutes * 60} seconds total).
 Generate approximately ${"SCENE_COUNT_PLACEHOLDER"} scenes to fill this duration.
-Each scene should be roughly 6-12 seconds of narration.
+Each scene MUST have 12-18 seconds of dense narration (approx. 3-5 sentences). 
+Screenwriting rule: 1 page = 1 minute. Write thick, detailed dialogue paragraphs so the scenes are substantial!
 
 Each scene must have:
-- narration: The voiceover text (cinematic, immersive, emotionally engaging)
+- narration: The voiceover text (cinematic, immersive, emotionally engaging, 3-5 sentences long!)
 - visual_prompt: Detailed AI image generation prompt describing the exact visual moment (camera angle, lighting, mood, subject). MUST include the FULL physical description of any character who appears.
-- duration_estimate_seconds: Duration based on narration length (typically 6-12 seconds per scene)
+- duration_estimate_seconds: Duration based on narration length (typically 12-18 seconds per scene)
 - characters: Array of character names that appear in this scene
 
 The JSON response must also include a top-level "character_identities" object mapping each character name to their LOCKED physical description. Example:
@@ -714,9 +716,9 @@ Format your response as a JSON object with:
   },
   "scenes": [
     {
-      "narration": "The voiceover text — cinematic, emotionally engaging, tells the story",
+      "narration": "The voiceover text — cinematic, emotionally engaging, tells the story. MUST be 3-5 sentences long to fill 12-18 seconds of screen time.",
       "visual_prompt": "MUST START with the character's full physical description from character_identities, then camera angle, action, setting, lighting, mood, color palette",
-      "duration_estimate_seconds": 8,
+      "duration_estimate_seconds": 15,
       "camera_angle": "e.g. wide establishing, close-up, tracking shot, aerial, low angle, over-the-shoulder",
       "lighting": "e.g. golden hour, harsh fluorescent, neon-lit, candlelight, overcast",
       "mood": "e.g. tense, hopeful, chaotic, melancholic, triumphant",
@@ -734,7 +736,8 @@ ${"CONTINUATION_PLACEHOLDER"}
 `;
 
     // STEP 3: Generate the script — chunked for long durations
-    const totalScenesTarget = Math.ceil(durationMinutes * 60 / 8);
+    // Adjusted math: 15 seconds per scene means ~4 scenes per minute
+    const totalScenesTarget = Math.ceil(durationMinutes * 60 / 15);
     const CHUNK_SIZE = 25; // max scenes per AI call — keeps response reliable
 
     if (continueFrom || endStory) {

@@ -328,10 +328,14 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           const audio = new Audio(scene.audioUrl!);
           audio.addEventListener("loadedmetadata", () => {
             const audioDur = audio.duration;
-            // Scene should be at least audioDuration + 0.8s buffer
-            const needed = audioDur + 0.8;
-            if (isFinite(needed) && needed > scene.duration) {
-              updates.push({ id: scene.id, duration: Math.ceil(needed * 10) / 10 });
+            // Scene should match the exact audio duration with a tiny buffer
+            const needed = audioDur + 0.2;
+            if (isFinite(needed)) {
+              const exactNeeded = Math.ceil(needed * 10) / 10;
+              // Update the Audio clip itself
+              updates.push({ id: scene.id, duration: exactNeeded });
+              // Also update the corresponding Video clip (which is always scene.id - 1 in our generation scheme)
+              updates.push({ id: scene.id - 1, duration: exactNeeded });
             }
             resolve();
           });
@@ -340,10 +344,12 @@ export function EditorProvider({ children }: { children: ReactNode }) {
         });
       }));
 
+      // Apply updates to all scenes in history-friendly way without pushing a massive initial state history
       if (updates.length > 0) {
         setScenesRaw(prev => prev.map(s => {
           const u = updates.find(up => up.id === s.id);
-          return u ? { ...s, duration: u.duration } : s;
+          // Only update if the new duration is significantly different (prevents infinite loop/jitter)
+          return u && Math.abs(s.duration - u.duration) > 0.2 ? { ...s, duration: u.duration } : s;
         }));
       }
     };
