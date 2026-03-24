@@ -638,7 +638,7 @@ function EditorInner() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col overflow-hidden"
+      className="editor-container relative flex-1 w-full h-full flex flex-col overflow-hidden"
       style={{ background: C.bg, color: C.text, fontFamily: "Inter, 'SF Pro Display', -apple-system, system-ui, sans-serif" }}
       onDragOver={(e) => { e.preventDefault(); setIsDragOverEditor(true); }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setIsDragOverEditor(false); }}
