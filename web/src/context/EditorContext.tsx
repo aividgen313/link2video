@@ -219,20 +219,30 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 
   // Initialize / re-initialize scenes whenever scriptData changes.
   useEffect(() => {
-    if (!scriptData?.scenes?.length) return;
+    if (!scriptData?.scenes?.length) {
+      setIsInitialized(false);
+      return;
+    }
+
+    setIsInitialized(false);
 
     // Check if we have native editor scenes in AppContext (restored from storage)
-    // Using a type cast since we added these to ProjectState
     const savedScenes = (scriptData as any).editorScenes;
     const savedTracks = (scriptData as any).editorTracks;
 
     if (savedScenes && Array.isArray(savedScenes) && savedScenes.length > 0) {
       setScenesRaw(savedScenes);
       if (savedTracks) setTracks(savedTracks);
+      
+      // Reset history when restoring a new project
+      historyRef.current = [];
+      futureRef.current = [];
+      
       setIsInitialized(true);
       return;
     }
 
+    // Default: Map AI script scenes to Editor scenes (V1/A1 pairs)
     const editorScenes: EditorScene[] = [];
     scriptData.scenes.forEach((s: Scene, i: number) => {
       const dur = sceneDurations[s.id] || s.duration_estimate_seconds || 8;
@@ -240,7 +250,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       // 1. Video Clip (V1)
       editorScenes.push({
         id: s.id * 10,
-        orderIndex: i,
+        orderIndex: i * 2,
         trackId: "v1",
         narration: s.narration || "",
         visual_prompt: s.visual_prompt || "",
@@ -267,7 +277,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       if (sceneAudioUrls[s.id]) {
         editorScenes.push({
           id: s.id * 10 + 1,
-          orderIndex: i,
+          orderIndex: i * 2 + 1,
           trackId: "a1",
           narration: s.narration || "",
           visual_prompt: "",
@@ -302,18 +312,24 @@ export function EditorProvider({ children }: { children: ReactNode }) {
         setSelectedSceneIds(new Set([firstVid.id]));
       }
     }
+    setTracks(DEFAULT_TRACKS); // Reset to default tracks for new generation
     setIsInitialized(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scriptData]);
 
 
   // Measure actual audio durations and adjust scene durations if they're too short
   const audioMeasuredRef = useRef(false);
+  const lastAudioStateRef = useRef<string>("");
 
   // Reset audioMeasuredRef when a new project loads so durations are re-measured
   useEffect(() => {
-    audioMeasuredRef.current = false;
-  }, [scriptData]);
+    // Only reset if it's actually a different set of audio URLs
+    const audioFingerprint = JSON.stringify(Object.values(sceneAudioUrls));
+    if (audioFingerprint !== lastAudioStateRef.current) {
+      audioMeasuredRef.current = false;
+      lastAudioStateRef.current = audioFingerprint;
+    }
+  }, [sceneAudioUrls]);
 
   useEffect(() => {
     if (!isInitialized || audioMeasuredRef.current || scenes.length === 0) return;

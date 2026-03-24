@@ -109,23 +109,23 @@ export default function PreviewPlayer() {
     const video = videoRef.current;
     if (!video || !selectedScene?.aiVideoUrl) return;
 
+    const targetTime = Math.max(0, sceneLocalTime);
+    
     if (isPlaying) {
-      // Sync video time to scene local time
-      const targetTime = sceneLocalTime;
-      if (Math.abs(video.currentTime - targetTime) > 0.5) {
-        video.currentTime = Math.max(0, targetTime);
+      // Sync video time if it drifts significantly (more than 0.3s)
+      if (Math.abs(video.currentTime - targetTime) > 0.3) {
+        video.currentTime = targetTime;
       }
       video.play().catch(() => {});
     } else {
       video.pause();
-      // When paused, seek to current scene time
-      const targetTime = Math.max(0, sceneLocalTime);
-      if (isFinite(targetTime)) {
+      // Always seek to target time when paused (scrubbing)
+      if (isFinite(targetTime) && Math.abs(video.currentTime - targetTime) > 0.05) {
         video.currentTime = targetTime;
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, selectedScene?.id]);
+  }, [isPlaying, selectedScene?.id, playheadPosition]);
 
   // ── Audio playback sync (Multi-Track) ──
   useEffect(() => {

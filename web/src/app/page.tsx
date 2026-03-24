@@ -250,7 +250,9 @@ export default function Home() {
         }
         if (v.topic) setUrl(v.topic);
         if (v.angle) setAngle(v.angle);
-        router.push("/editor");
+        if (v.activeStyle) setActiveStyle(v.activeStyle);
+        if (v.settingText) setSettingText(v.settingText);
+        router.push(`/editor?projectId=${v.id}`);
       } else {
         setErrorMsg("Project data not found — it may have been cleared by browser storage. Try regenerating.");
       }

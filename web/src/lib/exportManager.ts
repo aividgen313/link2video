@@ -187,22 +187,19 @@ class ExportManager {
       const H = payload.videoDimension?.height || 720;
 
       // Build scene payloads for server
-      const serverScenes = visibleScenes
-        .filter((s) => s.trackId === "v1" || !s.trackId)
-        .sort((a: any, b: any) => a.orderIndex - b.orderIndex)
-        .map((scene: any, i: number) => {
-          // Find matching audio scene
-          const audioScene = visibleScenes.find(
-            (s) => s.trackId === "a1" && s.orderIndex === scene.orderIndex && !s.isMuted
-          );
-          return {
-            image: scene.imageUrl || null,
-            video: scene.aiVideoUrl || null,
-            audio: audioScene?.audioUrl || null,
-            duration: scene.duration || 8,
-            narration: scene.narration || "",
-          };
-        });
+      const videoScenes = visibleScenes.filter((s) => s.trackId === "v1" || !s.trackId).sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+      const audioScenes = visibleScenes.filter((s) => s.trackId === "a1").sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+
+      const serverScenes = videoScenes.map((scene: any, i: number) => {
+        const matchingAudio = audioScenes[i];
+        return {
+          image: scene.imageUrl || null,
+          video: scene.aiVideoUrl || null,
+          audio: matchingAudio && !matchingAudio.isMuted ? matchingAudio.audioUrl : null,
+          duration: scene.duration || 8,
+          narration: scene.narration || "",
+        };
+      });
 
       if (serverScenes.length === 0) {
         throw new Error("No scenes with images to export");

@@ -11,7 +11,12 @@ export type VideoHistoryItem = {
   dimensionId: string;
   dimensionLabel: string;
   totalSeconds: number;
+  activeStyle?: string | null;
+  settingText?: string;
   createdAt: string;
+  url?: string; // Added
+  mode?: string; // Added
+  audioFile?: string | null; // Added
 };
 
 export type ProjectState = {
@@ -203,7 +208,9 @@ export async function saveProjectState(state: ProjectState): Promise<void> {
       quality: "basic" as const,
       dimensionId: "16:9",
       dimensionLabel: "16:9",
-      totalSeconds: 0,
+      totalSeconds: 0, // This will be updated by saveToHistory if an actual item exists
+      activeStyle: null, // Default for stub
+      settingText: "", // Default for stub
       createdAt: new Date().toISOString(),
     };
     saveProjectToCloud(state.id, state, historyItem);

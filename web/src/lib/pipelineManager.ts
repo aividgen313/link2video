@@ -56,6 +56,8 @@ export interface PipelineConfig {
   url: string;
   mode: string;
   audioFile: string | null;
+  activeStyle?: string | null;
+  settingText?: string;
 }
 
 /** Bridge to push results back into React context */
@@ -541,6 +543,8 @@ class PipelineManager {
         dimensionId: config.videoDimension.id,
         dimensionLabel: config.videoDimension.label,
         totalSeconds: totalSecs,
+        activeStyle: config.activeStyle || null,
+        settingText: config.settingText || "",
         createdAt: new Date().toISOString(),
       });
 
@@ -689,6 +693,8 @@ class PipelineManager {
         dimensionId: config.videoDimension.id,
         dimensionLabel: config.videoDimension.label,
         totalSeconds: totalSecs,
+        activeStyle: config.activeStyle || null,
+        settingText: config.settingText || "",
         createdAt: new Date().toISOString(),
       });
 

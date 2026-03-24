@@ -344,6 +344,8 @@ export default function ScriptBuilder() {
         url,
         mode,
         audioFile,
+        activeStyle,
+        settingText,
       },
       {
         setSceneAudioUrls: (urls) => setSceneAudioUrls(urls),

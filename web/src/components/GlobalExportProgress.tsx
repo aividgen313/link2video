@@ -29,7 +29,10 @@ function ExportCard() {
   const [data, setData] = useState<ExportProgressData>(exportManager.getState());
   const autoDownloaded = useRef(false);
 
-  useEffect(() => exportManager.subscribe(setData), []);
+  useEffect(() => {
+    const unsub = exportManager.subscribe(setData);
+    return () => { unsub(); };
+  }, []);
 
   useEffect(() => {
     if (data.state === "complete" && data.downloadUrl && !autoDownloaded.current) {
@@ -129,7 +132,8 @@ function PipelineCard() {
   const autoAdvanced = useRef(false);
 
   useEffect(() => {
-    pipelineManager.subscribe(setData);
+    const unsub = pipelineManager.subscribe(setData);
+    return () => { unsub(); };
   }, []);
 
   if (data.phase === "idle") return null;
@@ -213,7 +217,7 @@ function PipelineCard() {
         {isComplete ? (
           <>
             <button
-              onClick={() => router.push("/editor")}
+              onClick={() => router.push(`/editor?project=${data.projectId || "draft"}`)}
               className="flex-1 py-1.5 rounded-xl text-xs font-bold text-white bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 flex items-center justify-center gap-1.5 press-scale transition-all"
             >
               <span className="material-symbols-outlined text-sm">movie_edit</span>

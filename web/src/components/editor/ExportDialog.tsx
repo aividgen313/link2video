@@ -30,20 +30,12 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
 
   const handleStartExport = () => {
     const videoScenes = visibleScenes.filter(s => s.trackId === "v1").sort((a, b) => a.orderIndex - b.orderIndex);
-    const audioScenes = visibleScenes.filter(s => s.trackId === "a1");
+    const audioScenes = visibleScenes.filter(s => s.trackId === "a1").sort((a, b) => a.orderIndex - b.orderIndex);
 
-    const muxedScenes = videoScenes.map(vScene => {
-      const matchingAudio = audioScenes.find(a => a.orderIndex === vScene.orderIndex);
-      return {
-        ...vScene,
-        audioUrl: matchingAudio ? matchingAudio.audioUrl : null,
-        volume: matchingAudio && !matchingAudio.isMuted ? matchingAudio.volume : 0,
-        isMuted: matchingAudio ? matchingAudio.isMuted : true
-      };
-    });
+
 
     exportManager.startExport({
-      scenes: muxedScenes,
+      scenes: visibleScenes,
       musicTrack,
       videoDimension,
       quality,

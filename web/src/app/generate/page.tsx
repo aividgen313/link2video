@@ -21,7 +21,10 @@ export default function VideoGeneration() {
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => { setHasMounted(true); }, []);
-  useEffect(() => pipelineManager.subscribe(setPipeline), []);
+  useEffect(() => {
+    const unsub = pipelineManager.subscribe(setPipeline);
+    return () => { unsub(); };
+  }, []);
 
   if (!hasMounted) return null;
 
@@ -159,7 +162,7 @@ export default function VideoGeneration() {
                     Download Video
                   </button>
                   <button
-                    onClick={() => router.push("/editor")}
+                    onClick={() => router.push(`/editor?project=${pipeline.projectId || "draft"}`)}
                     disabled={!showVideo}
                     className="px-6 py-3 rounded-xl bg-secondary text-on-secondary font-headline font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
