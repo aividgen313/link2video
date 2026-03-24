@@ -177,6 +177,40 @@ export function useEditorContext() {
   return ctx;
 }
 
+// ── Smart auto-assignment helpers ──
+
+const TRANSITION_ROTATE: TransitionType[] = [
+  "fade", "dissolve", "fade", "wipe-left", "fade", "dissolve", "fade", "wipe-right",
+];
+
+function pickTransition(scene: Scene, index: number, total: number): TransitionType {
+  if (index === 0) return "none"; // first scene has no incoming transition
+
+  const mood = (scene.mood || "").toLowerCase();
+  const camera = (scene.camera_angle || "").toLowerCase();
+  const text = `${mood} ${camera} ${(scene.narration || "").toLowerCase()}`;
+
+  if (/emotional|touching|sad|heartfelt|tender|grief|powerful|dramatic/.test(text)) return "dissolve";
+  if (/fast|action|energetic|intense|exciting|rapid|dynamic/.test(text)) return index % 2 === 0 ? "wipe-left" : "wipe-right";
+  if (/establishing|wide|aerial|birds.eye|overview|landscape/.test(text)) return "zoom-in";
+  if (/close.?up|portrait|intimate|face|detailed/.test(text)) return "fade";
+  if (index === total - 1) return "fade"; // last scene always fades out cleanly
+
+  return TRANSITION_ROTATE[index % TRANSITION_ROTATE.length];
+}
+
+function pickKenBurns(scene: Scene, index: number): KenBurnsDirection {
+  const text = `${(scene.camera_angle || "").toLowerCase()} ${(scene.narration || "").toLowerCase()}`;
+  if (/wide|establishing|aerial|landscape|overview|exterior/.test(text)) return "zoom-in";
+  if (/close.?up|tight|portrait|face|detail/.test(text)) return "zoom-out";
+  if (/left|west|backward|retreat/.test(text)) return "pan-left";
+  if (/right|east|forward|advance/.test(text)) return "pan-right";
+  if (/up|rise|ascend|sky|height/.test(text)) return "pan-up";
+  if (/down|fall|descend|ground/.test(text)) return "pan-down";
+  // Alternate zoom-in / zoom-out for visual variety
+  return index % 2 === 0 ? "zoom-in" : "zoom-out";
+}
+
 // ── Provider ──
 
 const MAX_HISTORY = 50;
@@ -233,10 +267,10 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       camera_angle: s.camera_angle,
       lighting: s.lighting,
       mood: s.mood,
-      transition: i === 0 ? "none" : "fade",
+      transition: pickTransition(s, i, scriptData.scenes.length),
       transitionDuration: 0.5,
       filter: "none",
-      kenBurns: "zoom-in",
+      kenBurns: pickKenBurns(s, i),
       playbackSpeed: 1,
       volume: 1,
       isMuted: false,

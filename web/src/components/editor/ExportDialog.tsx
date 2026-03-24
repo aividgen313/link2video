@@ -4,6 +4,20 @@ import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
 import { useEditorContext } from "@/context/EditorContext";
 import { useAppContext } from "@/context/AppContext";
+import type { TransitionType } from "@/context/EditorContext";
+
+// Map editor transition names → FFmpeg xfade transition names
+const XFADE_TYPE: Record<TransitionType, string> = {
+  none: "none",
+  fade: "fade",
+  dissolve: "dissolve",
+  "wipe-left": "wipeleft",
+  "wipe-right": "wiperight",
+  "zoom-in": "zoomin",
+  "zoom-out": "fadeblack",
+  "slide-left": "slideleft",
+  "slide-right": "slideright",
+};
 
 type ExportQuality = "draft" | "standard" | "high";
 type ExportFormat = "mp4" | "webm";
@@ -80,69 +94,73 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
       });
 
       const totalScenes = visibleScenes.length;
-      const concatEntries: string[] = [];
+
+      // Build overlay drawtext filter string for a scene
+      const buildOverlayFilter = (scene: typeof visibleScenes[0]): string => {
+        if (!scene.overlays?.length) return "";
+        return scene.overlays.map((ov: import("@/context/EditorContext").TextOverlay) => {
+          const safeText = (ov.text || "").replace(/'/g, "\\'").replace(/:/g, "\\:");
+          const x = ov.position === "center" ? "(w-text_w)/2"
+            : ov.position === "lower-third" ? "(w-text_w)/2"
+            : ov.position === "top" ? "(w-text_w)/2"
+            : `${Math.round((ov.x / 100) * (videoDimension?.width || 1280))}`;
+          const y = ov.position === "center" ? "(h-text_h)/2"
+            : ov.position === "lower-third" ? "h-text_h-60"
+            : ov.position === "top" ? "30"
+            : `${Math.round((ov.y / 100) * (videoDimension?.height || 720))}`;
+          const color = (ov.color || "#ffffff").replace("#", "0x");
+          const shadow = ov.shadowEnabled
+            ? `:shadowcolor=${(ov.shadowColor || "#000000").replace("#", "0x")}:shadowx=${ov.shadowX || 2}:shadowy=${ov.shadowY || 2}`
+            : "";
+          return `drawtext=text='${safeText}':fontsize=${ov.fontSize || 48}:fontcolor=${color}:x=${x}:y=${y}:font='sans-serif'${shadow}`;
+        }).join(",");
+      };
+
+      // ── Phase 1: Create per-scene video-only + audio-only files ──
+      // Tracks which scene indices were actually processed (skip scenes with no media)
+      const processed: number[] = [];
 
       for (let i = 0; i < totalScenes; i++) {
         const scene = visibleScenes[i];
         setCurrentScene(i + 1);
-        setStatus(`Processing scene ${i + 1}/${totalScenes}: ${scene.narration.slice(0, 40)}...`);
-        setProgress(Math.round(((i) / totalScenes) * 80));
+        setStatus(`Rendering scene ${i + 1}/${totalScenes}...`);
+        setProgress(Math.round((i / totalScenes) * 65));
 
         const imgFile = `img${i}.jpg`;
-        const vidFile = `vid${i}.mp4`;
+        const vonlyFile = `vonly${i}.mp4`; // video stream only
+        const aonlyFile = `aonly${i}.mp3`; // audio stream only
 
-        // Build overlay drawtext filters for this scene
-        const buildOverlayFilter = (): string => {
-          if (!scene.overlays?.length) return "";
-          return scene.overlays.map((ov) => {
-            const safeText = (ov.text || "").replace(/'/g, "\\'").replace(/:/g, "\\:");
-            const x = ov.position === "center" ? "(w-text_w)/2"
-              : ov.position === "lower-third" ? "(w-text_w)/2"
-              : ov.position === "top" ? "(w-text_w)/2"
-              : `${Math.round((ov.x / 100) * (videoDimension?.width || 1280))}`;
-            const y = ov.position === "center" ? "(h-text_h)/2"
-              : ov.position === "lower-third" ? "h-text_h-60"
-              : ov.position === "top" ? "30"
-              : `${Math.round((ov.y / 100) * (videoDimension?.height || 720))}`;
-            const color = (ov.color || "#ffffff").replace("#", "0x");
-            const shadow = ov.shadowEnabled
-              ? `:shadowcolor=${(ov.shadowColor || "#000000").replace("#", "0x")}:shadowx=${ov.shadowX || 2}:shadowy=${ov.shadowY || 2}`
-              : "";
-            return `drawtext=text='${safeText}':fontsize=${ov.fontSize || 48}:fontcolor=${color}:x=${x}:y=${y}:font='sans-serif'${shadow}`;
-          }).join(",");
-        };
-
+        // ── Video ──
         if (scene.aiVideoUrl) {
-          await ffmpeg.writeFile(vidFile, await fetchFile(scene.aiVideoUrl));
-          // Apply text overlays to AI video if any
-          const overlayFilter = buildOverlayFilter();
-          if (overlayFilter) {
-            const overlaidFile = `ovl${i}.mp4`;
-            await ffmpeg.exec(["-i", vidFile, "-vf", overlayFilter, "-c:a", "copy", overlaidFile]);
-            await ffmpeg.writeFile(vidFile, await ffmpeg.readFile(overlaidFile));
+          await ffmpeg.writeFile(vonlyFile, await fetchFile(scene.aiVideoUrl));
+          // Strip audio from AI video
+          await ffmpeg.exec(["-i", vonlyFile, "-an", "-c:v", "copy", `vtmp${i}.mp4`]);
+          await ffmpeg.writeFile(vonlyFile, await ffmpeg.readFile(`vtmp${i}.mp4`));
+          // Apply overlays if any
+          const ovf = buildOverlayFilter(scene);
+          if (ovf) {
+            await ffmpeg.exec(["-i", vonlyFile, "-vf", ovf, "-c:v", "libx264", `-crf`, String(preset.crf), `ovl${i}.mp4`]);
+            await ffmpeg.writeFile(vonlyFile, await ffmpeg.readFile(`ovl${i}.mp4`));
           }
         } else if (scene.imageUrl) {
-          await ffmpeg.writeFile(imgFile, await fetchFile(scene.imageUrl));
           const w = videoDimension?.width || 1280;
           const h = videoDimension?.height || 720;
+          await ffmpeg.writeFile(imgFile, await fetchFile(scene.imageUrl));
 
-          // Ken Burns zoom/pan direction per scene
-          const kenBurnsFilter = (() => {
+          const kbFilter = (() => {
             const d = scene.duration * preset.fps;
             switch (scene.kenBurns) {
-              case "zoom-out": return `zoompan=z='max(1.3-0.0015*on,1.0)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
-              case "pan-left": return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)+on*0.5':y='ih/2-(ih/zoom/2)':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
+              case "zoom-out":  return `zoompan=z='max(1.3-0.0015*on,1.0)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
+              case "pan-left":  return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)+on*0.5':y='ih/2-(ih/zoom/2)':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
               case "pan-right": return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)-on*0.5':y='ih/2-(ih/zoom/2)':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
-              case "pan-up": return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)+on*0.3':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
-              case "pan-down": return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)-on*0.3':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
-              default: return `zoompan=z='min(zoom+0.0015,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
+              case "pan-up":    return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)+on*0.3':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
+              case "pan-down":  return `zoompan=z='1.2':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)-on*0.3':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
+              default:          return `zoompan=z='min(zoom+0.0015,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${d}:s=${w}x${h}:fps=${preset.fps}`;
             }
           })();
 
-          const overlayFilter = buildOverlayFilter();
-          const vf = overlayFilter
-            ? `scale=${w * 2}:${h * 2},${kenBurnsFilter},${overlayFilter}`
-            : `scale=${w * 2}:${h * 2},${kenBurnsFilter}`;
+          const ovf = buildOverlayFilter(scene);
+          const vf = ovf ? `scale=${w * 2}:${h * 2},${kbFilter},${ovf}` : `scale=${w * 2}:${h * 2},${kbFilter}`;
 
           await ffmpeg.exec([
             "-loop", "1", "-i", imgFile,
@@ -150,51 +168,112 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
             "-c:v", "libx264", "-t", String(scene.duration),
             "-pix_fmt", "yuv420p", "-r", String(preset.fps),
             "-crf", String(preset.crf),
-            vidFile,
+            vonlyFile,
           ]);
         } else {
-          continue;
+          continue; // No media for this scene — skip
         }
 
+        // ── Audio ──
         if (scene.audioUrl && !scene.isMuted) {
-          const audioFile = `audio${i}.mp3`;
-          await ffmpeg.writeFile(audioFile, await fetchFile(scene.audioUrl));
-          const mergedFile = `merged${i}.mp4`;
+          await ffmpeg.writeFile(aonlyFile, await fetchFile(scene.audioUrl));
+          // Normalize to standard format + apply volume
           await ffmpeg.exec([
-            "-i", vidFile, "-i", audioFile,
-            "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
-            "-filter:a", `volume=${scene.volume}`,
-            "-shortest", mergedFile,
+            "-i", aonlyFile,
+            "-af", `volume=${scene.volume}`,
+            "-ar", "44100", "-ac", "2",
+            `anorm${i}.mp3`,
           ]);
-          concatEntries.push(`file '${mergedFile}'`);
+          await ffmpeg.writeFile(aonlyFile, await ffmpeg.readFile(`anorm${i}.mp3`));
         } else {
-          const silentFile = `silent${i}.mp4`;
+          // Generate silence matching scene duration
           await ffmpeg.exec([
-            "-i", vidFile,
-            "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
-            "-c:v", "copy", "-c:a", "aac", "-shortest",
-            silentFile,
+            "-f", "lavfi", "-i", `anullsrc=r=44100:cl=stereo`,
+            "-t", String(scene.duration),
+            "-c:a", "libmp3lame", aonlyFile,
           ]);
-          concatEntries.push(`file '${silentFile}'`);
         }
+
+        processed.push(i);
       }
 
-      if (concatEntries.length === 0) {
+      if (processed.length === 0) {
         setStatus("No scenes to export");
         setIsExporting(false);
         if (timerRef.current) clearInterval(timerRef.current);
         return;
       }
 
-      setStatus("Stitching scenes together...");
+      // ── Phase 2: Chain scenes with xfade (video) + acrossfade (audio) ──
+      setStatus("Applying transitions...");
+      setProgress(70);
+
+      let currentV = `vonly${processed[0]}.mp4`;
+      let currentA = `aonly${processed[0]}.mp3`;
+      let outputDuration = visibleScenes[processed[0]].duration;
+
+      for (let pi = 1; pi < processed.length; pi++) {
+        const idx = processed[pi];
+        const scene = visibleScenes[idx];
+        const td = scene.transition !== "none" ? (scene.transitionDuration || 0.5) : 0;
+        const xfadeType = XFADE_TYPE[scene.transition as TransitionType] || "fade";
+
+        const nextV = `vonly${idx}.mp4`;
+        const nextA = `aonly${idx}.mp3`;
+        const outV = `v_merge${pi}.mp4`;
+        const outA = `a_merge${pi}.mp3`;
+
+        if (td > 0 && scene.transition !== "none") {
+          // xfade offset = how far into the current output the transition starts
+          const xfadeOffset = Math.max(0, outputDuration - td);
+
+          // Video crossfade
+          await ffmpeg.exec([
+            "-i", currentV, "-i", nextV,
+            "-filter_complex",
+            `[0:v][1:v]xfade=transition=${xfadeType}:duration=${td}:offset=${xfadeOffset.toFixed(3)}[v]`,
+            "-map", "[v]",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            "-r", String(preset.fps), "-crf", String(preset.crf),
+            outV,
+          ]);
+
+          // Audio crossfade
+          await ffmpeg.exec([
+            "-i", currentA, "-i", nextA,
+            "-filter_complex",
+            `[0:a][1:a]acrossfade=d=${td}:c1=tri:c2=tri[a]`,
+            "-map", "[a]", "-ar", "44100", "-ac", "2",
+            outA,
+          ]);
+
+          outputDuration = outputDuration + scene.duration - td;
+        } else {
+          // Hard cut — concat demuxer for this pair
+          const concatTxt = `concatpair${pi}.txt`;
+          await ffmpeg.writeFile(concatTxt, new TextEncoder().encode(`file '${currentV}'\nfile '${nextV}'`));
+          await ffmpeg.exec(["-f", "concat", "-safe", "0", "-i", concatTxt, "-c", "copy", outV]);
+
+          const aconcatTxt = `aconcatpair${pi}.txt`;
+          await ffmpeg.writeFile(aconcatTxt, new TextEncoder().encode(`file '${currentA}'\nfile '${nextA}'`));
+          await ffmpeg.exec(["-f", "concat", "-safe", "0", "-i", aconcatTxt, "-c", "copy", outA]);
+
+          outputDuration += scene.duration;
+        }
+
+        currentV = outV;
+        currentA = outA;
+        setProgress(70 + Math.round((pi / (processed.length - 1)) * 15));
+      }
+
+      // ── Phase 3: Merge final video + audio tracks ──
+      setStatus("Finalizing video...");
       setProgress(85);
-      const concatContent = concatEntries.join("\n");
-      await ffmpeg.writeFile("concat.txt", new TextEncoder().encode(concatContent));
 
       await ffmpeg.exec([
-        "-f", "concat", "-safe", "0", "-i", "concat.txt",
-        "-c:v", "libx264", "-c:a", "aac",
-        "-crf", String(preset.crf),
+        "-i", currentV, "-i", currentA,
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
+        "-shortest",
         "master.mp4",
       ]);
 
