@@ -426,10 +426,16 @@ VISUAL PROMPT RULES:
 - NEVER use the same camera angle for 3+ consecutive scenes
 - Use camera movement to match emotion: slow push-in for tension, pull-back for revelation, handheld for chaos
 - Include specific lighting: "golden hour warmth", "harsh fluorescent", "neon-soaked", "candlelit intimacy", "overcast gray"
-- Maintain visual consistency for recurring characters and locations
-- Be specific about character appearances in EVERY scene they appear
 - visual_prompt must be a PURE CINEMATIC DESCRIPTION — NEVER include metadata like "Name:", "Height:", "Age:", "Role:", character stats, or text overlays
 - Write visual_prompt like a movie shot description, NOT a character profile sheet
+
+ABSOLUTE RULE — CHARACTER IDENTITY LOCK (NON-NEGOTIABLE):
+- The MAIN CHARACTER must look IDENTICAL in EVERY SINGLE scene — same skin tone, same face, same hair, same build
+- COPY-PASTE the same physical description into every visual_prompt where a character appears
+- NEVER change a character's race, skin tone, or physical features between scenes
+- If Scene 1 has "a young Black woman with box braids, dark brown skin, athletic build" then EVERY later scene with that character MUST repeat that exact description
+- Each visual_prompt MUST start with the character's full physical description before describing the scene
+- Think of it like a movie — the same actor plays the role from beginning to end
 
 ${aestheticRules}
 
@@ -437,10 +443,13 @@ Format as JSON:
 {
   "title": "Video title based on the story",
   "angle": "The narrative perspective",
+  "character_identities": {
+    "Character Name": "LOCKED physical description that appears verbatim in every visual_prompt featuring this character"
+  },
   "scenes": [
     {
       "narration": "Voiceover text adapted from the story",
-      "visual_prompt": "Detailed visual description with camera angle, lighting, mood, characters",
+      "visual_prompt": "MUST START with the character's full physical description, then camera angle, lighting, mood, setting",
       "duration_estimate_seconds": 8,
       "camera_angle": "medium wide shot",
       "lighting": "warm afternoon light",
@@ -512,20 +521,31 @@ VISUAL PROMPT RULES:
 - visual_prompt must be a PURE CINEMATIC DESCRIPTION — NEVER include metadata like "Name:", "Height:", "Age:", character stats, or text overlays
 - Write visual_prompt like a music video director's shot description, NOT a character sheet
 
+ABSOLUTE RULE — ARTIST/CHARACTER IDENTITY LOCK (NON-NEGOTIABLE):
+- The artist/main character must look IDENTICAL in EVERY SINGLE scene — same skin tone, same face, same hair, same build
+- COPY-PASTE the same physical description into every visual_prompt where they appear
+- NEVER change a character's race, skin tone, or physical features between scenes
+- Every visual_prompt featuring a character MUST start with their full physical description
+- Think of it like a real music video — the same person performs throughout
+
 ${aestheticRules}
 
 Format as JSON:
 {
   "title": "Music Video Title",
   "angle": "Visual concept / theme",
+  "character_identities": {
+    "Artist Name": "LOCKED physical description: skin tone, face, hair, build, style — appears verbatim in every visual_prompt"
+  },
   "scenes": [
     {
       "narration": "Lyrics for this segment (shown as subtitles)",
-      "visual_prompt": "Cinematic visual description for this segment",
+      "visual_prompt": "MUST START with artist's full physical description, then camera angle, action, setting, lighting, mood",
       "duration_estimate_seconds": 30,
       "camera_angle": "tracking shot moving through crowd",
       "lighting": "neon lights, strobing",
-      "mood": "energetic"
+      "mood": "energetic",
+      "characters": ["Artist Name"]
     }
   ]
 }
@@ -618,13 +638,22 @@ VISUAL PROMPT RULES — EXTREME LIKENESS REQUIRED:
 - Think cinematic B-roll, Ken Burns-style photography, atmospheric footage
 - The visual must emotionally reinforce the narration
 
-CRITICAL — PHOTOREALISTIC ACCURACY:
+CRITICAL — PHOTOREALISTIC ACCURACY AND CHARACTER CONSISTENCY:
 - Every person mentioned MUST be described with their EXACT physical appearance: specific skin tone, facial features, hairstyle, body type, clothing, and signature look
 - Every brand/logo MUST include exact colors, font style, logo shape, and design details
 - Every location MUST include specific architectural details, signage, and atmosphere
 - Do NOT use generic descriptions like "a man" or "a basketball player" — describe the EXACT person with unmistakable identifying features
 - The viewer should be able to identify every person and brand INSTANTLY from the image alone
 - Include the person's name naturally in the prompt (e.g. "Michael Jordan, bald head, dark brown skin, athletic build, wearing Bulls #23 jersey")
+
+ABSOLUTE RULE — CHARACTER IDENTITY LOCK (THIS IS NON-NEGOTIABLE):
+- The MAIN CHARACTER must look IDENTICAL in EVERY SINGLE scene from first to last
+- Copy-paste the SAME physical description for the main character into every visual_prompt: same skin tone, same face shape, same hairstyle, same build, same clothing style
+- NEVER change a character's race, skin tone, facial features, or body type between scenes
+- If Scene 1 shows "a young Black man with short dreads, medium brown skin, lean build, wearing a black hoodie" then Scene 8 MUST also describe "a young Black man with short dreads, medium brown skin, lean build" — NOT "a man" or "a figure" or someone who looks different
+- EVERY scene featuring a character must repeat their FULL physical description (skin tone + hair + build + clothing minimum)
+- Think of it like a movie — the same actor plays the role in every scene. The appearance NEVER changes.
+- Add a "characters" array to each scene listing which characters appear, so the system can enforce consistency
 
 CRITICAL — VISUAL PROMPTS MUST BE PURE IMAGE DESCRIPTIONS:
 - visual_prompt must ONLY describe what the camera sees — like a cinematographer's shot description
@@ -654,8 +683,16 @@ Each scene should be roughly 6-12 seconds of narration.
 
 Each scene must have:
 - narration: The voiceover text (cinematic, immersive, emotionally engaging)
-- visual_prompt: Detailed AI image generation prompt describing the exact visual moment (camera angle, lighting, mood, subject)
+- visual_prompt: Detailed AI image generation prompt describing the exact visual moment (camera angle, lighting, mood, subject). MUST include the FULL physical description of any character who appears.
 - duration_estimate_seconds: Duration based on narration length (typically 6-12 seconds per scene)
+- characters: Array of character names that appear in this scene
+
+The JSON response must also include a top-level "character_identities" object mapping each character name to their LOCKED physical description. Example:
+"character_identities": {
+  "Marcus": "young Black man, dark brown skin, short dreadlocks, lean athletic build, angular jawline, brown eyes, wearing black hoodie and jeans",
+  "Detective Garcia": "Latina woman, olive skin, shoulder-length dark hair pulled back, mid-40s, sharp features, wearing gray blazer"
+}
+This identity string MUST be embedded verbatim in EVERY visual_prompt where that character appears. No exceptions.
 
 QUALITY CHECK BEFORE RESPONDING:
 - Does the HOOK make you stop scrolling? (If not, rewrite scene 1)
@@ -672,14 +709,18 @@ Format your response as a JSON object with:
 {
   "title": "Compelling, clickable video title",
   "angle": "The narrative angle/hook",
+  "character_identities": {
+    "Character Name": "LOCKED physical description: skin tone, face shape, hair, build, clothing — this exact string appears in every visual_prompt featuring this character"
+  },
   "scenes": [
     {
       "narration": "The voiceover text — cinematic, emotionally engaging, tells the story",
-      "visual_prompt": "Detailed visual description: subject, action, setting, camera angle, lighting, mood, color palette",
+      "visual_prompt": "MUST START with the character's full physical description from character_identities, then camera angle, action, setting, lighting, mood, color palette",
       "duration_estimate_seconds": 8,
       "camera_angle": "e.g. wide establishing, close-up, tracking shot, aerial, low angle, over-the-shoulder",
       "lighting": "e.g. golden hour, harsh fluorescent, neon-lit, candlelight, overcast",
-      "mood": "e.g. tense, hopeful, chaotic, melancholic, triumphant"
+      "mood": "e.g. tense, hopeful, chaotic, melancholic, triumphant",
+      "characters": ["Character Name"]
     }
   ]
 }

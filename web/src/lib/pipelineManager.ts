@@ -195,19 +195,58 @@ class PipelineManager {
 
   // ── Scene-level asset generators ─────────────────────────────
 
+  /** Build a character identity prefix from scriptData to prepend to every image prompt */
+  private buildCharacterPrefix(config: PipelineConfig, scene: Scene): string {
+    // Source 1: character_identities from Gemini (top-level on scriptData)
+    const identities = config.scriptData.character_identities;
+    // Source 2: characterProfiles from user input
+    const profiles = config.scriptData.characterProfiles;
+    // Which characters appear in this scene?
+    const sceneChars = scene.characters || [];
+
+    const parts: string[] = [];
+
+    if (identities && Object.keys(identities).length > 0) {
+      // Use Gemini-generated locked identities
+      for (const [name, desc] of Object.entries(identities)) {
+        // If scene has a characters list, only include relevant ones
+        if (sceneChars.length === 0 || sceneChars.some(c => c.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(c.toLowerCase()))) {
+          parts.push(`${name}: ${desc}`);
+        }
+      }
+    } else if (profiles && profiles.length > 0) {
+      // Fallback to user-provided profiles
+      for (const p of profiles) {
+        if (sceneChars.length === 0 || sceneChars.some(c => c.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(c.toLowerCase()))) {
+          let desc = `${p.name}: ${p.appearance}`;
+          if (p.clothing) desc += `, wearing ${p.clothing}`;
+          parts.push(desc);
+        }
+      }
+    }
+
+    if (parts.length === 0) return "";
+    return parts.join(". ") + ". ";
+  }
+
   private async generateImage(
     scene: Scene,
     storyboardImages: Record<number, string>,
-    signal: AbortSignal
+    signal: AbortSignal,
+    characterPrefix: string = ""
   ): Promise<{ imageURL: string; imageUUID: string } | null> {
     // Use cached storyboard image if available
     if (storyboardImages[scene.id]) {
       return { imageURL: storyboardImages[scene.id], imageUUID: `cached-${scene.id}` };
     }
+    // Prepend character identity to ensure consistency across scenes
+    const enhancedPrompt = characterPrefix
+      ? `${characterPrefix}${scene.visual_prompt}`
+      : scene.visual_prompt;
     const res = await fetch("/api/runware/image", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: scene.visual_prompt, width: 1280, height: 768 }),
+      body: JSON.stringify({ prompt: enhancedPrompt, width: 1280, height: 768 }),
       signal,
     });
     if (!res.ok) throw new Error(`Image API error: ${res.status}`);
@@ -370,8 +409,9 @@ class PipelineManager {
         console.log(`[pipeline] Scene ${index + 1}/${totalScenes}: starting image + audio...`);
 
         // Step A: Image + Audio in parallel
+        const charPrefix = this.buildCharacterPrefix(config, scene);
         const [imgResult, audioResult] = await Promise.allSettled([
-          this.generateImage(scene, config.storyboardImages, signal),
+          this.generateImage(scene, config.storyboardImages, signal, charPrefix),
           isMusicVideo ? Promise.resolve(null) : this.generateAudio(scene, config.selectedVoice, config.qualityTier === "basic", signal),
         ]);
 

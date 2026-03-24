@@ -78,18 +78,49 @@ export default function ScriptBuilder() {
     : "0.00";
 
   // Generate image for a single scene
+  // Build character identity prefix for image prompts to ensure consistency
+  const getCharacterPrefix = useCallback((scene: Scene) => {
+    if (!scriptData) return "";
+    const identities = scriptData.character_identities;
+    const profiles = scriptData.characterProfiles || characterProfiles;
+    const sceneChars = scene.characters || [];
+    const parts: string[] = [];
+
+    if (identities && Object.keys(identities).length > 0) {
+      for (const [name, desc] of Object.entries(identities)) {
+        if (sceneChars.length === 0 || sceneChars.some(c => c.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(c.toLowerCase()))) {
+          parts.push(`${name}: ${desc}`);
+        }
+      }
+    } else if (profiles && profiles.length > 0) {
+      for (const p of profiles) {
+        if (sceneChars.length === 0 || sceneChars.some(c => c.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(c.toLowerCase()))) {
+          let desc = `${p.name}: ${p.appearance}`;
+          if (p.clothing) desc += `, wearing ${p.clothing}`;
+          parts.push(desc);
+        }
+      }
+    }
+
+    return parts.length > 0 ? parts.join(". ") + ". " : "";
+  }, [scriptData, characterProfiles]);
+
   const generateSceneImage = useCallback(async (scene: Scene) => {
     if (!scene.visual_prompt || generatingImages[scene.id]) return;
 
     setGeneratingImages(prev => ({ ...prev, [scene.id]: true }));
     setImageErrors(prev => { const copy = { ...prev }; delete copy[scene.id]; return copy; });
     try {
+      // Prepend character identity to ensure visual consistency across scenes
+      const charPrefix = getCharacterPrefix(scene);
+      const enhancedPrompt = charPrefix ? `${charPrefix}${scene.visual_prompt}` : scene.visual_prompt;
+
       // All tiers use Pollinations (nanobanana-pro/seedream-pro) for images — NO flux
       const res = await fetch("/api/runware/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: scene.visual_prompt,
+          prompt: enhancedPrompt,
           width: 1280,
           height: 768,
         }),
@@ -117,7 +148,7 @@ export default function ScriptBuilder() {
     } finally {
       setGeneratingImages(prev => ({ ...prev, [scene.id]: false }));
     }
-  }, [qualityTier, generatingImages, setStoryboardImages, setImageErrors]);
+  }, [qualityTier, generatingImages, setStoryboardImages, setImageErrors, getCharacterPrefix]);
 
   // Search for reference images of key subjects (people, locations, brands)
   const searchReferenceImages = useCallback(async (data: any) => {

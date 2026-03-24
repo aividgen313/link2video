@@ -23,6 +23,7 @@ export type ScriptData = {
   angle: string;
   scenes: Scene[];
   characterProfiles?: CharacterProfile[];
+  character_identities?: Record<string, string>; // locked physical descriptions per character (from AI)
 };
 
 export type CharacterProfile = {
