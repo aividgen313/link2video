@@ -31,7 +31,17 @@ export default function AssetLibrary() {
   const [savedProjectAssets, setSavedProjectAssets] = useState<Asset[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const toggleFolder = (folderId: string) => {
+    setCollapsedFolders(prev => {
+      const next = new Set(prev);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  };
 
   // Load assets from all saved projects in IndexedDB
   useEffect(() => {
@@ -268,69 +278,81 @@ export default function AssetLibrary() {
         </div>
       ) : (
         <div className="space-y-12">
-          {groupedProjects.map(project => (
-            <div key={project.id} className="space-y-6">
-              <div className="flex items-center justify-between border-b border-outline/5 pb-2">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${project.id === 'current' ? 'bg-primary/10 text-primary' : 'bg-surface-container-highest text-outline'}`}>
-                    <span className="material-symbols-outlined">{project.id === 'current' ? 'auto_awesome' : 'folder'}</span>
+          {groupedProjects.map(project => {
+            const isCollapsed = collapsedFolders.has(project.id);
+            return (
+              <div key={project.id} className="space-y-4">
+                {/* Folder Header — clickable to toggle */}
+                <button
+                  onClick={() => toggleFolder(project.id)}
+                  className="w-full flex items-center justify-between border-b border-outline/5 pb-2 group/folder hover:border-primary/20 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${project.id === 'current' ? 'bg-primary/10 text-primary' : 'bg-surface-container-highest text-outline group-hover/folder:bg-primary/10 group-hover/folder:text-primary'}`}>
+                      <span className="material-symbols-outlined">{project.id === 'current' ? 'auto_awesome' : isCollapsed ? 'folder' : 'folder_open'}</span>
+                    </div>
+                    <div className="text-left">
+                      <h2 className="text-lg font-bold text-on-surface">{project.title}</h2>
+                      <span className="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest">{project.assets.length} items • {project.date}</span>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-on-surface">{project.title}</h2>
-                    <span className="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest">{project.assets.length} items • {project.date}</span>
-                  </div>
-                </div>
-              </div>
+                  <span className={`material-symbols-outlined text-outline/40 transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`}>
+                    expand_more
+                  </span>
+                </button>
 
-              {/* Sub-group by Type */}
-              <div className="space-y-8">
-                {["video", "image", "audio"].map(type => {
-                  const typeAssets = project.assets.filter(a => a.type === type);
-                  if (typeAssets.length === 0) return null;
-                  return (
-                    <div key={type} className="space-y-3">
-                      <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-outline/60 px-1">{type}s</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                        {typeAssets.map(asset => (
-                          <div
-                            key={asset.id}
-                            className="group relative aspect-square rounded-2xl overflow-hidden bg-surface-container-low border border-outline/5 hover:border-primary/30 transition-all cursor-pointer"
-                            onClick={() => asset.type === "video" ? setPreviewAsset(asset) : null}
-                          >
-                            {asset.type === "image" ? (
-                              <img src={asset.url} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                            ) : asset.type === "video" ? (
-                              <div className="w-full h-full relative">
-                                <video src={asset.url} className="w-full h-full object-cover" muted />
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
-                                  <span className="material-symbols-outlined text-white/80 group-hover:scale-125 transition-transform">play_circle</span>
+                {/* Collapsible Content */}
+                {!isCollapsed && (
+                  <div className="space-y-8 animate-fade-in-up">
+                    {["video", "image", "audio"].map(type => {
+                      const typeAssets = project.assets.filter(a => a.type === type);
+                      if (typeAssets.length === 0) return null;
+                      return (
+                        <div key={type} className="space-y-3">
+                          <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-outline/60 px-1">{type}s</h3>
+                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {typeAssets.map(asset => (
+                              <div
+                                key={asset.id}
+                                className="group relative aspect-square rounded-2xl overflow-hidden bg-surface-container-low border border-outline/5 hover:border-primary/30 transition-all cursor-pointer"
+                                onClick={() => asset.type === "video" ? setPreviewAsset(asset) : null}
+                              >
+                                {asset.type === "image" ? (
+                                  <img src={asset.url} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                ) : asset.type === "video" ? (
+                                  <div className="w-full h-full relative">
+                                    <video src={asset.url} className="w-full h-full object-cover" muted />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
+                                      <span className="material-symbols-outlined text-white/80 group-hover:scale-125 transition-transform">play_circle</span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                                    <span className="material-symbols-outlined text-primary/40 text-3xl">graphic_eq</span>
+                                    <span className="text-[10px] px-2 text-center opacity-60 truncate w-full">{asset.name}</span>
+                                  </div>
+                                )}
+
+                                {/* Floating Actions */}
+                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleDownload(asset); }}
+                                    className="w-7 h-7 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-primary"
+                                  >
+                                    <span className="material-symbols-outlined text-sm">download</span>
+                                  </button>
                                 </div>
                               </div>
-                            ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                                <span className="material-symbols-outlined text-primary/40 text-3xl">graphic_eq</span>
-                                <span className="text-[10px] px-2 text-center opacity-60 truncate w-full">{asset.name}</span>
-                              </div>
-                            )}
-
-                            {/* Floating Actions */}
-                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDownload(asset); }}
-                                className="w-7 h-7 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-primary"
-                              >
-                                <span className="material-symbols-outlined text-sm">download</span>
-                              </button>
-                            </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

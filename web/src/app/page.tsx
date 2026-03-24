@@ -1256,6 +1256,13 @@ export default function Home() {
                       <div className="flex gap-2">
                         <DownloadButton video={v} onError={setErrorMsg} onFallback={() => handleOpenProject(v)} />
                         <button
+                          onClick={(e) => { e.stopPropagation(); handleOpenProject(v); }}
+                          className="flex items-center justify-center gap-1 text-xs font-semibold py-2 px-3 rounded-xl bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors border border-secondary/20"
+                          title="Open in Editor"
+                        >
+                          <span className="material-symbols-outlined text-base">movie_edit</span>
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); setUrl(v.topic); setGenerateRequested(true); router.push("/script"); }}
                           className="flex items-center justify-center gap-1 text-xs font-semibold py-2 px-3 rounded-xl bg-surface-container-high/50 text-outline hover:text-primary hover:bg-primary/10 transition-colors border border-outline-variant/10"
                           title="Regenerate"
