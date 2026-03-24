@@ -540,28 +540,47 @@ class PipelineManager {
         this.update({ progress: Math.round(fakeP), status: statusMsg });
       }, 800);
 
-      console.log(`[pipeline] Sending stitch request with ${stitchScenes.length} scenes, musicUrl=${!!resolvedMusicUrl}, userAudio=${isMusicVideo && !!config.audioFile}`);
-      let stitchRes: Response;
-      try {
-        stitchRes = await fetch("/api/stitch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            scenes: stitchScenes,
-            resolution: { width: config.videoDimension.width, height: config.videoDimension.height },
-            musicUrl: (!isMusicVideo && resolvedMusicUrl) ? resolvedMusicUrl : null,
-            userAudioDataUrl: isMusicVideo ? config.audioFile : null,
-            captionsEnabled: config.captionsEnabled,
-          }),
-          signal,
-        });
-      } finally {
-        clearInterval(fakeTimer);
-      }
+      const stitchBody = JSON.stringify({
+        scenes: stitchScenes,
+        resolution: { width: config.videoDimension.width, height: config.videoDimension.height },
+        musicUrl: (!isMusicVideo && resolvedMusicUrl) ? resolvedMusicUrl : null,
+        userAudioDataUrl: isMusicVideo ? config.audioFile : null,
+        captionsEnabled: config.captionsEnabled,
+      });
 
-      if (!stitchRes!.ok) {
-        const errData = await stitchRes!.json().catch(() => ({}));
-        throw new Error(errData.error ?? `Server stitching failed (${stitchRes!.status})`);
+      // Retry stitch up to 3 times (deploy interruptions, timeouts, etc.)
+      const MAX_STITCH_RETRIES = 3;
+      let stitchRes: Response | null = null;
+      for (let attempt = 1; attempt <= MAX_STITCH_RETRIES; attempt++) {
+        if (signal.aborted) break;
+        console.log(`[pipeline] Stitch attempt ${attempt}/${MAX_STITCH_RETRIES} (${stitchScenes.length} scenes, musicUrl=${!!resolvedMusicUrl}, userAudio=${isMusicVideo && !!config.audioFile})`);
+        this.update({ status: attempt > 1 ? `Retrying stitch (attempt ${attempt})...` : "Stitching video on server..." });
+        try {
+          stitchRes = await fetch("/api/stitch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: stitchBody,
+            signal,
+          });
+          if (stitchRes.ok) break; // Success
+          const errData = await stitchRes.json().catch(() => ({}));
+          console.warn(`[pipeline] Stitch attempt ${attempt} failed: ${stitchRes.status}`, errData);
+          stitchRes = null;
+        } catch (fetchErr) {
+          if (signal.aborted) break;
+          console.warn(`[pipeline] Stitch attempt ${attempt} network error:`, fetchErr);
+          stitchRes = null;
+        }
+        if (attempt < MAX_STITCH_RETRIES) {
+          const delay = attempt * 5000; // 5s, 10s backoff
+          console.log(`[pipeline] Waiting ${delay / 1000}s before retry...`);
+          await new Promise(r => setTimeout(r, delay));
+        }
+      }
+      clearInterval(fakeTimer);
+
+      if (!stitchRes || !stitchRes.ok) {
+        throw new Error(`Server stitching failed after ${MAX_STITCH_RETRIES} attempts`);
       }
 
       this.update({ progress: 96, status: "Downloading your video..." });
