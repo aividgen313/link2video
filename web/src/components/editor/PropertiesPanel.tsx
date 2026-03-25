@@ -751,7 +751,7 @@ export default function PropertiesPanel() {
                   updateScene(selectedScene.id, { visual_prompt: improved });
                 }}
               >
-                <span className="material-symbols-outlined text-sm text-amber-400">auto_fix_high</span>
+                <span className="material-symbols-outlined text-sm text-primary">auto_fix_high</span>
                 <div className="text-left flex-1">
                   <span className="text-[11px] text-on-surface/80 block">Enhance Prompt</span>
                   <span className="text-[11px] text-outline/40">Add cinematic quality keywords</span>

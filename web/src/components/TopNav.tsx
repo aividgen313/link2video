@@ -58,14 +58,14 @@ export default function TopNav() {
   const balanceColor = () => {
     if (pollenBalance === null) return "text-outline";
     if (pollenBalance < 0.05) return "text-red-500 dark:text-red-400";
-    if (pollenBalance < 0.20) return "text-amber-500 dark:text-amber-400";
+    if (pollenBalance < 0.20) return "text-orange-500 dark:text-orange-400";
     return "text-emerald-600 dark:text-emerald-400";
   };
 
   const balanceBg = () => {
     if (pollenBalance === null) return "bg-surface-container";
     if (pollenBalance < 0.05) return "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25";
-    if (pollenBalance < 0.20) return "bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/25";
+    if (pollenBalance < 0.20) return "bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/25";
     return "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/25";
   };
 
@@ -73,10 +73,10 @@ export default function TopNav() {
     <header className="h-[56px] md:h-[72px] shrink-0 flex items-center justify-between px-4 md:px-6 topnav-island relative z-10">
       <div className="flex items-center gap-3">
         <div>
-          <h2 className="font-headline font-extrabold text-lg md:text-xl tracking-tight text-on-surface leading-none">
+          <h2 className="font-headline font-black text-xl md:text-2xl tracking-tight text-on-surface leading-none">
             {pageTitle}
           </h2>
-          <p className="text-[11px] text-outline font-semibold leading-tight mt-1 hidden md:block tracking-wide">
+          <p className="text-[11px] text-outline font-medium leading-tight mt-1 hidden md:block tracking-wider uppercase">
             {pageSubtitle}
           </p>
         </div>

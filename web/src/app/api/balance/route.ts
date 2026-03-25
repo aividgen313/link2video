@@ -4,10 +4,15 @@ export async function GET() {
   const apiKey = process.env.POLLINATIONS_API_KEY || "";
 
   if (!apiKey) {
-    return NextResponse.json(
-      { error: "No Pollinations API key configured" },
-      { status: 500 }
-    );
+    // Graceful fallback: return free-tier defaults instead of error
+    return NextResponse.json({
+      success: true,
+      balance: 0,
+      tier: "free",
+      name: null,
+      nextResetAt: null,
+      note: "No API key configured — using free tier",
+    });
   }
 
   try {

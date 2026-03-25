@@ -69,7 +69,7 @@ function ExportCard() {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span
-            className={`material-symbols-outlined text-lg ${isComplete ? "text-green-400" : isError ? "text-error" : isCancelled ? "text-amber-400" : "text-primary animate-pulse"}`}
+            className={`material-symbols-outlined text-lg ${isComplete ? "text-green-400" : isError ? "text-error" : isCancelled ? "text-orange-400" : "text-primary animate-pulse"}`}
             style={isComplete || isError ? { fontVariationSettings: "'FILL' 1" } : {}}
           >
             {isComplete ? "check_circle" : isError ? "error" : isCancelled ? "cancel" : "movie"}
@@ -164,7 +164,7 @@ function PipelineCard() {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span
-            className={`material-symbols-outlined text-lg ${isComplete ? "text-green-400" : isError ? "text-error" : isCancelled ? "text-amber-400" : "text-primary animate-pulse"}`}
+            className={`material-symbols-outlined text-lg ${isComplete ? "text-green-400" : isError ? "text-error" : isCancelled ? "text-orange-400" : "text-primary animate-pulse"}`}
             style={isComplete || isError ? { fontVariationSettings: "'FILL' 1" } : {}}
           >
             {isComplete ? "check_circle" : isError ? "error" : isCancelled ? "cancel" : "auto_fix_high"}

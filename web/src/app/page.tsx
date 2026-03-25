@@ -468,7 +468,7 @@ export default function Home() {
 
           <div className="relative z-10 space-y-6">
             <div className="flex items-start justify-between gap-4">
-              <h3 className="font-headline text-2xl md:text-4xl font-extrabold tracking-tighter text-gradient">Create New Video</h3>
+              <h3 className="font-headline text-2xl md:text-4xl font-black tracking-tight text-gradient">Create New Video</h3>
 
               {/* Pollinations Balance Widget */}
               {hasMounted && (
@@ -1093,7 +1093,7 @@ export default function Home() {
                   ~{estScenes} scenes · {targetDurationMinutes >= 60 ? `${targetDurationMinutes / 60}h` : `${targetDurationMinutes}min`} video
                 </p>
                 {estScenes > 50 && (
-                  <p className="text-[10px] text-amber-400 pl-1">
+                  <p className="text-[10px] text-orange-400 pl-1">
                     {estScenes > 200 ? "⚡ Very long video — script will be generated in chapters to avoid timeouts" : "⚡ Long video — script will be generated in batches"}
                   </p>
                 )}
@@ -1378,7 +1378,7 @@ export default function Home() {
       {hasMounted && (
         <div className="max-w-5xl mx-auto w-full">
           <div className="flex items-center justify-between mb-6 px-1">
-            <h3 className="font-headline text-xl md:text-2xl font-extrabold tracking-tight text-on-surface">
+            <h3 className="font-headline text-xl md:text-2xl font-black tracking-tight text-on-surface">
               Recent Videos
               {recentVideos.length > 0 && (<span className="ml-2 text-sm font-normal text-outline">({recentVideos.length})</span>)}
             </h3>

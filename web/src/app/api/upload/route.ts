@@ -12,10 +12,12 @@ function getSupabase() {
 
 // Module-level cache so we only check/create the bucket once per process lifetime
 let bucketReady: boolean | null = null;
+let bucketCheckedAt = 0;
 
 async function ensureBucket(supabase: any): Promise<boolean> {
   if (bucketReady === true) return true;
-  if (bucketReady === false) return false;
+  // Retry after 30s if previously failed (don't permanently block)
+  if (bucketReady === false && Date.now() - bucketCheckedAt < 30000) return false;
 
   try {
     // Try creating the bucket (idempotent — no-ops if it already exists)
@@ -23,6 +25,7 @@ async function ensureBucket(supabase: any): Promise<boolean> {
     if (error && !error.message.includes("already exists")) {
       console.warn("[upload] Could not create bucket:", error.message);
       bucketReady = false;
+      bucketCheckedAt = Date.now();
       return false;
     }
     bucketReady = true;
@@ -30,6 +33,7 @@ async function ensureBucket(supabase: any): Promise<boolean> {
   } catch (e) {
     console.warn("[upload] Bucket check failed:", e);
     bucketReady = false;
+    bucketCheckedAt = Date.now();
     return false;
   }
 }
@@ -44,10 +48,8 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = getSupabase();
     if (!supabase) {
-      return NextResponse.json(
-        { error: "Cloud storage not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY." },
-        { status: 501 }
-      );
+      // Graceful fallback: cloud storage not configured, return success:false so client can use local storage
+      return NextResponse.json({ success: false, error: "Cloud storage not configured", local: true });
     }
 
     const body = await req.json();
@@ -118,7 +120,10 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabase();
-    if (!supabase) return NextResponse.json({ error: "Cloud storage not configured." }, { status: 501 });
+    if (!supabase) {
+      // Graceful fallback: return empty data instead of error
+      return NextResponse.json({ error: "Cloud storage not configured", local: true }, { status: 200 });
+    }
 
     const { searchParams } = new URL(req.url);
     const path = searchParams.get("path");
@@ -155,7 +160,9 @@ export async function GET(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const supabase = getSupabase();
-    if (!supabase) return NextResponse.json({ error: "Cloud storage not configured." }, { status: 501 });
+    if (!supabase) {
+      return NextResponse.json({ success: false, error: "Cloud storage not configured", local: true });
+    }
 
     const { searchParams } = new URL(req.url);
     const path = searchParams.get("path");

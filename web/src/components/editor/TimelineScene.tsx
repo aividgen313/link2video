@@ -28,8 +28,13 @@ function TimelineSceneInner({ scene, width, trackHeight, zoom = 40 }: Props) {
   const isMultiSelected = selectedSceneIds.has(scene.id);
   const [trimSide, setTrimSide] = useState<"left" | "right" | null>(null);
   const trimRef = useRef<{ startX: number; startDuration: number } | null>(null);
+  const trimCleanupRef = useRef<(() => void) | null>(null);
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: scene.id });
+  // Disable DnD while trimming to prevent conflicts
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: scene.id,
+    disabled: trimSide !== null,
+  });
 
   const clipHeight = trackHeight ? Math.max(30, trackHeight - 6) : 56;
 
@@ -53,6 +58,8 @@ function TimelineSceneInner({ scene, width, trackHeight, zoom = 40 }: Props) {
   const handleTrimStart = useCallback((e: React.MouseEvent, side: "left" | "right") => {
     e.stopPropagation();
     e.preventDefault();
+    // Clean up any previous trim operation
+    trimCleanupRef.current?.();
     setTrimSide(side);
     trimRef.current = { startX: e.clientX, startDuration: scene.duration };
 
@@ -76,8 +83,10 @@ function TimelineSceneInner({ scene, width, trackHeight, zoom = 40 }: Props) {
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
       document.body.style.cursor = "";
+      trimCleanupRef.current = null;
     };
 
+    trimCleanupRef.current = handleUp;
     document.body.style.cursor = "col-resize";
     window.addEventListener("mousemove", handleMove);
     window.addEventListener("mouseup", handleUp);

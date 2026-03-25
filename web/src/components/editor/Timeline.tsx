@@ -119,6 +119,8 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
 
   const rulerRef = useRef<HTMLDivElement>(null);
   const isDraggingPlayhead = useRef(false);
+  // Track active listener cleanup to prevent stacking
+  const playheadCleanupRef = useRef<(() => void) | null>(null);
 
   const calcTimeFromX = useCallback((clientX: number) => {
     const ruler = rulerRef.current;
@@ -130,23 +132,51 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
     return Math.max(0, Math.min(time, totalDuration));
   }, [zoom, snapEnabled, totalDuration]);
 
+  // Throttled playhead update using RAF to avoid excessive re-renders during scrub
+  const rafRef = useRef<number | null>(null);
+  const pendingTimeRef = useRef<number | null>(null);
+  const flushPlayhead = useCallback(() => {
+    if (pendingTimeRef.current !== null) {
+      setPlayheadPosition(pendingTimeRef.current);
+      pendingTimeRef.current = null;
+    }
+    rafRef.current = null;
+  }, [setPlayheadPosition]);
+
+  const throttledSetPlayhead = useCallback((time: number) => {
+    pendingTimeRef.current = time;
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(flushPlayhead);
+    }
+  }, [flushPlayhead]);
+
   const handleRulerMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
+    // Clean up any previous drag listeners
+    playheadCleanupRef.current?.();
     isDraggingPlayhead.current = true;
     setPlayheadPosition(calcTimeFromX(e.clientX));
 
     const handleMove = (ev: MouseEvent) => {
       if (!isDraggingPlayhead.current) return;
-      setPlayheadPosition(calcTimeFromX(ev.clientX));
+      throttledSetPlayhead(calcTimeFromX(ev.clientX));
     };
     const handleUp = () => {
       isDraggingPlayhead.current = false;
+      // Flush any pending RAF update
+      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+      if (pendingTimeRef.current !== null) {
+        setPlayheadPosition(pendingTimeRef.current);
+        pendingTimeRef.current = null;
+      }
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
+      playheadCleanupRef.current = null;
     };
+    playheadCleanupRef.current = handleUp;
     window.addEventListener("mousemove", handleMove);
     window.addEventListener("mouseup", handleUp);
-  }, [calcTimeFromX, setPlayheadPosition]);
+  }, [calcTimeFromX, setPlayheadPosition, throttledSetPlayhead]);
 
   const playheadX = playheadPosition * zoom;
 
@@ -425,16 +455,25 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                 onMouseDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  // Clean up any previous drag listeners
+                  playheadCleanupRef.current?.();
                   isDraggingPlayhead.current = true;
                   const handleMove = (ev: MouseEvent) => {
                     if (!isDraggingPlayhead.current) return;
-                    setPlayheadPosition(calcTimeFromX(ev.clientX));
+                    throttledSetPlayhead(calcTimeFromX(ev.clientX));
                   };
                   const handleUp = () => {
                     isDraggingPlayhead.current = false;
+                    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+                    if (pendingTimeRef.current !== null) {
+                      setPlayheadPosition(pendingTimeRef.current);
+                      pendingTimeRef.current = null;
+                    }
                     window.removeEventListener("mousemove", handleMove);
                     window.removeEventListener("mouseup", handleUp);
+                    playheadCleanupRef.current = null;
                   };
+                  playheadCleanupRef.current = handleUp;
                   window.addEventListener("mousemove", handleMove);
                   window.addEventListener("mouseup", handleUp);
                 }}

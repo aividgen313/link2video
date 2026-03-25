@@ -616,7 +616,7 @@ export default function ScriptBuilder() {
         <div className="flex flex-col md:flex-row items-start md:items-end justify-between border-b border-outline-variant/5 pb-8 gap-6">
           <div>
             <span className="font-label text-tertiary text-xs font-bold uppercase tracking-[0.2em] block mb-2">Editor Phase 02</span>
-            <h2 className="font-headline text-3xl md:text-4xl font-extrabold tracking-tighter text-on-surface">Generated Story Script</h2>
+            <h2 className="font-headline text-3xl md:text-4xl font-black tracking-tight text-on-surface">Generated Story Script</h2>
           </div>
 
           {/* Quality + Settings bar */}

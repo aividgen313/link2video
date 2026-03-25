@@ -144,7 +144,7 @@ export default function StoryAngleGenerator() {
             <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
             <span className="font-label text-[10px] uppercase font-bold tracking-[0.1em]">AI Engine Ready</span>
           </div>
-          <h2 className="font-headline text-display-lg text-5xl font-extrabold tracking-tight mb-4">Choose a Story Angle</h2>
+          <h2 className="font-headline text-display-lg text-5xl font-black tracking-tight mb-4">Choose a Story Angle</h2>
           <p className="font-body text-lg text-outline max-w-2xl leading-relaxed">
             Our AI analyzed your content and identified several narrative directions. Select the one that best fits your channel's vibe.
           </p>

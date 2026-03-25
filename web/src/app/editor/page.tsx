@@ -28,7 +28,7 @@ const DARK = {
   textMuted: "var(--editor-text-dim)",
   danger: "var(--editor-danger)",
   success: "var(--editor-success)",
-  warn: "#f0b040",
+  warn: "#E8930C",
 };
 
 // Light mode uses the same CSS vars — they auto-switch with .dark class
