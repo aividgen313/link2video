@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
         "Accept": "text/html",
         "Accept-Language": "en-US,en;q=0.9",
       },
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (!res.ok) {

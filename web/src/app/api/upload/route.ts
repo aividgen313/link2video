@@ -59,6 +59,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "path is required" }, { status: 400 });
     }
 
+    // Prevent path traversal attacks
+    if (path.includes("..") || path.startsWith("/") || path.includes("\\")) {
+      return NextResponse.json({ error: "Invalid path" }, { status: 400 });
+    }
+
     let buffer: Buffer;
     let contentType: string = "application/octet-stream";
 

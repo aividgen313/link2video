@@ -198,6 +198,8 @@ class ExportManager {
           audio: matchingAudio && !matchingAudio.isMuted ? matchingAudio.audioUrl : null,
           duration: scene.duration || 8,
           narration: scene.narration || "",
+          transition: scene.transition || "none",
+          transitionDuration: scene.transitionDuration || 0.5,
         };
       });
 

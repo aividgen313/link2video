@@ -160,6 +160,10 @@ interface EditorContextType {
   applyToSelected: (updates: Partial<EditorScene>) => void;
   deleteSelected: () => void;
 
+  // Global transition controls
+  applyDefaultTransitions: (type?: TransitionType, duration?: number) => void;
+  removeAllTransitions: () => void;
+
   // Snap & grid
   snapEnabled: boolean;
   setSnapEnabled: (v: boolean) => void;
@@ -614,6 +618,23 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     setSelectedSceneId(null);
   }, [setScenesWithHistory, selectedSceneIds, tracks]);
 
+  // Global transition controls
+  const applyDefaultTransitions = useCallback((type: TransitionType = "fade", duration = 0.5) => {
+    setScenesWithHistory(prev =>
+      prev.map((s, i) => ({
+        ...s,
+        transition: i === 0 ? "none" : type, // First clip never has an incoming transition
+        transitionDuration: i === 0 ? 0 : duration,
+      }))
+    );
+  }, [setScenesWithHistory]);
+
+  const removeAllTransitions = useCallback(() => {
+    setScenesWithHistory(prev =>
+      prev.map(s => ({ ...s, transition: "none" as TransitionType, transitionDuration: 0 }))
+    );
+  }, [setScenesWithHistory]);
+
   // Overlays
   const addOverlay = useCallback((sceneId: number, overlay: TextOverlay) => {
     setScenesWithHistory(prev => prev.map(s =>
@@ -825,6 +846,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     isInitialized,
     undo, redo, canUndo, canRedo,
     applyToSelected, deleteSelected,
+    applyDefaultTransitions, removeAllTransitions,
     snapEnabled, setSnapEnabled,
     showSafeZones, setShowSafeZones,
     previewScale, setPreviewScale,
@@ -848,6 +870,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     isInitialized,
     undo, redo, canUndo, canRedo,
     applyToSelected, deleteSelected,
+    applyDefaultTransitions, removeAllTransitions,
     snapEnabled, setSnapEnabled,
     showSafeZones, setShowSafeZones,
     previewScale, setPreviewScale,

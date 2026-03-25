@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html",
       },
+      signal: AbortSignal.timeout(10_000),
     });
     const tokenHtml = await tokenRes.text();
     const vqdMatch = tokenHtml.match(/vqd=['"]([^'"]+)['"]/);
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
           "Accept": "application/json",
           "Referer": "https://duckduckgo.com/",
         },
+        signal: AbortSignal.timeout(15_000),
       }
     );
 

@@ -383,6 +383,7 @@ function EditorInner() {
     getSceneStartTime,
     addOverlay, importMedia,
     activeWorkspace, setActiveWorkspace,
+    applyDefaultTransitions, removeAllTransitions,
   } = useEditorContext();
   const { theme: C, isDark, toggle: toggleTheme } = useEditorTheme();
   const [showExport, setShowExport] = useState(false);
@@ -1001,6 +1002,9 @@ function EditorInner() {
           <TSep />
           <TBtn icon="grid_on" label="Safe Zones" onClick={() => setShowSafeZones(!showSafeZones)} active={showSafeZones} />
           <TBtn icon="straighten" label="Snap (N)" onClick={() => setSnapEnabled(!snapEnabled)} active={snapEnabled} />
+          <TSep />
+          <TBtn icon="auto_awesome" label="Add Transitions" onClick={() => applyDefaultTransitions("fade", 0.5)} />
+          <TBtn icon="block" label="Remove Transitions" onClick={() => removeAllTransitions()} />
         </div>
 
         <div className="flex-1" />

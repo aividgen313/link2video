@@ -82,7 +82,7 @@ export default function Sidebar() {
   return (
     <>
       {/* Desktop Sidebar — Floating Island */}
-      <aside className="hidden md:flex w-[72px] flex-col items-center py-5 gap-2 shrink-0 sidebar-island relative z-20">
+      <aside className="hidden md:flex w-[72px] flex-col items-center py-5 gap-2 shrink-0 sidebar-island relative z-40">
         <NavContent />
       </aside>
 
