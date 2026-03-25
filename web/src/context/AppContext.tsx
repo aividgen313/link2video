@@ -14,10 +14,24 @@ export type NotepadSource = {
   extractedFacts: string[] | null;
   addedAt: number;
   preview: string;
+  sourceUrl?: string;
+};
+
+export type NotepadImage = {
+  id: string;
+  url: string;
+  thumbnail: string;
+  title: string;
+  source: string;
+  width: number;
+  height: number;
+  addedAt: number;
 };
 
 export type NotepadData = {
+  projectName: string;
   sources: NotepadSource[];
+  images: NotepadImage[];
   synthesizedKnowledge: string | null;
   lastSynthesizedAt: number | null;
 };
@@ -352,7 +366,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [musicSegments, setMusicSegments] = useState<MusicSegment[]>([]);
   const [audioDuration, setAudioDuration] = useState(0);
   // Notepad Mode
-  const [notepadData, setNotepadData] = useState<NotepadData>({ sources: [], synthesizedKnowledge: null, lastSynthesizedAt: null });
+  const [notepadData, setNotepadData] = useState<NotepadData>({ projectName: "", sources: [], images: [], synthesizedKnowledge: null, lastSynthesizedAt: null });
 
   // Hydrate state from localStorage AFTER mount (avoids hydration mismatch)
   useEffect(() => {
@@ -413,7 +427,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           storyboardImages: {},
           storyText, characterProfiles, activeStyle, settingText, audioFileName,
           lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
-          notepadData: { sources: [], synthesizedKnowledge: notepadData.synthesizedKnowledge, lastSynthesizedAt: notepadData.lastSynthesizedAt },
+          notepadData: { projectName: notepadData.projectName, sources: [], images: [], synthesizedKnowledge: notepadData.synthesizedKnowledge, lastSynthesizedAt: notepadData.lastSynthesizedAt },
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(fallbackState));
       } catch { /* truly full — nothing we can do */ }

@@ -125,6 +125,27 @@ export async function POST(req: NextRequest) {
 
         $("script, style, nav, footer, header, .sidebar, .ad, .advertisement, #comments, .mw-jump-link, .mw-editsection").remove();
 
+        // Extract images from the page
+        const images: string[] = [];
+        $("img").each((_i: number, el: any) => {
+          const src = $(el).attr("src") || $(el).attr("data-src") || "";
+          const alt = $(el).attr("alt") || "";
+          if (src && !src.includes("logo") && !src.includes("icon") && !src.includes("avatar") && !src.includes("pixel")) {
+            // Resolve relative URLs
+            let fullSrc = src;
+            try { fullSrc = new URL(src, url).href; } catch { /* skip */ }
+            if (fullSrc.startsWith("http") && !images.includes(fullSrc)) {
+              images.push(fullSrc);
+            }
+          }
+        });
+
+        // Also grab og:image for thumbnails
+        const ogImage = $('meta[property="og:image"]').attr("content") || "";
+        if (ogImage && !images.includes(ogImage)) {
+          images.unshift(ogImage);
+        }
+
         let mainContent = "";
         const wikiBody = $("#mw-content-text .mw-parser-output").first();
         if (wikiBody.length) {
@@ -136,26 +157,42 @@ export async function POST(req: NextRequest) {
 
         mainContent = mainContent.replace(/\s+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 
-        // For YouTube: prepend description and transcript to main content
+        // For YouTube: prepend metadata, description, and transcript
         if (isYouTubeUrl(url)) {
           const ytParts: string[] = [];
+          // Extract additional YouTube metadata
+          const ytChannel = $('meta[itemprop="channelId"]').attr("content") || $('link[itemprop="name"]').attr("content") || "";
+          const ytDate = $('meta[itemprop="datePublished"]').attr("content") || "";
+          const ytViews = $('meta[itemprop="interactionCount"]').attr("content") || "";
+
+          if (ytChannel) ytParts.push(`[Channel] ${ytChannel}`);
+          if (ytDate) ytParts.push(`[Published] ${ytDate}`);
+          if (ytViews) ytParts.push(`[Views] ${ytViews}`);
           if (ytDescription) ytParts.push(`[Video Description] ${ytDescription}`);
-          if (ytTranscript) ytParts.push(`[Transcript] ${ytTranscript.slice(0, 8000)}`);
+          if (ytTranscript) ytParts.push(`[Transcript] ${ytTranscript.slice(0, 10000)}`);
           if (ytParts.length) {
             mainContent = ytParts.join("\n\n") + "\n\n" + mainContent;
           }
         }
 
-        const content = mainContent.slice(0, 12000);
+        const content = mainContent.slice(0, 15000);
         // Prefer YouTube og:title over generic <title> tag
         const title = (isYouTubeUrl(url) && ytTitle)
           ? ytTitle
           : ($("title").text().trim() || $("h1").first().text().trim() || new URL(url).hostname);
 
+        // Detect content type
+        const contentType = isYouTubeUrl(url) ? "youtube" :
+          /\.pdf(\?|$)/i.test(url) ? "pdf" :
+          /\.(jpe?g|png|gif|webp|svg)(\?|$)/i.test(url) ? "image" : "page";
+
         return NextResponse.json({
           title,
           content,
           preview: content.substring(0, 200),
+          images: images.slice(0, 10),
+          contentType,
+          thumbnail: ogImage || images[0] || null,
         });
       } catch (e: any) {
         return NextResponse.json({ error: `Failed to fetch URL: ${e.message}` }, { status: 400 });
@@ -182,11 +219,11 @@ CRITICAL CONSTRAINTS — you MUST follow these:
 - If the text is short, sparse, or unclear, still extract whatever facts you can. Even 1-2 facts is fine.
 - If the text seems like garbage or is empty, output: { "facts": ["Source provided but content was not parseable."] }
 
-Extract the key facts, claims, data points, statistics, insights, and important details from this text.
+Extract ALL key facts, claims, data points, statistics, insights, and important details from this text. Be thorough — do NOT skip information.
 
 SOURCE TITLE: ${source.title}
 SOURCE TEXT:
-${source.rawContent.substring(0, 6000)}
+${source.rawContent.substring(0, 8000)}
 
 Return ONLY raw JSON (no markdown fences, no explanation):
 { "facts": ["fact 1", "fact 2", "fact 3", ...] }
@@ -195,8 +232,12 @@ Rules:
 - Each fact should be a complete, self-contained statement
 - Include specific numbers, dates, names, and quotes when present
 - Focus on unique, interesting, and important information
-- Aim for 8-20 facts depending on source length
-- Be concise but include enough detail to be useful
+- Extract AT LEAST 8 facts, ideally 12-25+ depending on source length
+- NEVER return fewer than 5 facts — dig deeper if needed
+- Include context: who, what, when, where, why
+- Note any images, videos, PDFs, or media mentioned in the source
+- For YouTube videos: extract key claims, timestamps, speaker quotes, and video metadata
+- Be concise but include enough detail to be useful for a documentary
 - Output ONLY the JSON object. No other text.`;
 
             try {

@@ -73,14 +73,14 @@ export default function ScriptBuilder() {
     return () => { if (loadingTimerRef.current) clearInterval(loadingTimerRef.current); };
   }, [isLoading, scriptData]);
 
-  // Redirect if no input data
+  // Stop loading spinner if no input data (don't redirect — show empty state)
   useEffect(() => {
     if (!hasMounted) return;
     const hasInput = url || storyText || audioFile || (mode === "notepad" && storyText);
     if (!hasInput && !scriptData) {
-      router.push("/");
+      setIsLoading(false);
     }
-  }, [hasMounted, url, storyText, audioFile, scriptData, router]);
+  }, [hasMounted, url, storyText, audioFile, scriptData, mode]);
 
   const tier = QUALITY_TIERS[qualityTier];
   const estimatedTotalCost = scriptData
