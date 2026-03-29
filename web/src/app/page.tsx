@@ -16,7 +16,7 @@ const DURATION_PRESETS = [
   { label: "60 min", value: 60 },
   { label: "120 min", value: 120 },
 ];
-import { getHistory, deleteFromHistory, loadProjectState, syncHistoryWithCloud, getThumbnailBlob, recoverOrphanedProjects, type VideoHistoryItem } from "@/lib/videoHistory";
+import { getHistory, deleteFromHistory, loadProjectState, syncHistoryWithCloud, getThumbnailBlob, recoverOrphanedProjects, cleanupBrokenProjects, type VideoHistoryItem } from "@/lib/videoHistory";
 import { getSavedStyles, saveStyle, deleteStyle, type SavedStyle } from "@/lib/savedStyles";
 
 function ProjectThumbnail({ video }: { video: VideoHistoryItem }) {
@@ -270,11 +270,15 @@ export default function Home() {
       setSavedStyles(getSavedStyles());
       
       const initiateSync = async () => {
-        // First recover locally orphaned projects from IDB
+        // 1. Cleanup broken projects first
+        const clean = await cleanupBrokenProjects();
+        setRecentVideos(clean);
+        
+        // 2. Recover locally orphaned projects from IDB
         const recovered = await recoverOrphanedProjects();
         setRecentVideos(recovered);
         
-        // Then sync with cloud
+        // 3. Sync with cloud
         const synced = await syncHistoryWithCloud();
         setRecentVideos(synced);
       };

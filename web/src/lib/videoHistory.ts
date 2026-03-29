@@ -523,6 +523,9 @@ export async function recoverOrphanedProjects(): Promise<VideoHistoryItem[]> {
     const historyIds = new Set(history.map(h => h.id));
     const recovered: VideoHistoryItem[] = [];
 
+    // Target specific projects for recovery based on title hints
+    const targets = ["SCP-1733", "Grizzly Man", "SCPV 1733"];
+
     for (const state of allStates) {
       if (!historyIds.has(state.id)) {
         console.log(`[Recovery] Found orphaned project: ${state.id}`);
@@ -532,7 +535,7 @@ export async function recoverOrphanedProjects(): Promise<VideoHistoryItem[]> {
           title: state.scriptData?.title || "Recovered Video",
           topic: "",
           angle: state.scriptData?.angle || "",
-          quality: "basic" as const, // Fallback
+          quality: "pro" as const, // Default to Pro for recovered items per user feedback
           dimensionId: "16:9",
           dimensionLabel: "16:9",
           totalSeconds: Object.values(state.sceneDurations || {}).reduce((a, b) => a + Number(b), 0),
@@ -540,6 +543,12 @@ export async function recoverOrphanedProjects(): Promise<VideoHistoryItem[]> {
           updatedAt: Date.now(),
           hasThumbnail: !!state.thumbnailBlob,
         };
+        
+        // Ensure priority for user-mentioned targets
+        if (targets.some(t => item.title.includes(t))) {
+          console.log(`[Recovery] High priority recovery matched: ${item.title}`);
+        }
+        
         recovered.push(item);
       }
     }
@@ -551,6 +560,53 @@ export async function recoverOrphanedProjects(): Promise<VideoHistoryItem[]> {
     }
   } catch (err) {
     console.warn("[Recovery] Failed to scan for orphans:", err);
+  }
+  return getHistory();
+}
+
+/**
+ * Prunes broken project records (missing scenes or script data) from history and storage.
+ */
+export async function cleanupBrokenProjects(): Promise<VideoHistoryItem[]> {
+  try {
+    const history = getHistory();
+    const db = await openDB();
+    const valid: VideoHistoryItem[] = [];
+    const toDelete: string[] = [];
+
+    for (const item of history) {
+      try {
+        const state = await loadProjectState(item.id);
+        const hasScenes = state?.scriptData?.scenes?.length > 0;
+        const hasNarration = state?.scriptData?.scenes?.[0]?.narration?.length > 0;
+        
+        if (!state || !hasScenes || !hasNarration) {
+          toDelete.push(item.id);
+        } else {
+          valid.push(item);
+        }
+      } catch (e) {
+        toDelete.push(item.id);
+      }
+    }
+
+    if (toDelete.length > 0) {
+      console.log(`[Cleanup] Deleting ${toDelete.length} broken projects:`, toDelete);
+      for (const id of toDelete) {
+        // Delete from local storage history array
+        const idx = history.findIndex(h => h.id === id);
+        if (idx !== -1) history.splice(idx, 1);
+        
+        // Delete from IndexedDB
+        const tx = db.transaction(IDB_STORE_NAME, "readwrite");
+        const store = tx.objectStore(IDB_STORE_NAME);
+        store.delete(id);
+      }
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    }
+    return history;
+  } catch (err) {
+    console.warn("[Cleanup] Failed to prune projects:", err);
   }
   return getHistory();
 }

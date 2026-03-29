@@ -144,6 +144,7 @@ interface EditorContextType {
   splitScene: (id: number, splitAt: number) => void;
   insertScene: (afterId: number | null) => void;
   mergeScenes: (id1: number, id2: number) => void;
+  generateCaptionsForAllScenes: () => void;
   importMedia: (file: File, trackId?: string, atIndex?: number) => Promise<void>;
   resetProject: () => void;
   orientation: "16:9" | "9:16";
@@ -752,6 +753,45 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     setSelectedSceneId(null);
   }, [setScenesWithHistory, selectedSceneIds, tracks]);
 
+  const generateCaptionsForAllScenes = useCallback(() => {
+    setScenesWithHistory(prev => prev.map(s => {
+      if (!s.narration || s.trackId !== "v1") return s;
+      
+      // Basic heuristic: if it already has an overlay with similar text, skip or replace
+      // For simplicity here, we'll replace or add a fresh 'lower-third' caption
+      const captionId = `caption-${s.id}`;
+      const existingCaptionIndex = s.overlays.findIndex(o => o.id === captionId);
+      
+      const newOverlay: TextOverlay = {
+        id: captionId,
+        text: s.narration,
+        position: "lower-third",
+        x: 50,
+        y: 85,
+        fontSize: orientation === "16:9" ? 32 : 24,
+        color: "#ffffff",
+        fontFamily: "Inter",
+        fontWeight: "bold",
+        textAlign: "center",
+        backgroundColor: "rgba(0,0,0,0.5)",
+        borderRadius: 4,
+        padding: 8,
+        shadowEnabled: true,
+        animation: "fade-in"
+      };
+
+      const newOverlays = [...s.overlays];
+      if (existingCaptionIndex >= 0) {
+        newOverlays[existingCaptionIndex] = newOverlay;
+      } else {
+        newOverlays.push(newOverlay);
+      }
+
+      return { ...s, overlays: newOverlays };
+    }));
+    showStatus("Captions generated for all scenes", "success");
+  }, [setScenesWithHistory, orientation, showStatus]);
+
   // Global transition controls
   const applyDefaultTransitions = useCallback((type: TransitionType = "fade", duration = 0.5) => {
     setScenesWithHistory(prev =>
@@ -1033,6 +1073,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     tracks, addTrack, removeTrack, updateTrack, getTrackScenes,
     selectedSceneIds, toggleSceneSelection, selectAllScenes, clearSelection,
     reorderScene, updateScene, deleteScene, duplicateScene, splitScene, insertScene, mergeScenes,
+    generateCaptionsForAllScenes,
     importMedia,
     orientation, setOrientation,
     applyRandomSoftTransitions, removeAllTransitions,

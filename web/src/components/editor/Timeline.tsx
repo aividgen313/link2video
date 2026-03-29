@@ -466,20 +466,18 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                 >
                   <span className="material-symbols-outlined text-[14px]">{track.isLocked ? "lock" : "lock_open"}</span>
                 </button>
-                {track.id !== "v1" && (
                   <button
                     onClick={() => {
                       if (confirm(`Delete track ${track.label} and all its clips?`)) {
                         removeTrack(track.id);
                       }
                     }}
-                    className="w-6 h-6 flex items-center justify-center rounded-md bg-white/5 hover:bg-red-500/20 transition-colors"
+                    className="w-6 h-6 flex items-center justify-center rounded-md bg-white/5 hover:bg-red-500/20 transition-colors ml-auto mr-1"
                     style={{ color: "var(--editor-danger)" }}
                     title="Delete Track"
                   >
                     <span className="material-symbols-outlined text-[14px]">delete</span>
                   </button>
-                )}
               </div>
             </div>
           ))}
@@ -531,20 +529,18 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                 >
                   <span className="material-symbols-outlined text-[14px]">{track.isLocked ? "lock" : "lock_open"}</span>
                 </button>
-                {track.id !== "a1" && (
                   <button
                     onClick={() => {
                       if (confirm(`Delete track ${track.label} and all its clips?`)) {
                         removeTrack(track.id);
                       }
                     }}
-                    className="w-6 h-6 flex items-center justify-center rounded-md bg-white/5 hover:bg-red-500/20 transition-colors"
+                    className="w-6 h-6 flex items-center justify-center rounded-md bg-white/5 hover:bg-red-500/20 transition-colors ml-auto mr-1"
                     style={{ color: "var(--editor-danger)" }}
                     title="Delete Track"
                   >
                     <span className="material-symbols-outlined text-[14px]">delete</span>
                   </button>
-                )}
               </div>
             </div>
           ))}
