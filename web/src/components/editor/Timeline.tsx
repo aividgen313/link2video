@@ -423,7 +423,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
         onDrop={handleFileDrop}
       >
         {/* Track labels (fixed left) */}
-        <div className="flex-shrink-0 flex flex-col shadow-[4px_0_12px_rgba(0,0,0,0.2)]" style={{ width: 120, background: C.trackAlt, borderRight: `1px solid ${C.border}`, zIndex: 10 }}>
+        <div className="flex-shrink-0 flex flex-col shadow-[8px_0_16px_rgba(0,0,0,0.3)] relative" style={{ width: 120, background: C.trackAlt, borderRight: `1px solid ${C.border}`, zIndex: 50 }}>
           {/* Ruler label */}
           <div className="flex items-center justify-center" style={{ height: 28, borderBottom: `1px solid ${C.border}`, background: C.ruler }}>
             <span className="text-[10px] font-black uppercase tracking-widest text-primary/80">Timeline</span>

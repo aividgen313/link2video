@@ -21,7 +21,7 @@ interface Props {
 }
 
 function TimelineAudioSceneInner({ scene, width, trackHeight }: Props) {
-  const { selectedSceneId, setSelectedSceneId, getSceneStartTime, selectedSceneIds, toggleSceneSelection, tracks, setPlayheadPosition } = useEditorContext();
+  const { selectedSceneId, setSelectedSceneId, getSceneStartTime, selectedSceneIds, toggleSceneSelection, tracks, setPlayheadPosition, deleteScene } = useEditorContext();
   const isSelected = selectedSceneId === scene.id;
   const isMultiSelected = selectedSceneIds.has(scene.id);
 
@@ -93,7 +93,14 @@ function TimelineAudioSceneInner({ scene, width, trackHeight }: Props) {
       </div>
 
       {/* Status Indicators */}
-      <div className="absolute top-0.5 right-1 flex gap-0.5 z-20">
+      <div className="absolute top-0.5 right-1 flex gap-1 z-20">
+        <button
+          onClick={(e) => { e.stopPropagation(); if (confirm("Delete this audio clip?")) deleteScene(scene.id); }}
+          className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-md bg-black/40 hover:bg-red-500/40 text-white/60 hover:text-white transition-all shadow-sm"
+          title="Delete Clip"
+        >
+          <span className="material-symbols-outlined text-[12px]">delete</span>
+        </button>
         {scene.isLocked && <span className="material-symbols-outlined text-[10px]" style={{ color: "var(--editor-warn)", fontVariationSettings: "'FILL' 1" }}>lock</span>}
         {scene.isMuted && <span className="material-symbols-outlined text-[10px]" style={{ color: "var(--editor-danger)" }}>volume_off</span>}
         {scene.playbackSpeed !== 1 && <span className="text-[7px] px-0.5 rounded" style={{ background: "rgba(0,0,0,0.6)", color: C.accent }}>{scene.playbackSpeed}x</span>}

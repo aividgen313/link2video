@@ -6,7 +6,8 @@ import { useAppContext, Scene, QUALITY_TIERS, calculateTotalCost, QualityTier, V
 import { CostCalculator } from "@/components/CostCalculator";
 import { PollensBalanceWidget } from "@/components/PollensBalanceWidget";
 import { pipelineManager } from "@/lib/pipelineManager";
-import { getHistory, deleteFromHistory, loadProjectState, VideoHistoryItem } from "@/lib/videoHistory";
+import { getHistory, deleteFromHistory, loadProjectState, VideoHistoryItem, recoverOrphanedProjects } from "@/lib/videoHistory";
+import { DeepRecoveryTool } from "@/components/DeepRecoveryTool";
 
 export default function ScriptBuilder() {
   const router = useRouter();
@@ -256,12 +257,12 @@ export default function ScriptBuilder() {
         videoResolution,
       },
       {
-        setSceneAudioUrls: (urls) => setSceneAudioUrls(urls),
-        setSceneVideoUrls: (urls) => setSceneVideoUrls(urls),
-        setSceneDurations: (durations) => setSceneDurations(durations),
-        setStoryboardImages: (fn) => setStoryboardImages(fn),
+        setSceneAudioUrls: (urls: Record<number, string>) => setSceneAudioUrls(urls),
+        setSceneVideoUrls: (urls: Record<number, string>) => setSceneVideoUrls(urls),
+        setSceneDurations: (durations: Record<number, number>) => setSceneDurations(durations),
+        setStoryboardImages: (fn: any) => setStoryboardImages(fn),
         setFinalVideoUrl,
-        setPollenUsed: (amount) => setPollenUsed(pollenUsed + amount),
+        setPollenUsed: (amount: number) => setPollenUsed(pollenUsed + amount),
         setIsGenerating,
       }
     );
@@ -388,9 +389,11 @@ export default function ScriptBuilder() {
               <span className="material-symbols-outlined text-4xl text-primary">history_edu</span>
               <h3 className="font-headline font-extrabold text-2xl md:text-3xl text-on-surface tracking-tight">Past Scripts</h3>
             </div>
-            <p className="text-outline text-sm max-w-lg">
+            <p className="text-outline text-sm max-w-lg mb-4">
               Here are your previously generated story scripts. Open one to continue editing, regenerate scenes, or generate a final video.
             </p>
+            
+            <DeepRecoveryTool onRecovered={(items) => setPastScripts(items)} />
           </div>
 
           {pastScripts.length > 0 ? (
@@ -550,7 +553,7 @@ export default function ScriptBuilder() {
 
       {/* Main Content — only when script data exists */}
       {scriptData && (
-        <div className="max-w-7xl mx-auto flex flex-col w-full h-[calc(100vh-140px)] min-h-0 overflow-y-auto custom-scrollbar mt-4 pr-1">
+        <div className="max-w-7xl mx-auto flex flex-col w-full mt-4 pr-1">
           {/* Demo Mode Banner */}
           {(scriptData as any).isDemo && (
             <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-500 mb-6">
@@ -571,7 +574,7 @@ export default function ScriptBuilder() {
           )}
 
           {/* Header Section — Sticky */}
-          <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-outline-variant/10 py-6 mb-4 -mx-2 px-4 shadow-sm">
+          <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-outline-variant/10 py-6 mb-4 -mx-4 px-8 shadow-md">
             <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 mb-1">
