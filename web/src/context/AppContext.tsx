@@ -234,7 +234,11 @@ export function calculateTotalCost(tierKey: QualityTier, sceneCount: number, mus
       }
     }
   }
-  const videoCost = tier.pollenPerVideoScene * videoSceneCount;
+  
+  // Use per-second rate for more honest estimates ($0.05/sec)
+  const avgSecondsPerVideo = POLLEN_COSTS.avgSceneDuration || 8;
+  const videoCost = (tier.pollenPerVideoScene > 0) ? (videoSceneCount * avgSecondsPerVideo * POLLEN_COSTS.videoPerSecond) : 0;
+  
   const musicCost = musicEnabled ? POLLEN_COSTS.musicGeneration : 0;
 
   return tier.pollenFixed + imageCost + ttsCost + videoCost + musicCost;
@@ -264,6 +268,12 @@ export interface ExtractProgress {
 export interface SynthesizeProgress {
   state: BackgroundTaskState;
   percent: number; // 0 – 100
+  error: string | null;
+}
+
+export interface ScriptGenerationProgress {
+  state: BackgroundTaskState;
+  elapsedSeconds: number;
   error: string | null;
 }
 
@@ -362,6 +372,10 @@ interface AppContextType {
   globalAudioModel: string;
   globalScriptModel: string;
   setGlobalScriptModel: (model: string) => void;
+  // Script Generation Progress (Background)
+  scriptGenerationProgress: ScriptGenerationProgress;
+  startScriptGeneration: () => Promise<void>;
+  resetScriptGeneration: () => void;
   // Director Mode
   directorMode: boolean;
   setDirectorMode: (val: boolean) => void;
@@ -507,6 +521,95 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const synthesizeRef = useRef(false);
   const notepadDataRef = useRef(notepadData);
   const directorModeRef = useRef(directorMode);
+
+  // ── Script Generation (Background) ───────────────────────────────────────
+  const [scriptGenerationProgress, setScriptGenerationProgress] = useState<ScriptGenerationProgress>({
+    state: "idle", elapsedSeconds: 0, error: null
+  });
+  const scriptGenRef = useRef(false);
+  const scriptTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const resetScriptGeneration = useCallback(() => {
+    setScriptGenerationProgress({ state: "idle", elapsedSeconds: 0, error: null });
+    scriptGenRef.current = false;
+    if (scriptTimerRef.current) clearInterval(scriptTimerRef.current);
+  }, []);
+
+  const startScriptGeneration = useCallback(async () => {
+    if (scriptGenRef.current) return;
+    
+    // Validate inputs using refs for latest state
+    const hasInput = url || storyText || audioFile;
+    if (!hasInput) {
+      console.warn("[ScriptGen] No input provided (URL/Story/Audio)");
+      return;
+    }
+
+    scriptGenRef.current = true;
+    setScriptGenerationProgress({ state: "running", elapsedSeconds: 0, error: null });
+    
+    // Start timer
+    if (scriptTimerRef.current) clearInterval(scriptTimerRef.current);
+    scriptTimerRef.current = setInterval(() => {
+      setScriptGenerationProgress(p => ({ ...p, elapsedSeconds: p.elapsedSeconds + 1 }));
+    }, 1000);
+
+    try {
+      // Build request body
+      const requestBody: Record<string, any> = {
+        visualStyle: globalVisualStyle,
+        durationMinutes: targetDurationMinutes,
+        mode,
+        ...(youtubeStyleSuffix ? { youtubeStyleSuffix } : {}),
+        ...(activeStyle ? { activeStyle } : {}),
+        ...(settingText ? { settingText } : {}),
+        directorMode: directorModeRef.current,
+      };
+
+      if (mode === "short-story" || mode === "notepad") {
+        requestBody.storyText = storyText;
+        requestBody.characterProfiles = characterProfiles;
+        if (angle) requestBody.angle = angle;
+      } else if (mode === "music-video") {
+        requestBody.lyrics = lyrics;
+        requestBody.musicSegments = musicSegments;
+        requestBody.characterProfiles = characterProfiles;
+        if (audioDuration > 0) requestBody.durationMinutes = audioDuration / 60;
+      } else {
+        requestBody.url = url || "https://example.com/mock";
+        requestBody.angle = angle;
+        if (characterProfiles.length > 0) requestBody.characterProfiles = characterProfiles;
+      }
+
+      console.log("[ScriptGen] Starting API call...");
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(900000), // 15 mins
+      });
+
+      if (!res.ok) throw new Error(`API failed with status ${res.status}`);
+      const data = await res.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setScriptData(data);
+      setScriptGenerationProgress(p => ({ ...p, state: "complete" }));
+      console.log("[ScriptGen] Successfully completed.");
+      
+      // Clear timer
+      if (scriptTimerRef.current) clearInterval(scriptTimerRef.current);
+    } catch (err: any) {
+      console.error("[ScriptGen] Error:", err);
+      setScriptGenerationProgress(p => ({ ...p, state: "error", error: err.message || "Failed to generate script" }));
+      if (scriptTimerRef.current) clearInterval(scriptTimerRef.current);
+    } finally {
+      scriptGenRef.current = false;
+    }
+  }, [url, storyText, audioFile, globalVisualStyle, targetDurationMinutes, mode, youtubeStyleSuffix, activeStyle, settingText, angle, characterProfiles, lyrics, musicSegments, audioDuration]);
 
   // Keep ref in sync
   useEffect(() => {
@@ -710,6 +813,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (saved.pollenUsed) setPollenUsed(saved.pollenUsed);
     if (saved.directorMode !== undefined) setDirectorMode(saved.directorMode);
     if (saved.captionStyle !== undefined) setCaptionStyle(saved.captionStyle);
+    if (saved.scriptGenerationProgress) setScriptGenerationProgress(saved.scriptGenerationProgress);
   }, []);
 
   // Persist key state to localStorage/sessionStorage.
@@ -732,6 +836,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         notepadData: { ...notepadData, sources: notepadData.sources.map(s => ({ ...s, rawContent: s.rawContent.substring(0, 10000) })) },
         directorMode,
         captionStyle,
+        scriptGenerationProgress,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
@@ -810,6 +915,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       startCombinedExtractionAndSynthesis,
       globalScriptModel,
       setGlobalScriptModel: () => {},
+      scriptGenerationProgress,
+      startScriptGeneration,
+      resetScriptGeneration,
       directorMode,
       setDirectorMode,
       captionStyle,

@@ -16,7 +16,7 @@ const DURATION_PRESETS = [
   { label: "60 min", value: 60 },
   { label: "120 min", value: 120 },
 ];
-import { getHistory, deleteFromHistory, loadProjectState, syncHistoryWithCloud, getThumbnailBlob, type VideoHistoryItem } from "@/lib/videoHistory";
+import { getHistory, deleteFromHistory, loadProjectState, syncHistoryWithCloud, getThumbnailBlob, recoverOrphanedProjects, type VideoHistoryItem } from "@/lib/videoHistory";
 import { getSavedStyles, saveStyle, deleteStyle, type SavedStyle } from "@/lib/savedStyles";
 
 function ProjectThumbnail({ video }: { video: VideoHistoryItem }) {
@@ -268,10 +268,18 @@ export default function Home() {
     if (hasMounted) {
       setRecentVideos(getHistory());
       setSavedStyles(getSavedStyles());
-      // Background sync with cloud
-      syncHistoryWithCloud().then(synced => {
+      
+      const initiateSync = async () => {
+        // First recover locally orphaned projects from IDB
+        const recovered = await recoverOrphanedProjects();
+        setRecentVideos(recovered);
+        
+        // Then sync with cloud
+        const synced = await syncHistoryWithCloud();
         setRecentVideos(synced);
-      });
+      };
+      
+      initiateSync();
     }
   }, [hasMounted]);
 
@@ -521,8 +529,7 @@ export default function Home() {
 
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<"projects" | "styles">("projects");
-  const SIDEBAR_LIMIT = 6;
-  const visibleProjects = showAllProjects ? recentVideos : recentVideos.slice(0, SIDEBAR_LIMIT);
+  const visibleProjects = recentVideos;
 
   return (
     <>
@@ -809,6 +816,55 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
+            {/* My Projects Grid Section */}
+            {recentVideos.length > 0 && (
+              <div className="space-y-6 pt-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-headline font-black text-on-surface">My Projects</h2>
+                  <span className="text-xs font-bold text-outline uppercase tracking-widest">{recentVideos.length} Total</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {recentVideos.map((v) => (
+                    <div key={v.id} className="relative group">
+                      <div 
+                        onClick={() => handleOpenProject(v)}
+                        className="glass-card rounded-[2rem] overflow-hidden cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all border-white/5 shadow-lg group-hover:shadow-2xl group-hover:border-primary/20"
+                      >
+                         <div className="aspect-video relative overflow-hidden bg-black/20">
+                           <ProjectThumbnail video={v} />
+                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60" />
+                           <div className="absolute bottom-3 left-4 flex items-center gap-2">
+                             <span className="text-[10px] font-black text-white/90 uppercase tracking-[0.2em]">{v.quality}</span>
+                             {v.totalSeconds && v.totalSeconds > 0 && (
+                               <span className="px-2 py-0.5 rounded-full bg-primary/20 backdrop-blur-md border border-primary/30 text-[10px] font-bold text-white">
+                                 {formatDuration(v.totalSeconds)}
+                               </span>
+                             )}
+                           </div>
+                         </div>
+                         <div className="p-5 space-y-1">
+                           <h3 className="font-bold text-sm text-on-surface truncate group-hover:text-primary transition-colors">{v.title}</h3>
+                           <p className="text-[11px] text-outline font-medium">{formatTimeAgo(new Date(v.createdAt))}</p>
+                         </div>
+                      </div>
+                      <button 
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete project "${v.title}"?`)) {
+                            await deleteFromHistory(v.id);
+                            setRecentVideos(getHistory());
+                          }
+                        }}
+                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/50 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -855,10 +911,10 @@ export default function Home() {
                           </div>
                         </div>
                         <button 
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
                             if (confirm("Delete this project?")) {
-                              deleteFromHistory(v.id);
+                              await deleteFromHistory(v.id);
                               setRecentVideos(getHistory());
                             }
                           }}

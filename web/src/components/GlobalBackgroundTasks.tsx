@@ -72,12 +72,13 @@ function TaskToast({
 }
 
 export default function GlobalBackgroundTasks() {
-  const { extractProgress, synthesizeProgress } = useAppContext();
+  const { extractProgress, synthesizeProgress, scriptGenerationProgress } = useAppContext();
 
   const showExtract = extractProgress.state !== "idle";
   const showSynthesize = synthesizeProgress.state !== "idle";
+  const showScriptGen = scriptGenerationProgress.state !== "idle";
 
-  if (!showExtract && !showSynthesize) return null;
+  if (!showExtract && !showSynthesize && !showScriptGen) return null;
 
   return (
     <div
@@ -121,6 +122,25 @@ export default function GlobalBackgroundTasks() {
           sub={synthesizeProgress.error || "Cinematic Director is analyzing your sources"}
           percent={synthesizeProgress.percent}
           state={synthesizeProgress.state}
+        />
+      )}
+
+      {showScriptGen && (
+        <TaskToast
+          icon="auto_fix_high"
+          label={
+            scriptGenerationProgress.state === "complete"
+              ? "Script Ready"
+              : scriptGenerationProgress.state === "error"
+              ? "Generation Failed"
+              : "Writing Your Story…"
+          }
+          sub={
+            scriptGenerationProgress.state === "running"
+              ? `AI is crafting scenes... (${Math.floor(scriptGenerationProgress.elapsedSeconds / 60)}:${String(scriptGenerationProgress.elapsedSeconds % 60).padStart(2, '0')})`
+              : scriptGenerationProgress.error || "Click to view results"
+          }
+          state={scriptGenerationProgress.state}
         />
       )}
     </div>

@@ -418,6 +418,34 @@ class PipelineManager {
       sceneStatuses: initStatuses,
     });
 
+    // CRITICAL: Save initial draft to history immediately so it survives refresh
+    await saveToHistory({
+      id: projectId,
+      title: config.scriptData.title || "Generating Story...",
+      topic: config.url || "",
+      angle: config.scriptData.angle || "",
+      quality: config.qualityTier,
+      dimensionId: config.videoDimension.id,
+      dimensionLabel: config.videoDimension.label,
+      totalSeconds: totalScenes * 8, // Estimate initial duration
+      activeStyle: config.activeStyle || null,
+      settingText: config.settingText || "",
+      createdAt: new Date().toISOString(),
+      updatedAt: Date.now(),
+      mode: config.mode,
+    });
+
+    await saveProjectState({
+      id: projectId,
+      scriptData: config.scriptData,
+      storyboardImages: config.storyboardImages,
+      sceneAudioUrls: {},
+      sceneVideoUrls: {},
+      sceneDurations: {},
+      musicUrl: null,
+      finalVideoUrl: null,
+    });
+
     bridge.setIsGenerating(true);
 
     try {
@@ -541,6 +569,35 @@ class PipelineManager {
           completedScenes: completedCount,
           status: `Scene ${completedCount}/${totalScenes} complete`,
         });
+
+        // Update persistence checkpoint after each scene
+        saveToHistory({
+          id: projectId,
+          title: config.scriptData.title || "Generating Story...",
+          topic: config.url || "",
+          angle: config.scriptData.angle || "",
+          quality: config.qualityTier,
+          dimensionId: config.videoDimension.id,
+          dimensionLabel: config.videoDimension.label,
+          totalSeconds: Object.values(durationMap).reduce((a, b) => a + b, 0),
+          activeStyle: config.activeStyle || null,
+          settingText: config.settingText || "",
+          createdAt: new Date().toISOString(),
+          updatedAt: Date.now(),
+          mode: config.mode,
+        }).catch(() => {});
+
+        saveProjectState({
+          id: projectId,
+          scriptData: config.scriptData,
+          storyboardImages: imageMap,
+          sceneAudioUrls: audioMap,
+          sceneVideoUrls: videoMap,
+          sceneDurations: durationMap,
+          musicUrl: null,
+          finalVideoUrl: null,
+        }).catch(() => {});
+
         console.log(`[pipeline] Scene ${index + 1} fully complete`);
         } catch (sceneErr) {
           console.error(`[pipeline] Scene ${index + 1} unexpected error:`, sceneErr);

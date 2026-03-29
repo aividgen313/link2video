@@ -604,9 +604,9 @@ function EditorInner() {
   };
 
   // ── Resizable panel widths and timeline height ──
-  const DEFAULT_SOURCE_W = 300;
-  const DEFAULT_PROPS_W = 360;
-  const DEFAULT_TIMELINE_H = 280;
+  const DEFAULT_SOURCE_W = 320;
+  const DEFAULT_PROPS_W = 420;
+  const DEFAULT_TIMELINE_H = 260;
   const [sourceWidth, setSourceWidth] = useState(DEFAULT_SOURCE_W);
   const [propsWidth, setPropsWidth] = useState(DEFAULT_PROPS_W);
   const [timelineHeight, setTimelineHeight] = useState(DEFAULT_TIMELINE_H);
@@ -1269,11 +1269,11 @@ function EditorInner() {
               {/* Trim panel (collapsible) */}
               {showTrim && <TrimPanel />}
               {/* Content */}
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {activeRightTab === "properties" ? (
                   <PropertiesPanel />
                 ) : (
-                  <div className="p-2 overflow-y-auto h-full">
+                  <div className="p-4 h-full">
                     <TextOverlayEditor />
                   </div>
                 )}

@@ -39,8 +39,9 @@ export default function ScriptBuilder() {
     imagesPerScene,
     videoResolution,
     captionStyle, setCaptionStyle,
+    startScriptGeneration, scriptGenerationProgress, resetScriptGeneration
   } = useAppContext();
-  const [isLoading, setIsLoading] = useState(!scriptData);
+  const [isLoading, setIsLoading] = useState(scriptGenerationProgress.state === "running");
   const [hasMounted, setHasMounted] = useState(false);
   const [activeScene, setActiveScene] = useState<Scene | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -233,113 +234,6 @@ export default function ScriptBuilder() {
       generateSceneImage(scene);
     }
   }, [freshScript, scriptData?.scenes, storyboardImages, generatingImages, isLoading, generateSceneImage]);
-
-  useEffect(() => {
-    if (scriptData) {
-      setIsLoading(false);
-      if (scriptData.scenes.length > 0) setActiveScene(scriptData.scenes[0]);
-      return;
-    }
-
-    // Only auto-generate if user explicitly requested generation (not sidebar browsing)
-    const hasValidInput = (mode === "link" && url) ||
-                          (mode === "short-story" && storyText) ||
-                          (mode === "music-video" && audioFile) ||
-                          (mode === "notepad" && storyText);
-    if (!hasValidInput || !generateRequested) {
-      setIsLoading(false);
-      return;
-    }
-    setGenerateRequested(false); // Consume the intent signal
-
-    const fetchScript = async () => {
-      try {
-        setIsLoading(true);
-
-        // Auto-fetch angle if missing (link mode skips story page)
-        let resolvedAngle = angle;
-        if (mode === "link" && !angle && url) {
-          try {
-            const anglesRes = await fetch("/api/angles", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ topic: url, durationMinutes: targetDurationMinutes }),
-              signal: AbortSignal.timeout(90000), // angle gen can take 60s+
-            });
-            if (anglesRes.ok) {
-              const anglesData = await anglesRes.json();
-              if (anglesData.angles?.[0]) {
-                resolvedAngle = anglesData.angles[0].title;
-                setAngle(resolvedAngle);
-              }
-            }
-          } catch (err) {
-            console.warn("Auto-angle fetch failed, using URL as angle:", err);
-          }
-          if (!resolvedAngle) resolvedAngle = url; // fallback to URL itself
-        }
-
-        // Build mode-aware request body
-        const requestBody: Record<string, any> = {
-          visualStyle: globalVisualStyle,
-          durationMinutes: targetDurationMinutes,
-          mode,
-          ...(youtubeStyleSuffix ? { youtubeStyleSuffix } : {}),
-          ...(activeStyle ? { activeStyle } : {}),
-          ...(settingText ? { settingText } : {}),
-        };
-        if (mode === "short-story" || mode === "notepad") {
-          requestBody.storyText = storyText;
-          requestBody.characterProfiles = characterProfiles;
-          if (angle) requestBody.angle = angle;
-        } else if (mode === "music-video") {
-          requestBody.lyrics = lyrics;
-          requestBody.musicSegments = musicSegments;
-          requestBody.characterProfiles = characterProfiles;
-          if (audioDuration > 0) {
-            requestBody.durationMinutes = audioDuration / 60;
-          }
-        } else {
-          requestBody.url = url || "https://example.com/mock";
-          requestBody.angle = resolvedAngle;
-          if (characterProfiles.length > 0) {
-            requestBody.characterProfiles = characterProfiles;
-          }
-        }
-        const res = await fetch("/api/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-          signal: AbortSignal.timeout(900000), // 15min — long videos (20min+) need significant time
-        });
-        if (!res.ok) throw new Error(`Script generation failed (HTTP ${res.status})`);
-        const data = await res.json();
-        if (data.error) {
-          setErrorMessage(data.error + (data.message ? `: ${data.message}` : ""));
-        } else {
-          setScriptData(data);
-          setErrorMessage(null);
-          setFreshScript(true); // Script was just generated — allow auto-image gen
-          if (data.scenes && data.scenes.length > 0) {
-            setActiveScene(data.scenes[0]);
-          }
-          // Search for reference images of key subjects in the background
-          searchReferenceImages(data);
-        }
-      } catch (e: any) {
-        console.error(e);
-        if (e?.name === "TimeoutError" || e?.message?.includes("timeout") || e?.message?.includes("abort")) {
-          setErrorMessage("Script generation timed out — the AI servers may be busy. Please try again.");
-        } else {
-          setErrorMessage("Failed to generate script. Check your internet connection and try again.");
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchScript();
-  }, [url, angle, scriptData, setScriptData]);
 
   const handleGenerateVideo = () => {
     if (!scriptData) return;
@@ -598,53 +492,67 @@ export default function ScriptBuilder() {
         </div>
       )}
 
-      {/* Loading State with ETA */}
-      {isLoading && !scriptData && (
-        <div className="flex flex-col items-center justify-center py-20 gap-5">
+      {/* Global Script Generation Progress */}
+      {scriptGenerationProgress.state === "running" && !scriptData && (
+        <div className="flex flex-col items-center justify-center py-20 gap-5 max-w-2xl mx-auto">
           <div className="relative">
-            <div className="w-20 h-20 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-            <span className="material-symbols-outlined absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary text-2xl">auto_fix_high</span>
+            <div className="w-24 h-24 border-4 border-primary/20 border-t-primary rounded-full animate-spin shadow-2xl shadow-primary/10"></div>
+            <span className="material-symbols-outlined absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary text-3xl">auto_fix_high</span>
           </div>
-          <div className="text-center space-y-2">
-            <p className="font-headline font-bold text-xl">Generating Script...</p>
-            <p className="text-sm text-outline">
-              {loadingElapsed < 3
-                ? "Connecting to AI model..."
-                : loadingElapsed < 15
-                ? "AI is writing your scenes..."
-                : loadingElapsed < 40
-                ? `Writing scene narrations & visual prompts...`
-                : loadingElapsed < 70
-                ? "Crafting visual reference descriptions..."
-                : loadingElapsed < 100
-                ? "Still working — AI models can take a minute..."
-                : loadingElapsed < 140
-                ? "Taking longer than usual — hang tight..."
-                : "Almost there — finalizing script..."}
-            </p>
-            <div className="flex items-center justify-center gap-3 mt-3">
-              <span className="font-mono text-sm text-outline tabular-nums">
-                {Math.floor(loadingElapsed / 60)}:{String(loadingElapsed % 60).padStart(2, '0')} elapsed
-              </span>
-              <span className="text-xs text-outline/60">|</span>
-              <span className="text-xs text-primary font-medium">
-                {loadingElapsed < 3 ? `~${Math.max(60, targetDurationMinutes * 15)}s remaining` : loadingElapsed < 40 ? `~${Math.max(30, 90 - loadingElapsed)}s remaining` : loadingElapsed < 100 ? `~${Math.max(10, 120 - loadingElapsed)}s remaining` : loadingElapsed < 150 ? `~${Math.max(5, 160 - loadingElapsed)}s remaining` : "finishing up..."}
-              </span>
+          <div className="text-center space-y-3">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="w-2 h-2 rounded-full bg-primary animate-ping" />
+              <h3 className="font-headline font-black text-2xl tracking-tight">AI is crafting your story...</h3>
             </div>
-            {/* Progress bar */}
-            <div className="w-64 mx-auto h-1.5 bg-surface-container-highest rounded-full overflow-hidden mt-2">
-              <div
-                className="h-full bg-gradient-to-r from-primary to-primary-container rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${Math.min(95, loadingElapsed < 10 ? 5 : loadingElapsed < 60 ? 10 + (loadingElapsed * 0.5) : loadingElapsed < 180 ? 40 + (loadingElapsed * 0.1) : 60 + (loadingElapsed * 0.05))}%` }}
-              />
+            <p className="text-sm text-outline px-10 leading-relaxed font-medium">
+              {scriptGenerationProgress.elapsedSeconds < 5
+                ? "Connecting to deep-knowledge AI models..."
+                : scriptGenerationProgress.elapsedSeconds < 25
+                ? "Analyzing your sources and world-building..."
+                : scriptGenerationProgress.elapsedSeconds < 60
+                ? "Writing cinematic scene-by-scene narrations..."
+                : "Finalizing character physical consistency..."}
+            </p>
+            <div className="flex items-center justify-center gap-4 mt-4 bg-surface-container-low px-6 py-2.5 rounded-2xl border border-outline-variant/10 shadow-sm">
+              <div className="flex flex-col items-center">
+                <span className="font-mono text-sm text-on-surface font-bold tabular-nums">
+                  {Math.floor(scriptGenerationProgress.elapsedSeconds / 60)}:{String(scriptGenerationProgress.elapsedSeconds % 60).padStart(2, '0')}
+                </span>
+                <span className="text-[10px] text-outline uppercase font-black tracking-widest">Elapsed</span>
+              </div>
+              <div className="w-px h-6 bg-outline-variant/20" />
+              <div className="flex flex-col items-center">
+                <span className="text-xs text-primary font-black uppercase tracking-widest">
+                  {scriptGenerationProgress.elapsedSeconds < 30 ? "~1m left" : scriptGenerationProgress.elapsedSeconds < 90 ? "~30s left" : "Almost done"}
+                </span>
+                <span className="text-[10px] text-outline uppercase font-black tracking-widest">Estimated</span>
+              </div>
             </div>
           </div>
         </div>
       )}
 
+      {scriptGenerationProgress.state === "error" && !scriptData && (
+        <div className="flex flex-col items-center justify-center py-20 text-center space-y-6">
+          <div className="w-16 h-16 rounded-full bg-error/10 flex items-center justify-center">
+            <span className="material-symbols-outlined text-error text-3xl">error</span>
+          </div>
+          <div className="space-y-2">
+            <h3 className="font-headline font-black text-xl">Script Generation Failed</h3>
+            <p className="text-sm text-outline max-w-md mx-auto">{scriptGenerationProgress.error || "An unknown error occurred while writing your script."}</p>
+          </div>
+          <button 
+            onClick={() => startScriptGeneration()}
+            className="px-8 py-3 bg-primary text-white rounded-2xl font-bold hover:shadow-lg transition-all"
+          >
+            Retry Generation
+          </button>
+        </div>
+      )}
+
       {/* Main Content — only when script data exists */}
       {scriptData && (
-      <div className="max-w-7xl mx-auto flex flex-col w-full h-[calc(100vh-180px)] min-h-0 overflow-hidden mt-4">
+      <div className="max-w-7xl mx-auto flex flex-col w-full h-[calc(100vh-140px)] min-h-0 overflow-y-auto custom-scrollbar mt-4 pr-1">
         {/* Demo Mode Banner */}
         {scriptData && (scriptData as any).isDemo && (
           <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
@@ -677,16 +585,21 @@ export default function ScriptBuilder() {
           <PollensBalanceWidget />
 
           {/* Quality + Settings bar */}
-          <div className="flex flex-wrap gap-3 items-center">
-            {/* Quality Tier Pills */}
-            <div className="flex items-center gap-1 glass p-1 rounded-xl">
+          <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+            {/* Universal Tier Selection Pills */}
+            <div className="flex items-center gap-1.5 glass p-1.5 rounded-2xl border border-outline-variant/10 shadow-sm overflow-x-auto no-scrollbar">
               {(["free", "basic", "medium", "pro"] as QualityTier[]).map((t) => {
                 const info = QUALITY_TIERS[t];
+                const active = qualityTier === t;
                 return (
                   <button
                     key={t}
                     onClick={() => setQualityTier(t)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${qualityTier === t ? `${info.bgColor} ${info.color} border ${info.borderColor}` : "text-outline hover:text-on-surface"}`}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
+                      active 
+                        ? `${info.bgColor} ${info.color} border border-${t === 'free' ? 'green-500/30' : t === 'basic' ? 'emerald-500/30' : t === 'medium' ? 'primary/30' : 'tertiary/30'} shadow-sm` 
+                        : "text-outline/60 hover:text-on-surface hover:bg-surface-variant/30"
+                    }`}
                   >
                     {info.label}
                   </button>
@@ -694,62 +607,34 @@ export default function ScriptBuilder() {
               })}
             </div>
 
-            <div className="w-full max-w-2xl mx-auto mb-6 space-y-4">
-               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                {(["free", "basic", "medium", "pro"] as QualityTier[]).map((t) => {
-                  const info = QUALITY_TIERS[t];
-                  const isActive = qualityTier === t;
-                  const cost = scriptData 
-                    ? calculateTotalCost(t, scriptData.scenes.length, false).toFixed(2)
-                    : "0.00";
-                  return (
-                    <button 
-                      key={t} 
-                      onClick={() => setQualityTier(t)}
-                      className={`flex items-center justify-between px-3 py-2 rounded-xl border transition-all ${isActive ? `${info.bgColor} ${info.color} ${info.borderColor} shadow-md` : "glass border-transparent opacity-60 hover:opacity-100"}`}
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className="text-[9px] font-black uppercase tracking-wider opacity-70">{info.label}</span>
-                        <span className="text-sm font-headline font-bold">${cost}</span>
-                      </div>
-                      {isActive && <span className="material-symbols-outlined text-sm">check_circle</span>}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="glass-card p-4 rounded-3xl border border-outline/10">
-                <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface mb-3 px-1">Detailed Tier Estimates</h4>
-                <CostCalculator currentTier={qualityTier} />
-              </div>
+            <div className="flex items-center gap-3 ml-auto">
+              {/* Images progress indicator */}
+              {totalScenes > 0 && (
+                <div className="flex items-center gap-2 glass px-4 py-2.5 rounded-2xl border border-outline-variant/10">
+                  <span className={`material-symbols-outlined text-sm ${allImagesReady ? 'text-green-400' : 'text-primary animate-pulse'}`}>image</span>
+                  <span className={`text-[11px] font-black uppercase tracking-widest ${allImagesReady ? 'text-green-400' : 'text-outline'}`}>
+                    {imagesReady}/{totalScenes} <span className="hidden sm:inline">Images</span>
+                  </span>
+                </div>
+              )}
+
+              <button
+                onClick={handleGenerateVideo}
+                disabled={!allImagesReady}
+                className="primary-gradient text-white px-8 py-3 rounded-2xl font-headline font-black uppercase tracking-widest text-xs hover:shadow-xl hover:scale-[1.02] transition-all flex items-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-40 disabled:grayscale disabled:scale-100"
+              >
+                <span className="material-symbols-outlined text-lg">movie</span>
+                {allImagesReady ? 'Finalize Video' : `Generating (${imagesReady}/${totalScenes})`}
+              </button>
             </div>
-
-
-            {/* Images progress indicator */}
-            {totalScenes > 0 && (
-              <div className="flex items-center gap-2 glass px-3 py-2 rounded-xl">
-                <span className="material-symbols-outlined text-sm text-secondary">image</span>
-                <span className={`text-xs font-bold ${allImagesReady ? 'text-green-400' : 'text-outline'}`}>
-                  {imagesReady}/{totalScenes} images
-                </span>
-              </div>
-            )}
-
-            <button
-              onClick={handleGenerateVideo}
-              disabled={!allImagesReady}
-              className="ml-auto primary-gradient text-white px-6 py-2.5 rounded-xl font-headline font-bold hover:shadow-lg transition-all flex items-center gap-2 shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="material-symbols-outlined text-lg">movie</span>
-              {allImagesReady ? 'Generate Video' : `Waiting for images (${imagesReady}/${totalScenes})`}
-            </button>
           </div>
         </div>
 
         {/* Two Column Layout — each scrollable */}
-        <div className="grid grid-cols-12 gap-8 flex-1 min-h-0 pb-10 mt-4">
+        <div className="grid grid-cols-12 gap-8 pb-10 mt-4">
 
           {/* Left Side: Script Scenes with Image Previews */}
-          <div className="col-span-12 lg:col-span-7 space-y-6 overflow-y-auto custom-scrollbar pr-2">
+          <div className="col-span-12 lg:col-span-7 space-y-6">
             {isLoading ? (
               <div className="flex justify-center py-20">
                 <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
@@ -950,7 +835,7 @@ export default function ScriptBuilder() {
             </div>
           </div>
                     {/* Right Side: Visual Prompt Editor for Active Scene */}
-          <div className="col-span-12 lg:col-span-5 h-full overflow-y-auto custom-scrollbar pr-2">
+          <div className="col-span-12 lg:col-span-5">
             <div className="space-y-6 h-fit pb-10">
               
               {/* [NEW] Character Cast / Identities Section */}
@@ -1010,9 +895,18 @@ export default function ScriptBuilder() {
                       ))
                     )}
                   </div>
-                  <p className="mt-3 text-[9px] text-outline-variant text-center">These descriptions are automatically prepended to scene prompts.</p>
+                  <p className="mt-4 text-[9px] text-outline-variant text-center bg-surface-container-low/50 py-2 rounded-lg">Descriptions are locked to ensure face & body consistency.</p>
                 </div>
               )}
+
+              {/* [NEW] Detailed Costs placed in sidebar per user request */}
+              <div className="glass-card rounded-3xl p-6 shadow-xl border-primary/10">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="material-symbols-outlined text-primary text-xl">payments</span>
+                  <h3 className="font-headline font-black text-sm uppercase tracking-wider">Project Estimates</h3>
+                </div>
+                <CostCalculator currentTier={qualityTier} />
+              </div>
 
               <div className="glass-card rounded-3xl p-8 shadow-2xl space-y-8">
                 <div className="flex items-center justify-between">

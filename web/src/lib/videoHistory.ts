@@ -221,13 +221,15 @@ export async function saveToHistory(item: VideoHistoryItem): Promise<void> {
   }
 }
 
-export function deleteFromHistory(id: string): void {
+export async function deleteFromHistory(id: string): Promise<void> {
   try {
     const updated = getHistory().filter((h) => h.id !== id);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
-    deleteProjectState(id); // Clean up IndexedDB space
-    deleteProjectFromCloud(id); // Clean up cloud
-  } catch {}
+    await deleteProjectState(id); // Clean up IndexedDB space
+    await deleteProjectFromCloud(id); // Clean up cloud
+  } catch (err) {
+    console.warn("Delete failed:", err);
+  }
 }
 
 // ==========================================
@@ -356,34 +358,82 @@ export async function loadProjectState(id: string): Promise<ProjectState | null>
       finalVideoUrl: null
     };
     
+    // Map of Blob/UID -> URL to reuse URLs and avoid multiple object URLs for same Blob
+    const blobToUrlCache = new Map<Blob | string, string>();
+    const getCachedUrl = (b: Blob | string) => {
+      if (typeof b === "string") return b;
+      if (blobToUrlCache.has(b)) return blobToUrlCache.get(b)!;
+      const url = blobToUrl(b);
+      blobToUrlCache.set(b, url);
+      return url;
+    };
+
     for (const [sid, blobs] of Object.entries(stateToHydrate.storyboardImages)) {
       if (Array.isArray(blobs)) {
-        hydrated.storyboardImages[Number(sid)] = blobs.map(b => typeof b === "string" ? b : blobToUrl(b));
+        hydrated.storyboardImages[Number(sid)] = blobs.map(b => getCachedUrl(b));
       }
     }
 
     for (const [sid, b] of Object.entries(stateToHydrate.sceneAudioUrls)) {
-      hydrated.sceneAudioUrls[Number(sid)] = typeof b === "string" ? b : blobToUrl(b as any);
+      hydrated.sceneAudioUrls[Number(sid)] = getCachedUrl(b as any);
     }
 
     for (const [sid, b] of Object.entries(stateToHydrate.sceneVideoUrls)) {
-      hydrated.sceneVideoUrls[Number(sid)] = typeof b === "string" ? b : blobToUrl(b as any);
+      hydrated.sceneVideoUrls[Number(sid)] = getCachedUrl(b as any);
     }
 
     if (stateToHydrate.finalVideoUrl) {
-      hydrated.finalVideoUrl = typeof stateToHydrate.finalVideoUrl === "string" 
-        ? stateToHydrate.finalVideoUrl 
-        : blobToUrl(stateToHydrate.finalVideoUrl);
+      hydrated.finalVideoUrl = getCachedUrl(stateToHydrate.finalVideoUrl as any);
     }
     
     if (stateToHydrate.musicUrl) {
-      hydrated.musicUrl = typeof stateToHydrate.musicUrl === "string"
-        ? stateToHydrate.musicUrl
-        : blobToUrl(stateToHydrate.musicUrl);
+      hydrated.musicUrl = getCachedUrl(stateToHydrate.musicUrl as any);
     }
 
-    // If we have a persistent thumbnail blob but missing history thumb, we can restore it elsewhere,
-    // but here we just ensure the hydrated object is a clean string-based version for context.
+    // CRITICAL: Re-inject the new URLs into the editorScenes and scriptData.scenes 
+    // This is what the Editor UI actually displays.
+    if (hydrated.editorScenes && Array.isArray(hydrated.editorScenes)) {
+      hydrated.editorScenes = hydrated.editorScenes.map((s: any) => {
+        const sid = s.id;
+        const ims = hydrated.storyboardImages[sid];
+        const aud = hydrated.sceneAudioUrls[sid];
+        const vid = hydrated.sceneVideoUrls[sid];
+        return {
+          ...s,
+          imageUrl: ims && ims.length > 0 ? ims[0] : (s.imageUrl || ""),
+          audioUrl: aud || s.audioUrl || "",
+          aiVideoUrl: vid || s.aiVideoUrl || ""
+        };
+      });
+    }
+
+    // Keep scriptData matching
+    if (hydrated.scriptData?.scenes && Array.isArray(hydrated.scriptData.scenes)) {
+      hydrated.scriptData.scenes = hydrated.scriptData.scenes.map((s: any, idx: number) => {
+        const sid = s.id || idx;
+        const ims = hydrated.storyboardImages[sid];
+        const aud = hydrated.sceneAudioUrls[sid];
+        const vid = hydrated.sceneVideoUrls[sid];
+        return {
+          ...s,
+          imageUrl: ims && ims.length > 0 ? ims[0] : (s.imageUrl || ""),
+          audioUrl: aud || s.audioUrl || "",
+          aiVideoUrl: vid || s.aiVideoUrl || ""
+        };
+      });
+    }
+
+    // Sync editorTracks as well
+    if (hydrated.editorTracks && Array.isArray(hydrated.editorTracks)) {
+      hydrated.editorTracks = hydrated.editorTracks.map((t: any) => {
+        if (t.type === "audio" || t.type === "video") {
+          const sid = t.sceneId;
+          const url = t.type === "audio" ? hydrated.sceneAudioUrls[sid] : hydrated.sceneVideoUrls[sid];
+          if (url) return { ...t, url };
+        }
+        return t;
+      });
+    }
     
     if (localState === null && stateToHydrate) {
       // Save local copy for next time if it came from cloud
@@ -452,4 +502,55 @@ export async function deleteProjectState(id: string): Promise<void> {
   } catch (err) {
     console.error("Failed to delete project state from IndexedDB", err);
   }
+}
+
+/**
+ * Scan IndexedDB for projects that exist in storage but are missing from the localStorage history array.
+ * This is a "safety net" to recover projects that were partially generated or lost during a refresh.
+ */
+export async function recoverOrphanedProjects(): Promise<VideoHistoryItem[]> {
+  try {
+    const db = await openDB();
+    const allStates = await new Promise<PersistentProjectState[]>((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE_NAME, "readonly");
+      const store = tx.objectStore(IDB_STORE_NAME);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+
+    const history = getHistory();
+    const historyIds = new Set(history.map(h => h.id));
+    const recovered: VideoHistoryItem[] = [];
+
+    for (const state of allStates) {
+      if (!historyIds.has(state.id)) {
+        console.log(`[Recovery] Found orphaned project: ${state.id}`);
+        // Create a basic history item from the state
+        const item: VideoHistoryItem = {
+          id: state.id,
+          title: state.scriptData?.title || "Recovered Video",
+          topic: "",
+          angle: state.scriptData?.angle || "",
+          quality: "basic" as const, // Fallback
+          dimensionId: "16:9",
+          dimensionLabel: "16:9",
+          totalSeconds: Object.values(state.sceneDurations || {}).reduce((a, b) => a + Number(b), 0),
+          createdAt: new Date(Number(state.id) || Date.now()).toISOString(),
+          updatedAt: Date.now(),
+          hasThumbnail: !!state.thumbnailBlob,
+        };
+        recovered.push(item);
+      }
+    }
+
+    if (recovered.length > 0) {
+      const updated = [...recovered, ...history].slice(0, MAX_ITEMS);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+      return updated;
+    }
+  } catch (err) {
+    console.warn("[Recovery] Failed to scan for orphans:", err);
+  }
+  return getHistory();
 }
