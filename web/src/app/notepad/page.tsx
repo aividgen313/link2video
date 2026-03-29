@@ -1534,29 +1534,28 @@ export default function NotepadPage() {
               {/* Quality Tier Selector */}
               <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--np-divider-light)" }}>
                 <div className="flex">
-                  {(["basic", "medium", "pro"] as QualityTier[]).map((tier) => {
-                    const t = QUALITY_TIERS[tier];
-                    const isActive = qualityTier === tier;
-                    return (
-                      <button
-                        key={tier}
-                        onClick={() => setQualityTier(tier)}
-                        className="flex-1 py-2 px-1 text-center transition-all"
-                        style={{
-                          background: isActive ? "var(--np-blue)" : "var(--np-input-bg)",
-                          color: isActive ? "#fff" : "var(--np-text-secondary)",
-                          borderRight: tier !== "pro" ? "1px solid var(--np-divider-light)" : "none",
-                        }}
-                      >
-                        <p className="text-[12px] font-bold">{t.label}</p>
-                        <p className="text-[9px] mt-0.5 opacity-80">
-                          {tier === "basic" ? "Free" : tier === "medium" ? "AI Video Mix" : "Full AI Video"}
-                        </p>
-                      </button>
-                    );
-                  })}
+                  {(["free", "basic", "medium", "pro"] as QualityTier[]).map((tier) => {
+                      const t = QUALITY_TIERS[tier];
+                      const isActive = qualityTier === tier;
+                      const cost = calculateTotalCost(tier, estimatedScenes).toFixed(2);
+                      return (
+                        <button
+                          key={tier}
+                          onClick={() => setQualityTier(tier)}
+                          className="flex-1 py-2 px-1 text-center transition-all flex flex-col items-center gap-0.5"
+                          style={{
+                            background: isActive ? "var(--np-blue)" : "var(--np-input-bg)",
+                            color: isActive ? "#fff" : "var(--np-text-secondary)",
+                            borderRight: tier !== "pro" ? "1px solid var(--np-divider-light)" : "none",
+                          }}
+                        >
+                          <p className="text-[11px] font-bold uppercase tracking-wider">{t.label}</p>
+                          <p className="text-[10px] font-black">${cost}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
               {/* Cost estimate */}
               <div className="p-3 rounded-lg text-center" style={{ background: "var(--np-input-bg)" }}>
                 <p className="text-[12px] font-medium" style={{ color: "var(--np-text-secondary)" }}>

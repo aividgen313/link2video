@@ -3,7 +3,19 @@ import Link from "next/link";
 import { useState, useRef, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppContext, VIDEO_DIMENSIONS } from "@/context/AppContext";
-import { getHistory, loadProjectState } from "@/lib/videoHistory";
+import { getHistory, loadProjectState, deleteFromHistory } from "@/lib/videoHistory";
+
+function formatDuration(seconds: number): string {
+  if (!seconds || seconds <= 0) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  if (mins >= 60) {
+    const hrs = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    return `${hrs}:${remMins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 
 type AssetType = "all" | "image" | "audio" | "video";
 
@@ -23,6 +35,8 @@ type ProjectGroup = {
   title: string;
   date: string;
   assets: Asset[];
+  totalSeconds?: number;
+  thumbnailUrl?: string;
 };
 
 export default function AssetLibrary() {
@@ -67,15 +81,18 @@ export default function AssetLibrary() {
 
           // Storyboard images
           if (state.storyboardImages) {
-            Object.entries(state.storyboardImages).forEach(([sceneId, url]) => {
-              allAssets.push({
-                id: `saved-img-${item.id}-${sceneId}`,
-                name: `Scene ${sceneId} Image`,
-                type: "image",
-                url: url as string,
-                date,
-                project: projName,
-                projectId: item.id,
+            Object.entries(state.storyboardImages).forEach(([sceneId, urls]) => {
+              const urlArr = Array.isArray(urls) ? urls : [urls];
+              urlArr.forEach((u: string, i: number) => {
+                allAssets.push({
+                  id: `saved-img-${item.id}-${sceneId}-${i}`,
+                  name: `Scene ${sceneId} Image ${i + 1}`,
+                  type: "image",
+                  url: u,
+                  date,
+                  project: projName,
+                  projectId: item.id,
+                });
               });
             });
           }
@@ -132,7 +149,7 @@ export default function AssetLibrary() {
     };
 
     loadSavedAssets();
-  }, []);
+  }, [scriptData]); // reload if current project changes
 
   // Compute all assets and group them
   const groupedProjects = useMemo(() => {
@@ -143,19 +160,28 @@ export default function AssetLibrary() {
     const currentProj = scriptData?.title || "Current Session";
     const currentDate = new Date().toLocaleDateString();
 
-    Object.entries(storyboardImages).forEach(([id, url]) => {
-      seenUrls.add(url);
-      items.push({ id: `cur-img-${id}`, name: `Scene ${id} Image`, type: "image", url, date: currentDate, project: currentProj, projectId: "current" });
+    Object.entries(storyboardImages).forEach(([id, urls]) => {
+      const urlArr = Array.isArray(urls) ? urls : [urls];
+      urlArr.forEach((url, i) => {
+        if (!seenUrls.has(url)) {
+          seenUrls.add(url);
+          items.push({ id: `cur-img-${id}-${i}`, name: `Scene ${id} Image ${i + 1}`, type: "image", url, date: currentDate, project: currentProj, projectId: "current" });
+        }
+      });
     });
     Object.entries(sceneAudioUrls).forEach(([id, url]) => {
-      seenUrls.add(url);
-      items.push({ id: `cur-audio-${id}`, name: `Scene ${id} Narration`, type: "audio", url, date: currentDate, project: currentProj, projectId: "current" });
+      if (!seenUrls.has(url)) {
+        seenUrls.add(url);
+        items.push({ id: `cur-audio-${id}`, name: `Scene ${id} Narration`, type: "audio", url, date: currentDate, project: currentProj, projectId: "current" });
+      }
     });
     Object.entries(sceneVideoUrls).forEach(([id, url]) => {
-      seenUrls.add(url);
-      items.push({ id: `cur-vid-${id}`, name: `Scene ${id} Video Clip`, type: "video", url, date: currentDate, project: currentProj, projectId: "current" });
+      if (!seenUrls.has(url)) {
+        seenUrls.add(url);
+        items.push({ id: `cur-vid-${id}`, name: `Scene ${id} Video Clip`, type: "video", url, date: currentDate, project: currentProj, projectId: "current" });
+      }
     });
-    if (finalVideoUrl) {
+    if (finalVideoUrl && !seenUrls.has(finalVideoUrl)) {
       seenUrls.add(finalVideoUrl);
       items.push({ id: `cur-final`, name: `Final Exported Video`, type: "video", url: finalVideoUrl, date: currentDate, project: currentProj, projectId: "current" });
     }
@@ -187,9 +213,23 @@ export default function AssetLibrary() {
       const pId = asset.projectId || "uploads";
       const pTitle = pId === "uploads" ? "Custom Uploads" : (asset.project || "Other Project");
       if (!groups[pId]) {
-        groups[pId] = { id: pId, title: pTitle, date: asset.date, assets: [] };
+        // Try to find history metadata for this project
+        const historyItem = getHistory().find(h => h.id === pId);
+        groups[pId] = { 
+          id: pId, 
+          title: pTitle, 
+          date: asset.date, 
+          assets: [],
+          totalSeconds: historyItem?.totalSeconds,
+          thumbnailUrl: historyItem?.thumbnailUrl
+        };
       }
       groups[pId].assets.push(asset);
+      
+      // Auto-pick thumbnail if missing
+      if (!groups[pId].thumbnailUrl && asset.type === "image") {
+        groups[pId].thumbnailUrl = asset.url;
+      }
     });
 
     // Convert to array, current first, then by date desc
@@ -348,18 +388,38 @@ export default function AssetLibrary() {
                   role="button"
                   tabIndex={0}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') toggleFolder(project.id); }}
-                  className="w-full flex items-center justify-between border-b border-outline/5 pb-2 group/folder hover:border-primary/20 transition-colors cursor-pointer"
+                  className={`w-full flex items-center justify-between border-b border-outline/5 pb-2 group/folder hover:border-primary/20 transition-colors cursor-pointer ${isExpanded ? 'bg-surface-container-high/20' : ''}`}
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-sm ${project.id === 'current' ? 'bg-primary/10 text-primary shadow-primary/5' : 'bg-surface-container-high text-outline group-hover/folder:bg-primary/10 group-hover/folder:text-primary group-hover/folder:shadow-md'}`}>
-                      <span className="material-symbols-outlined text-[24px]">{project.id === 'current' ? 'auto_awesome' : !isExpanded ? 'folder' : 'folder_open'}</span>
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-sm overflow-hidden relative ${project.id === 'current' ? 'bg-primary/10 text-primary shadow-primary/5' : 'bg-surface-container-high text-outline group-hover/folder:bg-primary/10 group-hover/folder:text-primary group-hover/folder:shadow-md'}`}>
+                      {project.thumbnailUrl ? (
+                        <img src={project.thumbnailUrl} className="w-full h-full object-cover" alt="" />
+                      ) : (
+                        <span className="material-symbols-outlined text-[24px]">{project.id === 'current' ? 'auto_awesome' : !isExpanded ? 'folder' : 'folder_open'}</span>
+                      )}
+                      {project.id === 'current' && (
+                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                        </div>
+                      )}
                     </div>
                     <div className="text-left py-1">
-                      <h2 className="text-xl font-headline font-black text-on-surface tracking-tight">{project.title}</h2>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-headline font-black text-on-surface tracking-tight">{project.title}</h2>
+                        {project.id === 'current' && (
+                          <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">Active</span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] text-primary/80 uppercase font-black tracking-widest">{project.assets.length} items</span>
                         <span className="w-1 h-1 rounded-full bg-outline/30 shrink-0" />
                         <span className="text-[10px] text-outline font-bold uppercase tracking-wider">{project.date}</span>
+                        {project.totalSeconds && project.totalSeconds > 0 && (
+                          <>
+                            <span className="w-1 h-1 rounded-full bg-outline/30 shrink-0" />
+                            <span className="text-[10px] text-primary font-black uppercase tracking-wider">{formatDuration(project.totalSeconds)}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -368,18 +428,33 @@ export default function AssetLibrary() {
                       expand_more
                     </span>
                     {project.id !== 'current' && project.id !== 'uploads' && (
-                      <button 
-                        onClick={(e) => handleOpenProject(project.id, e)}
-                        disabled={isOpening !== null}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-lg hover:bg-primary hover:text-on-primary transition-all ml-2"
-                      >
-                        {isOpening === project.id ? (
-                          <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <span className="material-symbols-outlined text-sm">open_in_new</span>
-                        )}
-                        Open in Editor
-                      </button>
+                      <div className="flex items-center gap-2 ml-2">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm("Permanently delete this project and all its assets?")) {
+                              deleteFromHistory(project.id);
+                              window.location.reload();
+                            }
+                          }}
+                          className="p-2 text-outline hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                          title="Delete Project"
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                        <button 
+                          onClick={(e) => handleOpenProject(project.id, e)}
+                          disabled={isOpening !== null}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-lg hover:bg-primary hover:text-on-primary transition-all"
+                        >
+                          {isOpening === project.id ? (
+                            <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <span className="material-symbols-outlined text-sm">open_in_new</span>
+                          )}
+                          Editor
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

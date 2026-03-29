@@ -26,6 +26,18 @@ function formatTimeAgo(date: Date): string {
   return date.toLocaleDateString();
 }
 
+function formatDuration(seconds: number): string {
+  if (!seconds || seconds <= 0) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  if (mins >= 60) {
+    const hrs = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    return `${hrs}:${remMins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
 // Video STYLE templates
 const STYLE_TEMPLATES = [
   { label: "POV Scenario", icon: "person_play", description: "Immersive 2nd-person day-in-the-life experience", prefix: "POV: ", placeholder: "Your life after winning the $500 million lottery", example: "POV: Your life after winning the $500 million lottery" },
@@ -738,9 +750,11 @@ export default function Home() {
                       {(["free", "basic", "medium", "pro"] as QualityTier[]).map((t) => {
                         const info = QUALITY_TIERS[t];
                         const isActive = qualityTier === t;
+                        const estCost = calculateTotalCost(t, estScenes, musicEnabled).toFixed(2);
                         return (
                           <button key={t} onClick={() => setQualityTier(t)} className={`py-2.5 px-2 rounded-xl flex flex-col items-center gap-1 border transition-all ${isActive ? `${info.bgColor} ${info.color} ${info.borderColor}` : "border-transparent text-outline hover:bg-surface-variant/30"}`}>
                             <span className="font-bold text-sm">{info.label}</span>
+                            <span className="text-[10px] font-bold opacity-80">${estCost}</span>
                           </button>
                         );
                       })}
@@ -881,7 +895,15 @@ export default function Home() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-xs truncate">{v.title}</p>
-                          <p className="text-[10px] text-outline mt-0.5">{formatTimeAgo(new Date(v.createdAt))}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <p className="text-[10px] text-outline">{formatTimeAgo(new Date(v.createdAt))}</p>
+                            {v.totalSeconds && v.totalSeconds > 0 && (
+                              <>
+                                <span className="w-0.5 h-0.5 rounded-full bg-outline/30 shrink-0" />
+                                <p className="text-[10px] text-primary/80 font-bold">{formatDuration(v.totalSeconds)}</p>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <button 

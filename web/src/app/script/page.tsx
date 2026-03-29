@@ -690,13 +690,28 @@ export default function ScriptBuilder() {
               })}
             </div>
 
-            {/* Cost Badge */}
-            <div className="flex items-center gap-2 glass px-3 py-2 rounded-xl">
-              <span className="material-symbols-outlined text-primary text-sm">account_balance_wallet</span>
-              <div>
-                <p className="text-[10px] text-outline uppercase font-bold tracking-wider leading-none">Est. Cost</p>
-                <p className="font-headline font-bold text-sm text-on-surface">${estimatedTotalCost}</p>
-              </div>
+            {/* Tiered Cost Comparison */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full max-w-2xl mx-auto mb-6">
+              {(["free", "basic", "medium", "pro"] as QualityTier[]).map((t) => {
+                const info = QUALITY_TIERS[t];
+                const isActive = qualityTier === t;
+                const cost = scriptData 
+                  ? calculateTotalCost(t, scriptData.scenes.length, false).toFixed(2)
+                  : "0.00";
+                return (
+                  <button 
+                    key={t} 
+                    onClick={() => setQualityTier(t)}
+                    className={`flex items-center justify-between px-3 py-2 rounded-xl border transition-all ${isActive ? `${info.bgColor} ${info.color} ${info.borderColor} shadow-md` : "glass border-transparent opacity-60 hover:opacity-100"}`}
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="text-[9px] font-black uppercase tracking-wider opacity-70">{info.label}</span>
+                      <span className="text-sm font-headline font-bold">${cost}</span>
+                    </div>
+                    {isActive && <span className="material-symbols-outlined text-sm">check_circle</span>}
+                  </button>
+                );
+              })}
             </div>
 
 
