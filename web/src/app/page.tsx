@@ -750,7 +750,7 @@ export default function Home() {
                       {(["free", "basic", "medium", "pro"] as QualityTier[]).map((t) => {
                         const info = QUALITY_TIERS[t];
                         const isActive = qualityTier === t;
-                        const estCost = calculateTotalCost(t, estScenes, musicEnabled).toFixed(2);
+                        const estCost = calculateTotalCost(t, estScenes, false).toFixed(2);
                         return (
                           <button key={t} onClick={() => setQualityTier(t)} className={`py-2.5 px-2 rounded-xl flex flex-col items-center gap-1 border transition-all ${isActive ? `${info.bgColor} ${info.color} ${info.borderColor}` : "border-transparent text-outline hover:bg-surface-variant/30"}`}>
                             <span className="font-bold text-sm">{info.label}</span>
