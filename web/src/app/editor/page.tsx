@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAppContext, VIDEO_DIMENSIONS } from "@/context/AppContext";
 import { EditorProvider, useEditorContext, TextOverlay } from "@/context/EditorContext";
 import { getHistory, loadProjectState, saveToHistory, saveProjectState, syncHistoryWithCloud, deleteFromHistory, type VideoHistoryItem, type ProjectState } from "@/lib/videoHistory";
@@ -135,8 +135,11 @@ function SourceMonitor() {
   // Collect all project media assets for the Media tab
   const mediaAssets = useMemo(() => {
     const assets: { id: string; type: "image" | "audio" | "video"; url: string; label: string }[] = [];
-    Object.entries(storyboardImages).forEach(([id, url]) => {
-      assets.push({ id: `img-${id}`, type: "image", url, label: `Scene ${id} Image` });
+    Object.entries(storyboardImages).forEach(([id, urls]) => {
+      const url = Array.isArray(urls) ? urls[0] : urls;
+      if (url) {
+        assets.push({ id: `img-${id}`, type: "image", url, label: `Scene ${id} Image` });
+      }
     });
     Object.entries(sceneAudioUrls).forEach(([id, url]) => {
       assets.push({ id: `aud-${id}`, type: "audio", url, label: `Scene ${id} Audio` });
@@ -424,6 +427,7 @@ function TextToolPanel({ onClose }: { onClose: () => void }) {
 
 function EditorInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     scriptData, pollenUsed, qualityTier,
     url, angle, storyboardImages, videoDimension,
@@ -471,9 +475,22 @@ function EditorInner() {
       // Sync cloud history on mount
       syncHistoryWithCloud().then(synced => {
         setRecentProjects(synced.slice(0, 8));
+        
+        // Auto-load if projectId in URL
+        const pid = searchParams.get("projectId");
+        if (pid) {
+          // If we find it in synced history, use that item. 
+          // Otherwise, pass a stub and let handleLoadProject try to recover from Cloud/IDB.
+          const itemInHistory = synced.find(h => h.id === pid);
+          if (itemInHistory) {
+             handleLoadProject(itemInHistory);
+          } else {
+             handleLoadProject({ id: pid } as VideoHistoryItem);
+          }
+        }
       });
     }
-  }, [scriptData]);
+  }, [scriptData, searchParams]);
 
   const handleSaveProject = async () => {
     if (!scriptData || scenes.length === 0) return;
@@ -486,7 +503,7 @@ function EditorInner() {
         title: scriptData.title || "Untitled",
         topic: url || "",
         angle: angle || "",
-        thumbnailUrl: storyboardImages[scenes[0]?.id/10] || "",
+        thumbnailUrl: storyboardImages[scenes[0]?.id]?.[0] || "",
         quality: qualityTier,
         dimensionId: videoDimension.id,
         dimensionLabel: videoDimension.label,
@@ -537,33 +554,50 @@ function EditorInner() {
     setLoadingProjectId(item.id);
     setErrorMsg(null);
     try {
+      console.log(`[Editor] Loading project: ${item.id}`);
       const state = await loadProjectState(item.id);
-      if (state && state.scriptData) {
-        // Inject editor scenes/tracks into scriptData so EditorContext picks them up
-        const mergedScriptData = { 
-          ...state.scriptData, 
-          editorScenes: state.editorScenes, 
-          editorTracks: state.editorTracks 
-        };
-        setScriptData(mergedScriptData);
-        setStoryboardImages(state.storyboardImages || {});
-        setSceneAudioUrls(state.sceneAudioUrls || {});
-        setSceneVideoUrls(state.sceneVideoUrls || {});
-        setSceneDurations(state.sceneDurations || {});
-        setFinalVideoUrl(state.finalVideoUrl || null);
-        if (item.quality) setQualityTier(item.quality);
-        if (item.dimensionId) {
-          const dim = VIDEO_DIMENSIONS.find(d => d.id === item.dimensionId);
-          if (dim) setVideoDimension(dim);
-        }
-        if (item.topic) setUrl(item.topic);
-        if (item.angle) setAngle(item.angle);
-      } else {
-        setErrorMsg("Failed to load project state. It might be missing from cloud storage.");
+      
+      if (!state || (!state.scriptData && !state.editorScenes)) {
+        throw new Error("Project data not found in local or cloud storage.");
       }
-    } catch (e) {
+
+      // 1. Restore the core script and editor state
+      // Inject editor scenes/tracks into scriptData so EditorContext picks them up
+      const mergedScriptData = { 
+        ...state.scriptData, 
+        editorScenes: state.editorScenes || state.scriptData?.editorScenes, 
+        editorTracks: state.editorTracks || state.scriptData?.editorTracks 
+      };
+      
+      if (!mergedScriptData.title && item.title) mergedScriptData.title = item.title;
+
+      setScriptData(mergedScriptData);
+      setStoryboardImages(state.storyboardImages || {});
+      setSceneAudioUrls(state.sceneAudioUrls || {});
+      setSceneVideoUrls(state.sceneVideoUrls || {});
+      setSceneDurations(state.sceneDurations || {});
+      setFinalVideoUrl(state.finalVideoUrl || null);
+
+      // 2. Restore metadata (prefer item from history, fallback to state.scriptData)
+      const quality = item.quality || state.scriptData?.quality;
+      if (quality) setQualityTier(quality);
+
+      const dimId = item.dimensionId || state.scriptData?.dimensionId;
+      if (dimId) {
+        const dim = VIDEO_DIMENSIONS.find(d => d.id === dimId);
+        if (dim) setVideoDimension(dim);
+      }
+
+      const topic = item.topic || state.scriptData?.topic;
+      if (topic) setUrl(topic);
+
+      const angleText = item.angle || state.scriptData?.angle;
+      if (angleText) setAngle(angleText);
+
+      console.log(`[Editor] Project ${item.id} loaded successfully.`);
+    } catch (e: any) {
       console.error("Failed to load project:", e);
-      setErrorMsg("An unexpected error occurred while loading the project.");
+      setErrorMsg(e.message || "An unexpected error occurred while loading the project.");
     } finally {
       setLoadingProjectId(null);
     }
@@ -1460,7 +1494,16 @@ export default function EditorPage() {
     <ErrorBoundary>
       <EditorThemeProvider>
         <EditorProvider>
-          <EditorInner />
+          <Suspense fallback={
+            <div className="fixed inset-0 flex items-center justify-center bg-[#0d0d0f] text-white">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                <p className="text-sm font-bold uppercase tracking-widest opacity-50">Initializing Editor...</p>
+              </div>
+            </div>
+          }>
+            <EditorInner />
+          </Suspense>
         </EditorProvider>
       </EditorThemeProvider>
     </ErrorBoundary>

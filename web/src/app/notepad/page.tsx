@@ -3,6 +3,8 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppContext, NotepadSource, NotepadSourceType, NotepadImage, QUALITY_TIERS, calculateTotalCost } from "@/context/AppContext";
 import type { QualityTier } from "@/context/AppContext";
+import { CostCalculator } from "@/components/CostCalculator";
+import { PollensBalanceWidget } from "@/components/PollensBalanceWidget";
 
 type ProjectIndexEntry = { slug: string; name: string; savedAt: number; sourceCount: number; hasSynthesis: boolean };
 
@@ -746,6 +748,7 @@ export default function NotepadPage() {
               <><span className="material-symbols-outlined text-[18px]">save</span>Save Project</>
             )}
           </button>
+          <PollensBalanceWidget />
         </div>
         {images.length > 0 && (
           <span className="text-[12px] font-medium px-2.5 py-1 rounded-full" style={{ background: "var(--np-blue-light)", color: "var(--np-blue)" }}>
@@ -1556,18 +1559,10 @@ export default function NotepadPage() {
                     })}
                   </div>
                 </div>
-              {/* Cost estimate */}
-              <div className="p-3 rounded-lg text-center" style={{ background: "var(--np-input-bg)" }}>
-                <p className="text-[12px] font-medium" style={{ color: "var(--np-text-secondary)" }}>
-                  Est. ~{estimatedScenes} scenes · {QUALITY_TIERS[qualityTier].label}
-                </p>
-                <p className="text-[11px] mt-0.5 font-semibold" style={{ color: qualityTier === "basic" ? "var(--np-green, #22c55e)" : "var(--np-blue)" }}>
-                  {qualityTier === "basic" ? "Free (Pollinations API)" : `~$${calculateTotalCost(qualityTier, estimatedScenes).toFixed(2)} est. pollen`}
-                </p>
-                <p className="text-[10px] mt-1 leading-tight" style={{ color: "var(--np-text-tertiary)" }}>
-                  {QUALITY_TIERS[qualityTier].description}
-                </p>
-              </div>
+                <div className="space-y-4 pt-2">
+                  <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface/50 px-1">Detailed Tier Estimates</h4>
+                  <CostCalculator currentTier={qualityTier} />
+                </div>
               <button
                 onClick={handleGenerateVideo}
                 disabled={!synthesis}

@@ -6,7 +6,8 @@ export type VideoHistoryItem = {
   title: string;
   topic: string;
   angle: string;
-  thumbnailUrl?: string;
+  thumbnailUrl?: string; // Still useful for small previews in localStorage
+  hasThumbnail?: boolean; // Flag to indicate if high-res thumbnail exists in IndexedDB
   quality: QualityTier;
   dimensionId: string;
   dimensionLabel: string;
@@ -34,6 +35,16 @@ export type ProjectState = {
   // Extended editor state
   editorScenes?: any[]; 
   editorTracks?: any[];
+};
+
+/** Internal type for storage in IndexedDB */
+type PersistentProjectState = Omit<ProjectState, 'storyboardImages' | 'sceneAudioUrls' | 'sceneVideoUrls' | 'musicUrl' | 'finalVideoUrl'> & {
+  storyboardImages: Record<number, (string | Blob)[]>;
+  sceneAudioUrls: Record<number, string | Blob>;
+  sceneVideoUrls: Record<number, string | Blob>;
+  musicUrl: string | Blob | null;
+  finalVideoUrl: string | Blob | null;
+  thumbnailBlob?: Blob;
 };
 
 const HISTORY_KEY = "link2video_history";
@@ -139,6 +150,54 @@ export function getHistory(): VideoHistoryItem[] {
   }
 }
 
+/**
+ * Convert a URL (blob: or data:) to a Blob object for persistent storage.
+ */
+async function urlToBlob(url: string): Promise<Blob | string> {
+  if (!url || url.startsWith("http")) return url;
+  try {
+    const res = await fetch(url);
+    return await res.blob();
+  } catch (err) {
+    console.warn("Failed to convert URL to Blob:", url, err);
+    return url;
+  }
+}
+
+/**
+ * Convert a Blob back to a usable blob: URL.
+ */
+function blobToUrl(blob: Blob | string): string {
+  if (typeof blob === "string") return blob;
+  try {
+    return URL.createObjectURL(blob);
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Fetch just the thumbnail Blob from IndexedDB for a project.
+ */
+export async function getThumbnailBlob(id: string): Promise<string | null> {
+  try {
+    const db = await openDB();
+    const localState = await new Promise<PersistentProjectState | null>((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE_NAME, "readonly");
+      const store = tx.objectStore(IDB_STORE_NAME);
+      const req = store.get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+    if (localState?.thumbnailBlob) {
+      return blobToUrl(localState.thumbnailBlob);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function saveToHistory(item: VideoHistoryItem): Promise<void> {
   try {
     // Compress thumbnail for storage
@@ -191,17 +250,65 @@ function openDB(): Promise<IDBDatabase> {
 
 export async function saveProjectState(state: ProjectState): Promise<void> {
   try {
+    // 1. Process all URLs into persistent Blobs
+    const persistentState: PersistentProjectState = { 
+      ...state,
+      storyboardImages: {},
+      sceneAudioUrls: {},
+      sceneVideoUrls: {}
+    };
+    
+    // Process storyboard images
+    for (const [id, urls] of Object.entries(state.storyboardImages)) {
+      persistentState.storyboardImages[Number(id)] = await Promise.all(
+        urls.map(url => typeof url === "string" ? urlToBlob(url) : url)
+      );
+    }
+
+    // Process audio/video
+    for (const [id, url] of Object.entries(state.sceneAudioUrls)) {
+      if (typeof url === "string") persistentState.sceneAudioUrls[Number(id)] = await urlToBlob(url);
+    }
+    for (const [id, url] of Object.entries(state.sceneVideoUrls)) {
+      if (typeof url === "string") persistentState.sceneVideoUrls[Number(id)] = await urlToBlob(url);
+    }
+    if (typeof state.finalVideoUrl === "string") {
+      persistentState.finalVideoUrl = await urlToBlob(state.finalVideoUrl);
+    }
+    if (typeof state.musicUrl === "string") {
+      persistentState.musicUrl = await urlToBlob(state.musicUrl);
+    }
+
+    // Capture first frame as persistent thumbnail blob if not present
+    let hasThumbnail = false;
+    if (state.storyboardImages[0]?.[0]) {
+      const firstImg = state.storyboardImages[0][0];
+      const thumb = typeof firstImg === "string" ? await urlToBlob(firstImg) : firstImg;
+      if (thumb instanceof Blob) {
+        persistentState.thumbnailBlob = thumb;
+        hasThumbnail = true;
+      }
+    }
+
     const db = await openDB();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(IDB_STORE_NAME, "readwrite");
       const store = tx.objectStore(IDB_STORE_NAME);
-      const req = store.put(state);
+      const req = store.put(persistentState);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
 
-    // Background cloud sync — always run, even if history item not found yet
+    // Update history flag if item exists
     const history = getHistory();
+    const histIdx = history.findIndex(h => h.id === state.id);
+    if (histIdx !== -1) {
+      if (hasThumbnail) history[histIdx].hasThumbnail = true;
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    }
+
+    // Background cloud sync — use the original state so we don't try to upload Blobs to the cloud JSON field
+    // Cloud upload handles its own conversion to S3/Cloud storage URLs
     const item = history.find(h => h.id === state.id);
     // Use a minimal stub so new (pipeline-generated) projects are still uploaded
     const historyItem = item ?? {
@@ -212,10 +319,11 @@ export async function saveProjectState(state: ProjectState): Promise<void> {
       quality: "basic" as const,
       dimensionId: "16:9",
       dimensionLabel: "16:9",
-      totalSeconds: 0, // This will be updated by saveToHistory if an actual item exists
-      activeStyle: null, // Default for stub
-      settingText: "", // Default for stub
+      totalSeconds: 0, 
+      activeStyle: null, 
+      settingText: "", 
       createdAt: new Date().toISOString(),
+      hasThumbnail: hasThumbnail,
     };
     saveProjectToCloud(state.id, state, historyItem);
 
@@ -227,7 +335,7 @@ export async function saveProjectState(state: ProjectState): Promise<void> {
 export async function loadProjectState(id: string): Promise<ProjectState | null> {
   try {
     const db = await openDB();
-    const localState = await new Promise<ProjectState | null>((resolve, reject) => {
+    const localState = await new Promise<PersistentProjectState | null>((resolve, reject) => {
       const tx = db.transaction(IDB_STORE_NAME, "readonly");
       const store = tx.objectStore(IDB_STORE_NAME);
       const req = store.get(id);
@@ -235,18 +343,55 @@ export async function loadProjectState(id: string): Promise<ProjectState | null>
       req.onerror = () => reject(req.error);
     });
 
-    if (localState) return localState;
+    const stateToHydrate = localState || await getCloudProjectState(id) as PersistentProjectState;
+    if (!stateToHydrate) return null;
 
-    // Fallback: load from cloud if missing locally
-    const cloudState = await getCloudProjectState(id);
-    if (cloudState) {
-      // Save local copy for next time
-      const tx = db.transaction(IDB_STORE_NAME, "readwrite");
-      tx.objectStore(IDB_STORE_NAME).put(cloudState);
-      return cloudState;
+    // 2. Convert Blobs back to usable blob: URLs for the browser
+    const hydrated: ProjectState = { 
+      ...stateToHydrate as any,
+      storyboardImages: {},
+      sceneAudioUrls: {},
+      sceneVideoUrls: {},
+      musicUrl: null,
+      finalVideoUrl: null
+    };
+    
+    for (const [sid, blobs] of Object.entries(stateToHydrate.storyboardImages)) {
+      if (Array.isArray(blobs)) {
+        hydrated.storyboardImages[Number(sid)] = blobs.map(b => typeof b === "string" ? b : blobToUrl(b));
+      }
     }
 
-    return null;
+    for (const [sid, b] of Object.entries(stateToHydrate.sceneAudioUrls)) {
+      hydrated.sceneAudioUrls[Number(sid)] = typeof b === "string" ? b : blobToUrl(b as any);
+    }
+
+    for (const [sid, b] of Object.entries(stateToHydrate.sceneVideoUrls)) {
+      hydrated.sceneVideoUrls[Number(sid)] = typeof b === "string" ? b : blobToUrl(b as any);
+    }
+
+    if (stateToHydrate.finalVideoUrl) {
+      hydrated.finalVideoUrl = typeof stateToHydrate.finalVideoUrl === "string" 
+        ? stateToHydrate.finalVideoUrl 
+        : blobToUrl(stateToHydrate.finalVideoUrl);
+    }
+    
+    if (stateToHydrate.musicUrl) {
+      hydrated.musicUrl = typeof stateToHydrate.musicUrl === "string"
+        ? stateToHydrate.musicUrl
+        : blobToUrl(stateToHydrate.musicUrl);
+    }
+
+    // If we have a persistent thumbnail blob but missing history thumb, we can restore it elsewhere,
+    // but here we just ensure the hydrated object is a clean string-based version for context.
+    
+    if (localState === null && stateToHydrate) {
+      // Save local copy for next time if it came from cloud
+      const tx = db.transaction(IDB_STORE_NAME, "readwrite");
+      tx.objectStore(IDB_STORE_NAME).put(stateToHydrate);
+    }
+
+    return hydrated;
   } catch (err) {
     console.error("Failed to load project state from IndexedDB", err);
     return null;
@@ -273,10 +418,8 @@ export async function deleteProjectState(id: string): Promise<void> {
         Object.values(state.storyboardImages).forEach(urls => {
           if (Array.isArray(urls)) {
             urls.forEach(url => {
-              if (url.startsWith("blob:")) urlsToRevoke.push(url);
+              if (typeof url === "string" && url.startsWith("blob:")) urlsToRevoke.push(url);
             });
-          } else if (typeof urls === "string" && (urls as string).startsWith("blob:")) {
-            urlsToRevoke.push(urls);
           }
         });
       }
@@ -290,7 +433,7 @@ export async function deleteProjectState(id: string): Promise<void> {
           if (typeof url === "string" && url.startsWith("blob:")) urlsToRevoke.push(url);
         });
       }
-      if (state.finalVideoUrl && state.finalVideoUrl.startsWith("blob:")) {
+      if (state.finalVideoUrl && typeof state.finalVideoUrl === "string" && state.finalVideoUrl.startsWith("blob:")) {
         urlsToRevoke.push(state.finalVideoUrl);
       }
       urlsToRevoke.forEach(url => {

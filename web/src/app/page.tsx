@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAppContext, VOICES, VIDEO_DIMENSIONS, VIDEO_RESOLUTIONS, QualityTier, VideoResolution, AppMode, CharacterProfile, POLLEN_COSTS, QUALITY_TIERS, calculateTotalCost } from "@/context/AppContext";
+import { CostCalculator } from "@/components/CostCalculator";
+import { PollensBalanceWidget } from "@/components/PollensBalanceWidget";
 
 const DURATION_PRESETS = [
   { label: "1 min", value: 1 },
@@ -14,8 +16,34 @@ const DURATION_PRESETS = [
   { label: "60 min", value: 60 },
   { label: "120 min", value: 120 },
 ];
-import { getHistory, deleteFromHistory, loadProjectState, syncHistoryWithCloud, type VideoHistoryItem } from "@/lib/videoHistory";
+import { getHistory, deleteFromHistory, loadProjectState, syncHistoryWithCloud, getThumbnailBlob, type VideoHistoryItem } from "@/lib/videoHistory";
 import { getSavedStyles, saveStyle, deleteStyle, type SavedStyle } from "@/lib/savedStyles";
+
+function ProjectThumbnail({ video }: { video: VideoHistoryItem }) {
+  const [thumb, setThumb] = useState<string | undefined>(video.thumbnailUrl);
+
+  useEffect(() => {
+    // If we have a thumbnailUrl that is NOT a blob: or data: URL, it's likely a cloud URL and fine.
+    // If it's missing or if hasThumbnail flag is set, try to load the high-res one from IDB.
+    if (!thumb || video.hasThumbnail) {
+      getThumbnailBlob(video.id).then(blobUrl => {
+        if (blobUrl) setThumb(blobUrl);
+      });
+    }
+  }, [video.id, video.hasThumbnail]);
+
+  return (
+    <div className="w-20 h-11 rounded-lg bg-surface-container-high overflow-hidden shrink-0">
+      {thumb ? (
+        <img src={thumb} className="w-full h-full object-cover" alt="" />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <span className="material-symbols-outlined text-outline/20 text-lg">movie</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function formatTimeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -492,6 +520,7 @@ export default function Home() {
     : false;
 
   const [showAllProjects, setShowAllProjects] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<"projects" | "styles">("projects");
   const SIDEBAR_LIMIT = 6;
   const visibleProjects = showAllProjects ? recentVideos : recentVideos.slice(0, SIDEBAR_LIMIT);
 
@@ -534,51 +563,7 @@ export default function Home() {
                   </div>
 
                   {/* Pollinations Balance Widget */}
-                  {hasMounted && balanceLoading ? (
-                    <div className="shrink-0">
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl glass">
-                        <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                        <span className="text-[10px] text-outline">Loading...</span>
-                      </div>
-                    </div>
-                  ) : hasMounted && pollenBalance !== null ? (
-                    <div className="shrink-0">
-                      <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all ${pollenBalance > 0 ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"}`}>
-                        <div className="flex items-center gap-1.5">
-                          <span className={`material-symbols-outlined text-base ${pollenBalance > 0 ? "text-emerald-400" : "text-red-400"}`} style={{ fontVariationSettings: "'FILL' 1" }}>
-                            {pollenBalance > 0 ? "eco" : "warning"}
-                          </span>
-                          <div className="flex flex-col">
-                            <span className={`text-sm font-bold font-headline tabular-nums ${pollenBalance > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                              {pollenBalance.toFixed(4)} <span className="text-[10px] font-normal opacity-70">pollen</span>
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              {pollenTier && (
-                                <span className="text-[9px] uppercase font-bold tracking-wider text-outline/60">
-                                  {pollenTier}
-                                </span>
-                              )}
-                              {pollenResetAt && (
-                                <span className="text-[9px] text-outline/40">
-                                  · resets {new Date(pollenResetAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        {pollenBalance === 0 && (
-                          <a
-                            href="https://pollinations.ai"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] font-bold text-primary hover:text-primary/80 transition-colors whitespace-nowrap"
-                          >
-                            Add Credits →
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  ) : null}
+                  <PollensBalanceWidget />
                 </div>
 
                 {/* Mode Selector Tabs */}
@@ -795,70 +780,19 @@ export default function Home() {
                     </select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Scene Dynamism</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[1, 4, 6].map((num) => (
-                        <button key={num} onClick={() => setImagesPerScene(num)} className={`py-2 px-3 rounded-xl border font-bold text-sm ${imagesPerScene === num ? "bg-secondary/10 border-secondary/30 text-secondary" : "text-outline"}`}>
-                          {num} {num === 1 ? "Frame" : "Frames"}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="space-y-4">
+                    <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Estimated Costs</label>
+                    <CostCalculator currentTier={qualityTier} />
                   </div>
 
-                  {/* Settings Toggles */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <button onClick={() => setDirectorMode(!directorMode)} className={`flex items-center justify-between px-4 py-3 rounded-xl border ${directorMode ? "bg-primary/10 border-primary/20 text-primary" : "text-outline"}`}>
-                      <span className="text-xs font-bold">Director Mode</span>
-                      <div className={`w-8 h-4 rounded-full relative ${directorMode ? "bg-primary" : "bg-outline/20"}`}><div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${directorMode ? "translate-x-4" : "translate-x-0.5"}`} /></div>
-                    </button>
-                    <button onClick={() => setCaptionsEnabled(!captionsEnabled)} className={`flex items-center justify-between px-4 py-3 rounded-xl border ${captionsEnabled ? "bg-primary/10 border-primary/20 text-primary" : "text-outline"}`}>
-                      <span className="text-xs font-bold">Captions</span>
-                      <div className={`w-8 h-4 rounded-full relative ${captionsEnabled ? "bg-primary" : "bg-outline/20"}`}><div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${captionsEnabled ? "translate-x-4" : "translate-x-0.5"}`} /></div>
-                    </button>
-                  </div>
-
-                  <div className="space-y-4 pt-4 border-t border-outline-variant/10">
-                    <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Caption Style</label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <span className="text-[10px] text-outline font-bold uppercase">Color</span>
-                        <input 
-                          type="color" 
-                          value={captionStyle.fontColor} 
-                          onChange={(e) => setCaptionStyle({ ...captionStyle, fontColor: e.target.value })}
-                          className="w-full h-10 rounded-xl bg-surface-container-lowest border border-outline-variant/10 cursor-pointer"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <span className="text-[10px] text-outline font-bold uppercase">Size</span>
-                        <select 
-                          value={captionStyle.fontSize} 
-                          onChange={(e) => setCaptionStyle({ ...captionStyle, fontSize: Number(e.target.value) })}
-                          className="w-full bg-surface-container-lowest/50 border border-outline-variant/10 rounded-xl py-2 px-3 text-xs"
-                        >
-                          <option value={3}>Small</option>
-                          <option value={5}>Medium</option>
-                          <option value={8}>Large</option>
-                        </select>
-                      </div>
+                  <div className="flex items-center justify-between px-4 py-3 rounded-xl border glass-subtle">
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-primary">closed_caption</span>
+                      <span className="text-xs font-bold text-on-surface">Enable Captions</span>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 space-y-2">
-                        <span className="text-[10px] text-outline font-bold uppercase">Position</span>
-                        <div className="flex gap-2">
-                          {(["top", "middle", "bottom"] as const).map(p => (
-                            <button key={p} onClick={() => setCaptionStyle({ ...captionStyle, position: p })} className={`flex-1 py-1.5 rounded-lg border text-[10px] font-bold capitalize ${captionStyle.position === p ? "bg-primary/10 border-primary/20 text-primary" : "text-outline border-transparent"}`}>
-                              {p}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <button onClick={() => setCaptionStyle({ ...captionStyle, showBackground: !captionStyle.showBackground })} className={`flex items-center gap-2 px-3 py-2 rounded-xl border mt-5 ${captionStyle.showBackground ? "bg-primary/10 border-primary/20 text-primary" : "text-outline border-transparent"}`}>
-                        <span className="material-symbols-outlined text-sm">{captionStyle.showBackground ? "check_box" : "check_box_outline_blank"}</span>
-                        <span className="text-[10px] font-bold uppercase">Box</span>
-                      </button>
-                    </div>
+                    <button onClick={() => setCaptionsEnabled(!captionsEnabled)} className={`w-8 h-4 rounded-full relative transition-colors ${captionsEnabled ? "bg-primary" : "bg-outline/20"}`}>
+                      <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${captionsEnabled ? "translate-x-4" : "translate-x-0.5"}`} />
+                    </button>
                   </div>
                 </div>
 
@@ -878,48 +812,124 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ═══ RIGHT SIDEBAR: Projects Panel ═══ */}
+        {/* ═══ RIGHT SIDEBAR: Tabbed Panel ═══ */}
         {hasMounted && (
           <div className="hidden lg:flex flex-col w-[340px] xl:w-[380px] shrink-0 glass-card rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-outline-variant/10 font-headline font-black text-on-surface">Projects</div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-4">
-              {recentVideos.length === 0 ? (
-                <p className="text-center text-outline text-xs mt-10">No projects yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {visibleProjects.map((v) => (
-                    <div key={v.id} className="group flex items-center gap-2">
-                      <div onClick={() => handleOpenProject(v)} className="flex items-center gap-3 p-2.5 rounded-xl cursor-pointer hover:bg-primary/5 border border-transparent hover:border-primary/10 transition-all flex-1 min-w-0">
-                        <div className="w-20 h-11 rounded-lg bg-surface-container-high overflow-hidden shrink-0">
-                          {v.thumbnailUrl && <img src={v.thumbnailUrl} className="w-full h-full object-cover" alt="" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-xs truncate">{v.title}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <p className="text-[10px] text-outline">{formatTimeAgo(new Date(v.createdAt))}</p>
-                            {v.totalSeconds && v.totalSeconds > 0 && (
-                              <>
-                                <span className="w-0.5 h-0.5 rounded-full bg-outline/30 shrink-0" />
-                                <p className="text-[10px] text-primary/80 font-bold">{formatDuration(v.totalSeconds)}</p>
-                              </>
-                            )}
+            {/* Tabs */}
+            <div className="flex border-b border-outline-variant/10">
+              <button 
+                onClick={() => setSidebarTab("projects")}
+                className={`flex-1 px-5 py-4 font-headline font-black text-xs uppercase tracking-widest transition-all ${sidebarTab === "projects" ? "text-primary border-b-2 border-primary bg-primary/5" : "text-outline hover:text-on-surface"}`}
+              >
+                Projects
+              </button>
+              <button 
+                onClick={() => setSidebarTab("styles")}
+                className={`flex-1 px-5 py-4 font-headline font-black text-xs uppercase tracking-widest transition-all ${sidebarTab === "styles" ? "text-primary border-b-2 border-primary bg-primary/5" : "text-outline hover:text-on-surface"}`}
+              >
+                Captions
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar px-4 py-6">
+              {sidebarTab === "projects" ? (
+                recentVideos.length === 0 ? (
+                  <p className="text-center text-outline text-xs mt-10">No projects yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {visibleProjects.map((v) => (
+                      <div key={v.id} className="group flex items-center gap-2">
+                        <div onClick={() => handleOpenProject(v)} className="flex items-center gap-3 p-2.5 rounded-xl cursor-pointer hover:bg-primary/5 border border-transparent hover:border-primary/10 transition-all flex-1 min-w-0">
+                          <ProjectThumbnail video={v} />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-xs truncate">{v.title}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <p className="text-[10px] text-outline">{formatTimeAgo(new Date(v.createdAt))}</p>
+                              {v.totalSeconds && v.totalSeconds > 0 && (
+                                <>
+                                  <span className="w-0.5 h-0.5 rounded-full bg-outline/30 shrink-0" />
+                                  <p className="text-[10px] text-primary/80 font-bold">{formatDuration(v.totalSeconds)}</p>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm("Delete this project?")) {
+                              deleteFromHistory(v.id);
+                              setRecentVideos(getHistory());
+                            }
+                          }}
+                          className="p-2 text-outline hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                        </button>
                       </div>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm("Delete this project?")) {
-                            deleteFromHistory(v.id);
-                            setRecentVideos(getHistory());
-                          }
-                        }}
-                        className="p-2 text-outline hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                      >
-                        <span className="material-symbols-outlined text-sm">delete</span>
-                      </button>
+                    ))}
+                  </div>
+                )
+              ) : (
+                <div className="space-y-8 animate-fade-in-up">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="material-symbols-outlined text-primary">text_fields</span>
+                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface leading-none">Global Caption Style</h4>
                     </div>
-                  ))}
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <span className="text-[10px] text-outline font-bold uppercase">Font Color</span>
+                        <input 
+                          type="color" 
+                          value={captionStyle.fontColor} 
+                          onChange={(e) => setCaptionStyle({ ...captionStyle, fontColor: e.target.value })}
+                          className="w-full h-10 rounded-xl bg-surface-container-lowest border border-outline-variant/10 cursor-pointer"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <span className="text-[10px] text-outline font-bold uppercase">Text Size</span>
+                        <select 
+                          value={captionStyle.fontSize} 
+                          onChange={(e) => setCaptionStyle({ ...captionStyle, fontSize: Number(e.target.value) })}
+                          className="w-full bg-surface-container-lowest border border-outline-variant/10 rounded-xl py-2 px-3 text-xs font-bold"
+                        >
+                          <option value={3}>Small</option>
+                          <option value={5}>Medium</option>
+                          <option value={8}>Large</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <span className="text-[10px] text-outline font-bold uppercase">Position</span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(["top", "middle", "bottom"] as const).map(p => (
+                          <button key={p} onClick={() => setCaptionStyle({ ...captionStyle, position: p })} className={`py-2 rounded-lg border text-[10px] font-bold capitalize transition-all ${captionStyle.position === p ? "bg-primary/10 border-primary text-primary" : "text-outline border-outline/10 hover:bg-surface-variant/30"}`}>
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => setCaptionStyle({ ...captionStyle, showBackground: !captionStyle.showBackground })} 
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${captionStyle.showBackground ? "bg-primary/10 border-primary text-primary" : "text-outline border-outline/10 hover:bg-surface-variant/30"}`}
+                    >
+                      <span className="text-[11px] font-bold uppercase">Show Background Box</span>
+                      <span className="material-symbols-outlined text-base">{captionStyle.showBackground ? "check_box" : "check_box_outline_blank"}</span>
+                    </button>
+                  </div>
+                  
+                  <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                    <div className="flex gap-3">
+                         <span className="material-symbols-outlined text-primary text-lg">info</span>
+                         <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                            These styles will be applied to <strong>all scenes</strong> in your next video generation. You can always fine-tune them later in the Editor.
+                         </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

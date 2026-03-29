@@ -3,6 +3,8 @@ import Link from "next/link";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAppContext, Scene, QUALITY_TIERS, calculateTotalCost, QualityTier, VOICES } from "@/context/AppContext";
+import { CostCalculator } from "@/components/CostCalculator";
+import { PollensBalanceWidget } from "@/components/PollensBalanceWidget";
 import { pipelineManager } from "@/lib/pipelineManager";
 import { getHistory, deleteFromHistory, loadProjectState, VideoHistoryItem } from "@/lib/videoHistory";
 
@@ -672,6 +674,8 @@ export default function ScriptBuilder() {
             <p className="text-sm text-outline font-medium">Review and refine your AI-generated narrative</p>
           </div>
 
+          <PollensBalanceWidget />
+
           {/* Quality + Settings bar */}
           <div className="flex flex-wrap gap-3 items-center">
             {/* Quality Tier Pills */}
@@ -690,28 +694,33 @@ export default function ScriptBuilder() {
               })}
             </div>
 
-            {/* Tiered Cost Comparison */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full max-w-2xl mx-auto mb-6">
-              {(["free", "basic", "medium", "pro"] as QualityTier[]).map((t) => {
-                const info = QUALITY_TIERS[t];
-                const isActive = qualityTier === t;
-                const cost = scriptData 
-                  ? calculateTotalCost(t, scriptData.scenes.length, false).toFixed(2)
-                  : "0.00";
-                return (
-                  <button 
-                    key={t} 
-                    onClick={() => setQualityTier(t)}
-                    className={`flex items-center justify-between px-3 py-2 rounded-xl border transition-all ${isActive ? `${info.bgColor} ${info.color} ${info.borderColor} shadow-md` : "glass border-transparent opacity-60 hover:opacity-100"}`}
-                  >
-                    <div className="flex flex-col items-start">
-                      <span className="text-[9px] font-black uppercase tracking-wider opacity-70">{info.label}</span>
-                      <span className="text-sm font-headline font-bold">${cost}</span>
-                    </div>
-                    {isActive && <span className="material-symbols-outlined text-sm">check_circle</span>}
-                  </button>
-                );
-              })}
+            <div className="w-full max-w-2xl mx-auto mb-6 space-y-4">
+               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                {(["free", "basic", "medium", "pro"] as QualityTier[]).map((t) => {
+                  const info = QUALITY_TIERS[t];
+                  const isActive = qualityTier === t;
+                  const cost = scriptData 
+                    ? calculateTotalCost(t, scriptData.scenes.length, false).toFixed(2)
+                    : "0.00";
+                  return (
+                    <button 
+                      key={t} 
+                      onClick={() => setQualityTier(t)}
+                      className={`flex items-center justify-between px-3 py-2 rounded-xl border transition-all ${isActive ? `${info.bgColor} ${info.color} ${info.borderColor} shadow-md` : "glass border-transparent opacity-60 hover:opacity-100"}`}
+                    >
+                      <div className="flex flex-col items-start">
+                        <span className="text-[9px] font-black uppercase tracking-wider opacity-70">{info.label}</span>
+                        <span className="text-sm font-headline font-bold">${cost}</span>
+                      </div>
+                      {isActive && <span className="material-symbols-outlined text-sm">check_circle</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="glass-card p-4 rounded-3xl border border-outline/10">
+                <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface mb-3 px-1">Detailed Tier Estimates</h4>
+                <CostCalculator currentTier={qualityTier} />
+              </div>
             </div>
 
 

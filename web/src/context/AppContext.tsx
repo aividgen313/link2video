@@ -297,7 +297,10 @@ interface AppContextType {
   pollenUsed: number;
   setPollenUsed: (pollen: number | ((prev: number) => number)) => void;
   pollenBalance: number | null;
+  pollenTier: string | null;
+  pollenResetAt: string | null;
   isFetchingBalance: boolean;
+  hasMounted: boolean;
   targetDurationMinutes: number;
   setTargetDurationMinutes: (min: number) => void;
   videoResolution: VideoResolution;
@@ -399,7 +402,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
   const [pollenUsed, setPollenUsed] = useState(0);
   const [pollenBalance, setPollenBalance] = useState<number | null>(null);
+  const [pollenTier, setPollenTier] = useState<string | null>(null);
+  const [pollenResetAt, setPollenResetAt] = useState<string | null>(null);
   const [isFetchingBalance, setIsFetchingBalance] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   // Fetch Pollinations balance on mount and whenever pollen is consumed
   useEffect(() => {
@@ -412,6 +422,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const data = await res.json();
         if (!cancelled && typeof data.balance === "number") {
           setPollenBalance(data.balance);
+          if (data.tier) setPollenTier(data.tier);
+          if (data.resetAt) setPollenResetAt(data.resetAt);
         }
       } catch {
         // silently fail — balance is cosmetic
@@ -431,7 +443,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     showBackground: true,
   });
   const [videoResolution, setVideoResolution] = useState<VideoResolution>("720p");
-  const [imagesPerScene, setImagesPerScene] = useState(4); // Default to 4-6 range (4)
+  const [imagesPerScene, setImagesPerScene] = useState(6); // Default to 4-6 range (6)
   const [storyboardImages, setStoryboardImages] = useState<Record<number, string[]>>({});
   const [referenceImages, setReferenceImages] = useState<Record<string, string[]>>({});
   const [sceneAudioUrls, setSceneAudioUrls] = useState<Record<number, string>>({});
@@ -768,7 +780,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       musicEnabled, setMusicEnabled,
       captionsEnabled, setCaptionsEnabled,
       pollenUsed, setPollenUsed,
-      pollenBalance, isFetchingBalance,
+      pollenBalance, pollenTier, pollenResetAt,
+      isFetchingBalance, hasMounted,
       targetDurationMinutes, setTargetDurationMinutes,
       videoResolution, setVideoResolution,
       imagesPerScene, setImagesPerScene,
