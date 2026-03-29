@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Asset Library - Link2Video AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-variant": "#353535",
+                        "surface-container-lowest": "#0e0e0e",
+                        "error": "#ffb4ab",
+                        "tertiary": "#ffb595",
+                        "on-tertiary": "#571e00",
+                        "inverse-on-surface": "#303030",
+                        "on-background": "#e5e2e1",
+                        "secondary-container": "#26467d",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "secondary-fixed": "#d8e2ff",
+                        "on-error": "#690005",
+                        "on-tertiary-fixed-variant": "#7c2e00",
+                        "on-primary-container": "#00285c",
+                        "on-error-container": "#ffdad6",
+                        "background": "#131313",
+                        "surface": "#131313",
+                        "primary": "#adc6ff",
+                        "primary-fixed-dim": "#adc6ff",
+                        "surface-bright": "#393939",
+                        "error-container": "#93000a",
+                        "on-tertiary-container": "#4c1a00",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-container-high": "#2a2a2a",
+                        "on-secondary-container": "#98b5f3",
+                        "surface-container-low": "#1b1b1c",
+                        "primary-fixed": "#d8e2ff",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-secondary": "#082f65",
+                        "primary-container": "#4b8eff",
+                        "surface-container": "#202020",
+                        "surface-container-highest": "#353535",
+                        "on-primary-fixed": "#001a41",
+                        "on-secondary-fixed-variant": "#26467d",
+                        "secondary": "#adc6ff",
+                        "inverse-primary": "#005bc1",
+                        "on-surface": "#e5e2e1",
+                        "on-primary": "#002e69",
+                        "tertiary-fixed-dim": "#ffb595",
+                        "on-surface-variant": "#c1c6d7",
+                        "tertiary-fixed": "#ffdbcc",
+                        "outline": "#8b90a0",
+                        "tertiary-container": "#ef6719",
+                        "surface-tint": "#adc6ff",
+                        "inverse-surface": "#e5e2e1",
+                        "surface-dim": "#131313",
+                        "on-secondary-fixed": "#001a41",
+                        "outline-variant": "#414755"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #131313;
+            color: #e5e2e1;
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(42, 42, 42, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .primary-gradient {
+            background: linear-gradient(135deg, #adc6ff 0%, #4b8eff 100%);
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen">
+<!-- SideNavBar -->
+<aside class="w-64 border-r border-outline-variant/15 flex flex-col h-screen sticky top-0 bg-surface">
+<div class="p-8 flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl primary-gradient flex items-center justify-center text-on-primary shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+</div>
+<span class="font-headline font-extrabold text-xl tracking-tight">AI Video Tool</span>
+</div>
+<nav class="flex-1 px-4 space-y-2 mt-4">
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">folder</span>
+<span class="font-label font-medium">Projects</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">auto_awesome_motion</span>
+<span class="font-label font-medium">Templates</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl bg-secondary-container/30 text-primary transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">video_library</span>
+<span class="font-label font-bold">Assets</span>
+</a>
+</nav>
+<div class="p-4 mt-auto">
+<div class="bg-surface-container-low p-4 rounded-xl border border-outline-variant/10">
+<div class="flex items-center gap-3 mb-3">
+<img class="w-10 h-10 rounded-full object-cover" data-alt="User Profile Avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCywE37TvQkVX11NgyXntjnAhE1Ovy5R0axgMrIVfhT7dVAXlkWXiaA_AxPNY988rNks4wU1B8a8s3yS-DQFozF0MQd3x8uC9L7keNwixUS4VGylRYV2YjCWQpXlR_OhTeyom1HmIrmox_wE-69WmsioUys51ssiEI68dZMlKIikqTQDpVZTKc9Yc_2O8GhDIXR800sVJjtqnik4q1BILQRrt-8nivniFVs10ETJ6vp5mJG7HnLfWEWRqVbn4Txz9XXRWt-PNhBWjgr"/>
+<div>
+<p class="text-sm font-bold font-headline">Alex Rivera</p>
+<p class="text-xs text-on-surface-variant">Pro Creator</p>
+</div>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full primary-gradient w-3/4"></div>
+</div>
+<p class="text-[10px] text-on-surface-variant mt-2 font-label uppercase tracking-wider">7.5 GB of 10 GB used</p>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col bg-background">
+<!-- TopNavBar -->
+<header class="h-20 border-b border-outline-variant/15 flex items-center justify-between px-10 sticky top-0 bg-background/80 backdrop-blur-md z-10">
+<div class="flex items-center flex-1">
+<div class="relative w-full max-w-xl">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full bg-surface-container-low border-none rounded-xl py-2.5 pl-12 pr-4 text-sm focus:ring-1 focus:ring-primary/40 placeholder:text-outline/60 font-body" placeholder="Search assets, tags, or projects..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6 ml-8">
+<div class="flex items-center gap-2">
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high transition-all">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+<div class="h-8 w-[1px] bg-outline-variant/20"></div>
+<h1 class="font-headline font-bold text-lg text-on-surface">Asset Library</h1>
+</div>
+</header>
+<!-- Scrollable Content -->
+<section class="p-10 flex flex-col gap-10">
+<!-- Header Section -->
+<div class="flex items-end justify-between">
+<div>
+<h2 class="text-on-surface font-headline font-extrabold text-5xl mb-4 tracking-tight">Media Assets</h2>
+<p class="text-on-surface-variant font-body max-w-md">Manage and organize your cinematic production files. Drag and drop to upload new footage.</p>
+</div>
+<button class="primary-gradient text-on-primary px-8 py-4 rounded-xl font-headline font-bold flex items-center gap-3 shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cloud_upload</span>
+                    Upload New Asset
+                </button>
+</div>
+<!-- Filter Tabs -->
+<div class="flex items-center justify-between">
+<div class="flex gap-2 p-1.5 bg-surface-container-low rounded-2xl w-fit">
+<button class="px-6 py-2.5 rounded-xl text-sm font-semibold bg-surface-container-highest text-primary shadow-sm">All</button>
+<button class="px-6 py-2.5 rounded-xl text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors">Images</button>
+<button class="px-6 py-2.5 rounded-xl text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors">Videos</button>
+<button class="px-6 py-2.5 rounded-xl text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors">Audio</button>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-sm font-label text-on-surface-variant uppercase tracking-widest">Sort by: <span class="text-on-surface font-bold">Recent</span></span>
+<button class="p-2.5 rounded-xl border border-outline-variant/15 text-on-surface-variant">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+</div>
+<!-- Bento Asset Grid -->
+<div class="bento-grid">
+<!-- Video Asset Card -->
+<div class="group relative bg-surface-container-high rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Cinematic landscape drone shot thumbnail" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDQ0no70lpuO-eG65LHEr2a_WscivvY9rIjd8vQJvJ0JxY7gEskFyTfD7dMmBe2p5mHMWNcyQbepHrvfesBxmgW4ei_ywXorCfXfbkhUtQ-87qg0Xh9YKpoSC9DRapgG9GEt98wLXETFMe_Z610ECLxSVzEFk65kLnOeoJaqulZCZjUUFcjcFwzddedUZodhwXLfxdFf8qT0e81EOY7yxfehdrOOlprAc7ArsaieDF1GLpxFU6Nv-OQEBOC2w8RZcBH_qwFZYDFqA0"/>
+<div class="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all"></div>
+<div class="absolute bottom-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-md rounded text-[10px] font-bold font-headline text-white uppercase tracking-wider">0:45</div>
+<div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="w-8 h-8 rounded-full bg-white/10 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/20">
+<span class="material-symbols-outlined text-sm">more_vert</span>
+</button>
+</div>
+</div>
+<div class="p-5">
+<h3 class="font-headline font-bold text-on-surface mb-1 truncate">Mountain_Drone_4K.mp4</h3>
+<div class="flex items-center justify-between">
+<span class="text-xs font-label text-on-surface-variant uppercase tracking-widest">124.5 MB</span>
+<span class="text-[11px] font-body text-outline">Oct 24, 2023</span>
+</div>
+</div>
+</div>
+<!-- Audio Asset Card -->
+<div class="group relative bg-surface-container-high rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
+<div class="aspect-video bg-surface-container-highest flex items-center justify-center relative">
+<div class="flex items-end gap-1 h-12">
+<div class="w-1.5 h-6 bg-primary/40 rounded-full"></div>
+<div class="w-1.5 h-10 bg-primary/60 rounded-full"></div>
+<div class="w-1.5 h-12 primary-gradient rounded-full"></div>
+<div class="w-1.5 h-8 bg-primary/60 rounded-full"></div>
+<div class="w-1.5 h-5 bg-primary/40 rounded-full"></div>
+</div>
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div>
+<div class="p-5">
+<h3 class="font-headline font-bold text-on-surface mb-1 truncate">Ambient_Synth_Wave.wav</h3>
+<div class="flex items-center justify-between">
+<span class="text-xs font-label text-on-surface-variant uppercase tracking-widest">12.2 MB</span>
+<span class="text-[11px] font-body text-outline">Oct 22, 2023</span>
+</div>
+</div>
+</div>
+<!-- Image Asset Card -->
+<div class="group relative bg-surface-container-high rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Abstract colorful neon gradient background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNynxcWSXgLv9KR3idQuDmF2q58VofDrgWzSBdhaca9CNKv-kOScXGaBUBZm7gRQRvGfCr86brms9I5hNaa-FdhO44pH9CSkELlhPUX7inVJ9TiHOCPU8WE9_uPE94HgmSSC8B0-9AhAFqYxVpwYhkKEe-5M_jwZVjsKikOYgq60-LF9fqpRxndLtjk2uhuPTAayyKIHIzFSucTpUvzAr7GdUN52dCGMh3I16zEkaKyffgx-d5scMMwh1iNDFzuhpnTBNR2eoCiO_N"/>
+<div class="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all"></div>
+<div class="absolute top-3 left-3">
+<span class="px-2 py-1 bg-tertiary text-on-tertiary rounded text-[10px] font-bold font-headline uppercase tracking-wider">AI Gen</span>
+</div>
+</div>
+<div class="p-5">
+<h3 class="font-headline font-bold text-on-surface mb-1 truncate">Neon_Dream_01.jpg</h3>
+<div class="flex items-center justify-between">
+<span class="text-xs font-label text-on-surface-variant uppercase tracking-widest">4.8 MB</span>
+<span class="text-[11px] font-body text-outline">Oct 20, 2023</span>
+</div>
+</div>
+</div>
+<!-- Video Asset Card -->
+<div class="group relative bg-surface-container-high rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Cinematic movie theatre interior" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDd8tjawWjA4XdY4AlW_Mlr7sEldk58sxY1ZqJ8Z0XQAClWw89C1Hx0ppLAQH8_kDwQwB4e0WtunJLpUwRBxSwBD3B5KZozsohggUMg3te1C3YzT2yr-WcPg_cJw-dk-XM3LOIl2PlybFhRKbwAy2lLyWNAcuLJV-fWiJbOGrJCktTKrxcmrSjlGm063UflvTWW0XWvJ_H3385ATEmzybGPsu-A7buIx4gYzWe0Ti-Lxx6PtW61OuKEOzIFLTHhJhLYPOsZe016PHYr"/>
+<div class="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all"></div>
+<div class="absolute bottom-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-md rounded text-[10px] font-bold font-headline text-white uppercase tracking-wider">2:15</div>
+</div>
+<div class="p-5">
+<h3 class="font-headline font-bold text-on-surface mb-1 truncate">Interview_B-Roll.mp4</h3>
+<div class="flex items-center justify-between">
+<span class="text-xs font-label text-on-surface-variant uppercase tracking-widest">452.1 MB</span>
+<span class="text-[11px] font-body text-outline">Oct 18, 2023</span>
+</div>
+</div>
+</div>
+<!-- Image Asset Card -->
+<div class="group relative bg-surface-container-high rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Dark abstract architectural stairs" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB__3EiCg2mqBqAkI6W3hpdWf8lIoO6k3z95PthiN5ZN9hpb9Vlo7917ifN3YgCpGkI8BsRTaUadkmOQpOk79z9KUUTEJ6GyMuzgvNM3ZKtyc1uCxZ0XMwVFKijG2sV27aUB-H6qUcYMZBqNDoO0Svo5QOyYgrGFmzcQVkpEegwymQJz8tke26Kq0trs0iAQAIYMIajuPZQNir0SP0r5impGsLuMmh41edYR1INqgBtqtrSNsParvPdfOftosxpjYsZJ8oH65Cvqjdr"/>
+<div class="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all"></div>
+</div>
+<div class="p-5">
+<h3 class="font-headline font-bold text-on-surface mb-1 truncate">Architecture_Still.png</h3>
+<div class="flex items-center justify-between">
+<span class="text-xs font-label text-on-surface-variant uppercase tracking-widest">15.5 MB</span>
+<span class="text-[11px] font-body text-outline">Oct 15, 2023</span>
+</div>
+</div>
+</div>
+<!-- Audio Asset Card -->
+<div class="group relative bg-surface-container-high rounded-xl overflow-hidden hover:ring-2 ring-primary/30 transition-all duration-300">
+<div class="aspect-video bg-surface-container-highest flex items-center justify-center relative">
+<span class="material-symbols-outlined text-outline text-4xl opacity-40">mic</span>
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div>
+<div class="p-5">
+<h3 class="font-headline font-bold text-on-surface mb-1 truncate">Voiceover_Script_v2.mp3</h3>
+<div class="flex items-center justify-between">
+<span class="text-xs font-label text-on-surface-variant uppercase tracking-widest">3.1 MB</span>
+<span class="text-[11px] font-body text-outline">Oct 14, 2023</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Empty State / Footer Area -->
+<div class="mt-8 py-16 flex flex-col items-center justify-center border-2 border-dashed border-outline-variant/10 rounded-3xl bg-surface-container-low/30">
+<div class="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center text-outline mb-6">
+<span class="material-symbols-outlined text-3xl">add_photo_alternate</span>
+</div>
+<h4 class="font-headline font-bold text-xl text-on-surface mb-2">Drag more assets here</h4>
+<p class="text-on-surface-variant font-body text-sm text-center max-w-xs leading-relaxed">Supports MP4, MOV, PNG, JPG, and WAV formats. Maximum file size 2GB.</p>
+</div>
+</section>
+</main>
+</body></html>

@@ -1,0 +1,30 @@
+# Technical Integration PRD: Link2Video AI
+
+## 1. Core Video Generation Stack
+*   **Google Veo API:** Primary engine for high-fidelity, cinematic video generation. Best for "B-roll" and atmospheric scenes.
+*   **SeedDance 2.0 API:** specialized for character consistency and specific animation sequences where human-like movement is required.
+
+## 2. Recommended Complementary APIs
+To create a complete video from just a link, you'll need these additional layers:
+
+### A. Narrative & Scripting (The "Brain")
+*   **Google Gemini 1.5 Pro:** (Essential) For analyzing the source link (URL), extracting key facts, and writing the multi-scene script with visual prompts for Veo/SeedDance.
+*   **Perplexity API:** (Optional) If you want the tool to "fact-check" or find the latest news beyond the provided link.
+
+### B. Audio Stack (The "Voice")
+*   **ElevenLabs API:** The gold standard for AI voiceovers. Use their "Speech-to-Speech" or "Text-to-Speech" for the narration.
+*   **Suno or Udio API:** For generating unique, royalty-free background music that matches the mood of the script.
+
+### C. Processing & Assembly (The "Glue")
+*   **Shotstack or Cloudinary:** A cloud-based video editing API to programmatically "stitch" together the Veo clips, the ElevenLabs audio, and the background music, plus add captions.
+*   **Deepgram API:** For lightning-fast, highly accurate transcription if you want to generate "burnt-in" captions (essential for TikTok/Reels).
+
+## 3. Workflow Diagram
+1. **Input:** User pastes link.
+2. **Analysis:** Gemini Pro reads link -> Generates Story Angles -> Generates Script & Visual Prompts.
+3. **Synthesis:** 
+    * Visual Prompts -> **Google Veo / SeedDance** (Video)
+    * Script -> **ElevenLabs** (Audio)
+    * Mood -> **Suno** (Music)
+4. **Assembly:** **Shotstack** combines Video + Audio + Music + Captions.
+5. **Output:** Final MP4 for Download.

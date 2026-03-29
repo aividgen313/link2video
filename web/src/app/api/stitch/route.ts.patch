@@ -1,0 +1,19 @@
+--- web/src/app/api/stitch/route.ts
++++ web/src/app/api/stitch/route.ts
+@@ -131,16 +131,16 @@
+         } else {
+           cmd = [
+             "ffmpeg -y",
+             `-loglevel error`,
+             `-loop 1 -t ${dur} -i "${imgPath}"`,
+             `-f lavfi -i "anullsrc=r=44100:cl=stereo"`,
+             `-vf "${videoFilter}"`,
+             `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r 25`,
+-        }
++            `-c:a aac -b:a 96k -t ${dur}`,
++            `"${clipPath}"`
++          ].join(" ");
++        }
+       }
+ 
+       console.log(`[/api/stitch] Rendering clip ${i + 1}/${scenes.length} (video=${hasVideo}, duration=${dur}s)...`);

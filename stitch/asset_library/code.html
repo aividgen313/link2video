@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Link2Video AI - Assets</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary-container": "#ef6719",
+                        "on-tertiary-container": "#4c1a00",
+                        "on-tertiary-fixed": "#351000",
+                        "on-primary": "#002e69",
+                        "secondary-container": "#26467d",
+                        "on-primary-fixed-variant": "#004493",
+                        "on-surface": "#e5e2e1",
+                        "on-secondary": "#082f65",
+                        "primary-fixed": "#d8e2ff",
+                        "surface-container-low": "#1b1b1c",
+                        "primary": "#adc6ff",
+                        "on-error-container": "#ffdad6",
+                        "error-container": "#93000a",
+                        "surface-container-high": "#2a2a2a",
+                        "background": "#131313",
+                        "surface-container": "#202020",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "surface": "#131313",
+                        "on-error": "#690005",
+                        "outline": "#8b90a0",
+                        "on-tertiary": "#571e00",
+                        "tertiary-fixed-dim": "#ffb595",
+                        "inverse-primary": "#005bc1",
+                        "on-secondary-container": "#98b5f3",
+                        "primary-fixed-dim": "#adc6ff",
+                        "outline-variant": "#414755",
+                        "on-secondary-fixed-variant": "#26467d",
+                        "secondary": "#adc6ff",
+                        "inverse-surface": "#e5e2e1",
+                        "on-primary-fixed": "#001a41",
+                        "surface-bright": "#393939",
+                        "secondary-fixed": "#d8e2ff",
+                        "surface-tint": "#adc6ff",
+                        "on-secondary-fixed": "#001a41",
+                        "tertiary-fixed": "#ffdbcc",
+                        "surface-container-highest": "#353535",
+                        "inverse-on-surface": "#303030",
+                        "on-tertiary-fixed-variant": "#7c2e00",
+                        "surface-variant": "#353535",
+                        "on-primary-container": "#00285c",
+                        "error": "#ffb4ab",
+                        "tertiary": "#ffb595",
+                        "on-background": "#e5e2e1",
+                        "primary-container": "#4b8eff",
+                        "on-surface-variant": "#c1c6d7",
+                        "surface-dim": "#131313",
+                        "surface-container-lowest": "#0e0e0e"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #131313; color: #e5e2e1; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-card { background: rgba(42, 42, 42, 0.7); backdrop-filter: blur(20px); }
+        .primary-gradient { background: linear-gradient(135deg, #adc6ff 0%, #4b8eff 100%); }
+    </style>
+</head>
+<body class="flex min-h-screen">
+<!-- SideNavBar (Shared Component) -->
+<aside class="w-64 border-r border-outline-variant/15 flex flex-col fixed h-full z-20 bg-background">
+<div class="p-6">
+<h2 class="font-headline font-extrabold text-xl tracking-tight text-on-surface">Creator Studio</h2>
+<p class="text-label-sm text-outline font-label uppercase tracking-widest text-[10px] mt-1">AI Video Generation</p>
+</div>
+<nav class="flex-1 px-4 space-y-2 mt-4">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-outline hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-outline hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">folder</span>
+<span class="font-body font-medium">Projects</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-outline hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined">layers</span>
+<span class="font-body font-medium">Templates</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-container-high text-primary transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+<span class="font-body font-medium">Assets</span>
+</a>
+</nav>
+<div class="p-6 mt-auto">
+<div class="bg-surface-container-low p-4 rounded-xl border border-outline-variant/10">
+<p class="text-xs text-outline mb-2">Storage</p>
+<div class="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[65%]"></div>
+</div>
+<p class="text-[10px] text-on-surface mt-2">1.3 GB of 2.0 GB used</p>
+</div>
+</div>
+</aside>
+<div class="flex-1 ml-64 flex flex-col">
+<!-- TopNavBar (Shared Component) -->
+<header class="h-16 border-b border-outline-variant/15 flex items-center justify-between px-8 bg-background sticky top-0 z-10">
+<div class="flex items-center gap-4">
+<span class="font-headline font-bold text-lg">Link2Video AI</span>
+<div class="relative ml-4">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
+<input class="bg-surface-container-low border-none rounded-full pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-1 focus:ring-primary/40 transition-all" placeholder="Search..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="flex items-center gap-3 pl-4 border-l border-outline-variant/20">
+<div class="text-right">
+<p class="text-sm font-medium leading-none">Alex Rivera</p>
+<p class="text-[10px] text-outline mt-1">PRO PLAN</p>
+</div>
+<img class="w-8 h-8 rounded-full object-cover" data-alt="User Profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBq15pwUTr4jrURl9gYiAky7eIEUjq8yxcS0RdZo3zTPa4IHAbuE7_SavZBiHo7aLQ0yaNjWNeAoVWnSyLUnsDlBUP023ZJDQQLgOIQZTS2mY7VyboXPNd7DqvSc1w5_wH9-WadnZB8lt2xijeM33Zz9Cl5lwNvfjXZWn82obc2ccK6WTQiRveqK0FUzRo7fGje7REaqQjHnuIrpFR9yeQRTR_BDEE1Cd1qRTFPA7oJlWlNZkNl_d9BkYdxe5oADABZ1eBx65G5tzop"/>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="p-10 max-w-7xl mx-auto w-full">
+<!-- Header Section -->
+<div class="flex justify-between items-end mb-12">
+<div>
+<h1 class="font-headline font-extrabold text-5xl tracking-tight mb-2">Media Assets</h1>
+<p class="text-outline font-body">Manage and organize your cinematic workspace files.</p>
+</div>
+<button class="primary-gradient text-on-primary font-bold py-3 px-8 rounded-xl flex items-center gap-2 shadow-2xl shadow-primary-container/20 hover:scale-[1.02] transition-transform">
+<span class="material-symbols-outlined">upload</span>
+                    Upload New Asset
+                </button>
+</div>
+<!-- Filters & Tabs -->
+<div class="flex items-center justify-between mb-8">
+<div class="flex bg-surface-container-low p-1 rounded-xl">
+<button class="px-6 py-2 rounded-lg bg-surface-container-high text-on-surface font-medium text-sm transition-all shadow-sm">All</button>
+<button class="px-6 py-2 rounded-lg text-outline hover:text-on-surface font-medium text-sm transition-all">Images</button>
+<button class="px-6 py-2 rounded-lg text-outline hover:text-on-surface font-medium text-sm transition-all">Videos</button>
+<button class="px-6 py-2 rounded-lg text-outline hover:text-on-surface font-medium text-sm transition-all">Audio</button>
+</div>
+<div class="flex items-center gap-3">
+<button class="p-2 text-outline hover:bg-surface-container-high rounded-lg transition-colors">
+<span class="material-symbols-outlined">grid_view</span>
+</button>
+<button class="p-2 text-outline hover:bg-surface-container-high rounded-lg transition-colors">
+<span class="material-symbols-outlined">list</span>
+</button>
+</div>
+</div>
+<!-- Asset Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+<!-- Video Asset -->
+<div class="group relative bg-surface-container-high rounded-xl overflow-hidden transition-all hover:-translate-y-1">
+<div class="aspect-video relative overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80 group-hover:opacity-100" data-alt="Cinematic mountain landscape video thumbnail" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAhMpC6qlEx4ROenY4YttJiRKLfH67qkz4ELbJqIsd1Bikmd3yMCcu1YuAez40FD6c4TQnLBF1v1fNvG7GnZNUKACHgicf3PX5x0ASRQ4KZqJeuQFYaKNIMfMvx8HUKiQQHQJcgX2uzAXs4LIxnaqsThC_jVgCyprGm54t6PVd6Yzd1LdCrkM30YH5kWDCoaAQo8JYSOoaBkkGw6Ehomgay0dvOEfifSHHcSvZgboJ2mkxZG7XHHFTDaqzfGi_iiwx9SgRcazisXCDr"/>
+<div class="absolute bottom-2 right-2 bg-black/60 px-2 py-0.5 rounded text-[10px] font-bold tracking-tighter">00:24</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+</div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-body font-semibold text-sm truncate pr-4">Alpine_Mist_Drone.mp4</h3>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg">more_horiz</span>
+</button>
+</div>
+<div class="flex items-center gap-2 text-[10px] text-outline font-label uppercase tracking-wider">
+<span>42.5 MB</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant/50"></span>
+<span>Sep 24, 2023</span>
+</div>
+</div>
+</div>
+<!-- Image Asset -->
+<div class="group relative bg-surface-container-high rounded-xl overflow-hidden transition-all hover:-translate-y-1">
+<div class="aspect-video relative overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80 group-hover:opacity-100" data-alt="High speed sports car in neon light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA0I4fIgZ846yMB12CHLpF9CCg_xXekjEmk2PqNBnVlDBwF4s-wldv6II1sRtfq3oNotRT1UJyWDhd_W-DgE6QIpH6Fqsq41FgRvXoGwM0z_NaSR4zHTv2LgiPPiWeOqPi043OebyRaqtY6WbEZHybGcxk2kpIht1hicP-ObNUrqD4YMJHdluPzNjfkVN2lnbKvHeJWiua19YIkBWOCxbaNQieSuUZUnTm_M5tSM-UPULS2MEO924tdDAyxEKn4rJ3oO055vyXkgZZH"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+</div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-body font-semibold text-sm truncate pr-4">Cyber_Cruiser_Main.png</h3>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg">more_horiz</span>
+</button>
+</div>
+<div class="flex items-center gap-2 text-[10px] text-outline font-label uppercase tracking-wider">
+<span>3.2 MB</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant/50"></span>
+<span>Sep 22, 2023</span>
+</div>
+</div>
+</div>
+<!-- Audio Asset -->
+<div class="group relative bg-surface-container-high rounded-xl overflow-hidden transition-all hover:-translate-y-1">
+<div class="aspect-video relative overflow-hidden bg-surface-container-lowest flex items-center justify-center bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container/10 to-transparent">
+<div class="flex flex-col items-center">
+<span class="material-symbols-outlined text-primary text-4xl mb-2" style="font-variation-settings: 'FILL' 1;">graphic_eq</span>
+<div class="flex gap-0.5 items-end h-8">
+<div class="w-0.5 bg-primary/40 h-3"></div>
+<div class="w-0.5 bg-primary/60 h-6"></div>
+<div class="w-0.5 bg-primary h-8"></div>
+<div class="w-0.5 bg-primary/80 h-4"></div>
+<div class="w-0.5 bg-primary/50 h-5"></div>
+</div>
+</div>
+<div class="absolute bottom-2 right-2 bg-black/60 px-2 py-0.5 rounded text-[10px] font-bold tracking-tighter">03:12</div>
+</div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-body font-semibold text-sm truncate pr-4">Synth_Wave_Background.wav</h3>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg">more_horiz</span>
+</button>
+</div>
+<div class="flex items-center gap-2 text-[10px] text-outline font-label uppercase tracking-wider">
+<span>15.8 MB</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant/50"></span>
+<span>Sep 21, 2023</span>
+</div>
+</div>
+</div>
+<!-- Video Asset 2 -->
+<div class="group relative bg-surface-container-high rounded-xl overflow-hidden transition-all hover:-translate-y-1">
+<div class="aspect-video relative overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80 group-hover:opacity-100" data-alt="Modern architecture interior" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC40fJ8AEUZ1PrH98WKp5k2r8lJ8bGXZh46iU0zdaYFgyWsCz4umferiGkoR-hfz-qVysf6uFPhkkYBWjkxt1F1x0XmOT6jcFwnHmoMBaA-L24q5m3P9YxilMyiW0Ksm4iJrTq4ga9rd-8CnjubxJOsh773e3SGiuGiJW-Zm8qz-SeDgngegd8xbcCnOPYVbIa9OL0CSP8f8VYp15awfZZOfxyQiBP7OeE27dSNzQwDLcTqHxkiVCRpm_dnlnLVluKw3E8seBA-HKfj"/>
+<div class="absolute bottom-2 right-2 bg-black/60 px-2 py-0.5 rounded text-[10px] font-bold tracking-tighter">00:15</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+</div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-body font-semibold text-sm truncate pr-4">Minimalist_Lobby.mp4</h3>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg">more_horiz</span>
+</button>
+</div>
+<div class="flex items-center gap-2 text-[10px] text-outline font-label uppercase tracking-wider">
+<span>28.1 MB</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant/50"></span>
+<span>Sep 20, 2023</span>
+</div>
+</div>
+</div>
+<!-- Image Asset 2 -->
+<div class="group relative bg-surface-container-high rounded-xl overflow-hidden transition-all hover:-translate-y-1">
+<div class="aspect-video relative overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80 group-hover:opacity-100" data-alt="Abstract dark aesthetic pattern" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-v_phnm7-ixPdm0Dyy3FqNd0SZ5zf3rUNaSYRWIwCI7kdRiGRbTIEE9QXono7LkPc2hfAHH_agUq0ZyO5efbzEq_NBIsy_0KIJGJT_2JgYDqlyW1C7IPEI30dxJyU1fqSXGse8DZpsDq4wsjKbUs4uyMtduLlgXAk9oXkrtVSSX5drHtELbc8oBn9NG-1qAE8KsCgrfMB-gb3iz5Pcl_nDIfcCnklu3oDeA_D5nvcxEOtSEZ-WeZrK8-QMirfSElrE8VtWFv3bxQX"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+</div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-body font-semibold text-sm truncate pr-4">Texture_Void_08.jpg</h3>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg">more_horiz</span>
+</button>
+</div>
+<div class="flex items-center gap-2 text-[10px] text-outline font-label uppercase tracking-wider">
+<span>1.4 MB</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant/50"></span>
+<span>Sep 18, 2023</span>
+</div>
+</div>
+</div>
+<!-- Audio Asset 2 -->
+<div class="group relative bg-surface-container-high rounded-xl overflow-hidden transition-all hover:-translate-y-1">
+<div class="aspect-video relative overflow-hidden bg-surface-container-lowest flex items-center justify-center bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container/10 to-transparent">
+<div class="flex flex-col items-center">
+<span class="material-symbols-outlined text-primary text-4xl mb-2" style="font-variation-settings: 'FILL' 1;">mic</span>
+<div class="w-24 h-1 bg-surface-container-highest rounded-full overflow-hidden mt-2">
+<div class="bg-primary h-full w-[40%]"></div>
+</div>
+</div>
+<div class="absolute bottom-2 right-2 bg-black/60 px-2 py-0.5 rounded text-[10px] font-bold tracking-tighter">00:45</div>
+</div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-body font-semibold text-sm truncate pr-4">Narrator_Voiceover_V2.mp3</h3>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg">more_horiz</span>
+</button>
+</div>
+<div class="flex items-center gap-2 text-[10px] text-outline font-label uppercase tracking-wider">
+<span>4.9 MB</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant/50"></span>
+<span>Sep 15, 2023</span>
+</div>
+</div>
+</div>
+<!-- Empty Placeholder (Interactive Design Style) -->
+<div class="border-2 border-dashed border-outline-variant/30 rounded-xl flex flex-col items-center justify-center p-8 bg-surface-container-low/50 hover:bg-surface-container-low transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-outline-variant text-4xl mb-2">add_circle</span>
+<p class="text-sm font-medium text-outline">Add more files</p>
+</div>
+</div>
+<!-- Pagination/Footer -->
+<div class="mt-12 flex justify-between items-center py-6 border-t border-outline-variant/10">
+<p class="text-xs text-outline">Showing <span class="text-on-surface font-semibold">6</span> of <span class="text-on-surface font-semibold">124</span> total assets</p>
+<div class="flex gap-2">
+<button class="p-2 rounded-lg bg-surface-container-low text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="w-10 h-10 rounded-lg bg-primary text-on-primary font-bold shadow-lg shadow-primary/20">1</button>
+<button class="w-10 h-10 rounded-lg bg-surface-container-low text-outline hover:text-on-surface font-bold transition-colors">2</button>
+<button class="w-10 h-10 rounded-lg bg-surface-container-low text-outline hover:text-on-surface font-bold transition-colors">3</button>
+<button class="p-2 rounded-lg bg-surface-container-low text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</main>
+</div>
+</body></html>

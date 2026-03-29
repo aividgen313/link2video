@@ -1,0 +1,59 @@
+2026-03-29 09:20:41 WARNING  [static_analyzer:31] Unsupported programming language: CSS. Skipping.
+2026-03-29 09:20:41 WARNING  [static_analyzer:31] Unsupported programming language: HTML. Skipping.
+2026-03-29 09:20:41 WARNING  [static_analyzer:31] Unsupported programming language: JSON. Skipping.
+2026-03-29 09:20:49 INFO     [static_analyzer.typescript_config_scanner:52] Found 1 TypeScript project(s) in repository
+2026-03-29 09:20:49 INFO     [static_analyzer:45] Creating TypeScript client for project at: web
+2026-03-29 09:20:58 INFO     [static_analyzer.typescript_config_scanner:52] Found 1 TypeScript project(s) in repository
+2026-03-29 09:20:58 INFO     [static_analyzer:45] Creating TypeScript client for project at: web
+2026-03-29 09:20:58 INFO     [static_analyzer:141] Starting LSP client for JavaScript
+2026-03-29 09:20:58 INFO     [static_analyzer.lsp_client.typescript_client:44] node_modules found at: /Volumes/MACPC SSD/Downloads/Tech/LINK2VIDEO APP/web/node_modules
+2026-03-29 09:20:58 INFO     [static_analyzer.lsp_client.client:139] Starting server /Applications/Antigravity.app/Contents/Frameworks/Antigravity Helper (Plugin).app/Contents/MacOS/Antigravity Helper (Plugin) /Users/dw/.codeboarding/servers/node_modules/typescript-language-server/lib/cli.mjs --stdio --log-level=2...
+2026-03-29 09:20:58 INFO     [static_analyzer.lsp_client.typescript_client:57] Initializing connection for javascript...
+2026-03-29 09:20:58 INFO     [static_analyzer.lsp_client.typescript_client:88] Initialization successful.
+2026-03-29 09:21:13 INFO     [static_analyzer.lsp_client.typescript_client:115] Found 71 TypeScript/JavaScript files
+2026-03-29 09:21:13 INFO     [static_analyzer.lsp_client.typescript_client:156] Found configuration file: /Volumes/MACPC SSD/Downloads/Tech/LINK2VIDEO APP/web/tsconfig.json
+2026-03-29 09:21:13 INFO     [static_analyzer.lsp_client.typescript_client:156] Found configuration file: /Volumes/MACPC SSD/Downloads/Tech/LINK2VIDEO APP/web/package.json
+2026-03-29 09:21:13 INFO     [static_analyzer.lsp_client.typescript_client:167] Opening sample files to bootstrap TypeScript project...
+2026-03-29 09:21:13 INFO     [static_analyzer.lsp_client.typescript_client:186] Waiting 5s for TypeScript server to initialize project...
+2026-03-29 09:21:18 INFO     [static_analyzer.lsp_client.typescript_client:191] TypeScript project successfully loaded!
+2026-03-29 09:21:18 INFO     [static_analyzer.lsp_client.client:460] Sending workspace configuration for javascript...
+2026-03-29 09:21:18 INFO     [static_analyzer.lsp_client.client:468] Workspace configuration sent for javascript
+2026-03-29 09:21:18 INFO     [static_analyzer:141] Starting LSP client for TSX
+2026-03-29 09:21:18 INFO     [static_analyzer.lsp_client.client:139] Starting server /Applications/Antigravity.app/Contents/Frameworks/Antigravity Helper (Plugin).app/Contents/MacOS/Antigravity Helper (Plugin) /Users/dw/.codeboarding/servers/node_modules/typescript-language-server/lib/cli.mjs --stdio --log-level=2...
+2026-03-29 09:21:18 INFO     [static_analyzer.lsp_client.client:411] Initializing connection for tsx...
+2026-03-29 09:21:18 WARNING  [static_analyzer.lsp_client.language_settings:96] Unknown language ID: tsx. No LSP settings available.
+2026-03-29 09:21:18 INFO     [static_analyzer.lsp_client.client:446] Initialization successful.
+2026-03-29 09:21:18 WARNING  [static_analyzer.lsp_client.language_settings:96] Unknown language ID: tsx. No LSP settings available.
+2026-03-29 09:21:18 INFO     [static_analyzer:141] Starting LSP client for TypeScript
+2026-03-29 09:21:18 INFO     [static_analyzer.lsp_client.typescript_client:44] node_modules found at: /Volumes/MACPC SSD/Downloads/Tech/LINK2VIDEO APP/web/node_modules
+2026-03-29 09:21:18 INFO     [static_analyzer.lsp_client.client:139] Starting server /Applications/Antigravity.app/Contents/Frameworks/Antigravity Helper (Plugin).app/Contents/MacOS/Antigravity Helper (Plugin) /Users/dw/.codeboarding/servers/node_modules/typescript-language-server/lib/cli.mjs --stdio --log-level=2...
+2026-03-29 09:21:18 INFO     [static_analyzer.lsp_client.typescript_client:57] Initializing connection for typescript...
+2026-03-29 09:21:18 INFO     [static_analyzer.lsp_client.typescript_client:88] Initialization successful.
+2026-03-29 09:21:33 INFO     [static_analyzer.lsp_client.typescript_client:115] Found 71 TypeScript/JavaScript files
+2026-03-29 09:21:33 INFO     [static_analyzer.lsp_client.typescript_client:156] Found configuration file: /Volumes/MACPC SSD/Downloads/Tech/LINK2VIDEO APP/web/tsconfig.json
+2026-03-29 09:21:33 INFO     [static_analyzer.lsp_client.typescript_client:156] Found configuration file: /Volumes/MACPC SSD/Downloads/Tech/LINK2VIDEO APP/web/package.json
+2026-03-29 09:21:33 INFO     [static_analyzer.lsp_client.typescript_client:167] Opening sample files to bootstrap TypeScript project...
+2026-03-29 09:21:33 INFO     [static_analyzer.lsp_client.typescript_client:186] Waiting 5s for TypeScript server to initialize project...
+2026-03-29 09:21:38 INFO     [static_analyzer.lsp_client.typescript_client:191] TypeScript project successfully loaded!
+2026-03-29 09:21:38 INFO     [static_analyzer.lsp_client.client:460] Sending workspace configuration for typescript...
+2026-03-29 09:21:38 INFO     [static_analyzer.lsp_client.client:468] Workspace configuration sent for typescript
+2026-03-29 09:21:38 INFO     [codeboarding_pro.session:108] Session 831014bf-03ab-45aa-9c68-37fc22190f32 initialized: repo=/Volumes/MACPC SSD/Downloads/Tech/LINK2VIDEO APP, project=LINK2VIDEO APP, output=/Volumes/MACPC SSD/Downloads/Tech/LINK2VIDEO APP/.codeboarding
+2026-03-29 09:21:38 ERROR    [codeboarding_pro.ws.server:157] WebSocket error: session 831014bf-03ab-45aa-9c68-37fc22190f32
+Traceback (most recent call last):
+  File "codeboarding_pro/ws/server.py", line 126, in websocket_endpoint
+  File "starlette/websockets.py", line 165, in send_text
+  File "starlette/websockets.py", line 85, in send
+  File "starlette/_exception_handler.py", line 39, in sender
+  File "uvicorn/protocols/websockets/websockets_impl.py", line 320, in asgi_send
+  File "websockets/legacy/protocol.py", line 632, in send
+  File "websockets/legacy/protocol.py", line 1191, in write_frame
+  File "websockets/legacy/protocol.py", line 1180, in drain
+  File "websockets/legacy/protocol.py", line 921, in ensure_open
+websockets.exceptions.ConnectionClosedError: no close frame received or sent
+2026-03-29 09:21:38 INFO     [static_analyzer.lsp_client.client:1238] Shutting down langserver...
+2026-03-29 09:21:38 INFO     [static_analyzer.lsp_client.client:1259] Shutdown complete.
+2026-03-29 09:21:38 INFO     [static_analyzer.lsp_client.client:1238] Shutting down langserver...
+2026-03-29 09:21:38 INFO     [static_analyzer.lsp_client.client:1259] Shutdown complete.
+2026-03-29 09:21:38 INFO     [static_analyzer.lsp_client.client:1238] Shutting down langserver...
+2026-03-29 09:21:38 INFO     [static_analyzer.lsp_client.client:1259] Shutdown complete.
+2026-03-29 09:21:38 INFO     [codeboarding_pro.session:397] Session 831014bf-03ab-45aa-9c68-37fc22190f32 destroyed

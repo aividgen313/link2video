@@ -1,0 +1,48 @@
+2026-03-29 10:10:37 WARNING  [static_analyzer:31] Unsupported programming language: CSS. Skipping.
+2026-03-29 10:10:37 WARNING  [static_analyzer:31] Unsupported programming language: HTML. Skipping.
+2026-03-29 10:10:37 WARNING  [static_analyzer:31] Unsupported programming language: JSON. Skipping.
+2026-03-29 10:10:46 INFO     [static_analyzer.typescript_config_scanner:52] Found 1 TypeScript project(s) in repository
+2026-03-29 10:10:46 INFO     [static_analyzer:45] Creating TypeScript client for project at: web
+2026-03-29 10:10:55 INFO     [static_analyzer.typescript_config_scanner:52] Found 1 TypeScript project(s) in repository
+2026-03-29 10:10:55 INFO     [static_analyzer:45] Creating TypeScript client for project at: web
+2026-03-29 10:10:55 INFO     [static_analyzer:141] Starting LSP client for JavaScript
+2026-03-29 10:10:55 INFO     [static_analyzer.lsp_client.typescript_client:44] node_modules found at: /Volumes/MACPC SSD/Downloads/Tech/LINK2VIDEO APP/web/node_modules
+2026-03-29 10:10:55 INFO     [static_analyzer.lsp_client.client:139] Starting server /Applications/Antigravity.app/Contents/Frameworks/Antigravity Helper (Plugin).app/Contents/MacOS/Antigravity Helper (Plugin) /Users/dw/.codeboarding/servers/node_modules/typescript-language-server/lib/cli.mjs --stdio --log-level=2...
+2026-03-29 10:10:55 INFO     [static_analyzer.lsp_client.typescript_client:57] Initializing connection for javascript...
+2026-03-29 10:10:55 INFO     [static_analyzer.lsp_client.typescript_client:88] Initialization successful.
+2026-03-29 10:11:08 INFO     [static_analyzer.lsp_client.typescript_client:115] Found 71 TypeScript/JavaScript files
+2026-03-29 10:11:08 INFO     [static_analyzer.lsp_client.typescript_client:156] Found configuration file: /Volumes/MACPC SSD/Downloads/Tech/LINK2VIDEO APP/web/tsconfig.json
+2026-03-29 10:11:08 INFO     [static_analyzer.lsp_client.typescript_client:156] Found configuration file: /Volumes/MACPC SSD/Downloads/Tech/LINK2VIDEO APP/web/package.json
+2026-03-29 10:11:08 INFO     [static_analyzer.lsp_client.typescript_client:167] Opening sample files to bootstrap TypeScript project...
+2026-03-29 10:11:08 INFO     [static_analyzer.lsp_client.typescript_client:186] Waiting 5s for TypeScript server to initialize project...
+2026-03-29 10:11:13 ERROR    [static_analyzer.lsp_client.typescript_client:234] Failed to validate TypeScript project: [Errno 32] Broken pipe
+2026-03-29 10:11:13 WARNING  [static_analyzer.lsp_client.typescript_client:193] TypeScript project still not loaded, but continuing...
+2026-03-29 10:11:13 INFO     [static_analyzer.lsp_client.client:460] Sending workspace configuration for javascript...
+2026-03-29 10:11:13 ERROR    [static_analyzer:147] Failed to start LSP client for JavaScript
+Traceback (most recent call last):
+  File "static_analyzer/__init__.py", line 142, in start_clients
+  File "static_analyzer/lsp_client/typescript_client.py", line 37, in start
+  File "static_analyzer/lsp_client/client.py", line 151, in start
+  File "static_analyzer/lsp_client/client.py", line 463, in _send_workspace_configuration
+  File "static_analyzer/lsp_client/client.py", line 189, in _send_notification
+BrokenPipeError: [Errno 32] Broken pipe
+2026-03-29 10:11:13 INFO     [codeboarding_pro.session:397] Session db40f473-33fd-4d6f-80b5-389ea5604787 destroyed
+2026-03-29 10:11:13 ERROR    [codeboarding_pro.ws.jsonrpc:104] Unhandled error in method 'initialize'
+Traceback (most recent call last):
+  File "static_analyzer/__init__.py", line 142, in start_clients
+  File "static_analyzer/lsp_client/typescript_client.py", line 37, in start
+  File "static_analyzer/lsp_client/client.py", line 151, in start
+  File "static_analyzer/lsp_client/client.py", line 463, in _send_workspace_configuration
+  File "static_analyzer/lsp_client/client.py", line 189, in _send_notification
+BrokenPipeError: [Errno 32] Broken pipe
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "codeboarding_pro/ws/jsonrpc.py", line 99, in dispatch
+  File "codeboarding_pro/ws/methods.py", line 44, in handle_initialize
+  File "codeboarding_pro/session.py", line 102, in initialize
+  File "static_analyzer/__init__.py", line 155, in start_clients
+RuntimeError: Failed to start LSP client for JavaScript
+2026-03-29 10:11:13 INFO     [codeboarding_pro.ws.server:155] WebSocket disconnected: session db40f473-33fd-4d6f-80b5-389ea5604787
+2026-03-29 10:11:13 INFO     [codeboarding_pro.session:397] Session db40f473-33fd-4d6f-80b5-389ea5604787 destroyed
