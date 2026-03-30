@@ -842,7 +842,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     }
   }, [scenes, tracks, addTrack, setScenesWithHistory]);
 
-  // --- Auto-Captioning ---
+  // --- Auto-Captioning (documentary-style, timed phrases) ---
   const autoCaptionProject = useCallback(() => {
     setScenesWithHistory(prev => {
       return prev.map(scene => {
@@ -850,59 +850,63 @@ export function EditorProvider({ children }: { children: ReactNode }) {
         const manualOverlays = scene.overlays.filter(o => !o.id.startsWith("caption-"));
         const narrationText = scene.narration.trim();
         if (!narrationText) return scene;
-        const sentences = narrationText.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [narrationText];
-        const chunks: string[] = [];
-        let currentChunk = "";
-        for (const sentence of sentences) {
-          const trimmed = sentence.trim();
-          if (!trimmed) continue;
-          if (currentChunk && (currentChunk + " " + trimmed).length <= 120) {
-            currentChunk += " " + trimmed;
-          } else if (currentChunk) {
-            chunks.push(currentChunk.trim());
-            currentChunk = trimmed;
+
+        // Split into natural breath-point phrases for documentary feel
+        // First split by sentences, then break long sentences at natural pauses
+        const rawSentences = narrationText.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [narrationText];
+        const phrases: string[] = [];
+        for (const sentence of rawSentences) {
+          const s = sentence.trim();
+          if (!s) continue;
+          if (s.length <= 60) {
+            phrases.push(s);
           } else {
-            currentChunk = trimmed;
-          }
-        }
-        if (currentChunk.trim()) chunks.push(currentChunk.trim());
-        if (chunks.length === 1 && chunks[0].length > 120) {
-          const text = chunks[0];
-          chunks.length = 0;
-          const parts = text.split(/,\s*/);
-          let buf = "";
-          for (const part of parts) {
-            if (buf && (buf + ", " + part).length > 100) {
-              chunks.push(buf.trim());
-              buf = part;
-            } else {
-              buf = buf ? buf + ", " + part : part;
+            // Split at commas, semicolons, "and", "but", "or", "which", "that", "when", "where", "because"
+            const parts = s.split(/(?:,\s*|;\s*|\s+(?:and|but|or|which|that|when|where|because)\s+)/i);
+            let buf = "";
+            const separators = s.match(/,\s*|;\s*|\s+(?:and|but|or|which|that|when|where|because)\s+/gi) || [];
+            for (let j = 0; j < parts.length; j++) {
+              const part = parts[j].trim();
+              if (!part) continue;
+              const sep = j > 0 && j - 1 < separators.length ? separators[j - 1] : "";
+              const candidate = buf ? buf + sep + part : part;
+              if (candidate.length <= 60) {
+                buf = candidate;
+              } else {
+                if (buf) phrases.push(buf.trim());
+                buf = part;
+              }
             }
+            if (buf.trim()) phrases.push(buf.trim());
           }
-          if (buf.trim()) chunks.push(buf.trim());
         }
-        const numChunks = chunks.length;
-        const gap = 0.1;
-        const totalGap = gap * Math.max(0, numChunks - 1);
+
+        const numPhrases = phrases.length;
+        const gap = 0.15; // slightly longer gap between phrases for breathing room
+        const totalGap = gap * Math.max(0, numPhrases - 1);
         const usableDuration = Math.max(0, scene.duration - totalGap);
-        const durPerChunk = numChunks > 0 ? usableDuration / numChunks : 0;
-        const captionOverlays: TextOverlay[] = chunks.map((text, i) => ({
+        const durPerPhrase = numPhrases > 0 ? usableDuration / numPhrases : 0;
+
+        const captionOverlays: TextOverlay[] = phrases.map((text, i) => ({
           id: `caption-${scene.id}-${i}-${Date.now()}`,
           text: text.toUpperCase(),
           position: "lower-third" as const,
-          x: 50, y: 82,
-          fontSize: 12,
+          x: 50, y: 85,
+          fontSize: 14,
           color: "#FFFFFF",
           fontFamily: "Inter",
-          fontWeight: "900" as const,
+          fontWeight: "800" as const,
           textAlign: "center" as const,
           textTransform: "uppercase" as const,
           shadowEnabled: true,
-          shadowColor: "rgba(0,0,0,0.8)",
-          shadowBlur: 10,
+          shadowColor: "rgba(0,0,0,0.9)",
+          shadowBlur: 8,
+          backgroundColor: "rgba(0,0,0,0.55)",
+          padding: 12,
+          borderRadius: 8,
           animation: "fade-in" as const,
-          startTime: i * (durPerChunk + gap),
-          duration: durPerChunk,
+          startTime: i * (durPerPhrase + gap),
+          duration: durPerPhrase,
         }));
         return { ...scene, overlays: [...manualOverlays, ...captionOverlays] };
       });

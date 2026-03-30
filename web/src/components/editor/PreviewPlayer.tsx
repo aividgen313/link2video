@@ -475,31 +475,42 @@ export default function PreviewPlayer() {
               </div>
             )}
 
-            {/* Auto Captions Overlay */}
-            {captionsEnabled && selectedScene?.narration && (
-              <div className="absolute bottom-[12%] left-1/2 -translate-x-1/2 w-[85%] max-w-[650px] text-center pointer-events-none z-50">
-                <div className="flex flex-col gap-1 items-center justify-center">
-                  {/* Split long narration into smaller phrases for better readability */}
-                  {(selectedScene.narration.length > 80 
-                    ? selectedScene.narration.match(/[^.!?]+[.!?]*|.{1,80}(?=\s|$)/g)?.slice(0, 3) 
-                    : [selectedScene.narration]
-                  )?.map((phrase, i) => (
-                    <span 
-                      key={i}
-                      className="inline-block bg-black/70 backdrop-blur-md text-white px-3 py-1 rounded-md font-extrabold uppercase tracking-tight"
-                      style={{ 
-                        fontSize: "clamp(10px, 2.2vw, 20px)",
-                        textShadow: "0px 2px 4px rgba(0,0,0,0.9)",
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.5)"
-                      }}
-                    >
-                      {phrase.trim()}
-                    </span>
-                  ))}
+            {/* Auto Captions Overlay - shows narration text when CC is on but no timed overlays exist */}
+            {captionsEnabled && selectedScene?.narration && !selectedScene.overlays.some(o => o.id.startsWith("caption-")) && (() => {
+              const text = selectedScene.narration.trim();
+              const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+              const chunks: string[] = [];
+              let cur = "";
+              for (const s of sentences) {
+                const t = s.trim();
+                if (!t) continue;
+                if (cur && (cur + " " + t).length <= 80) { cur += " " + t; }
+                else { if (cur) chunks.push(cur); cur = t; }
+              }
+              if (cur) chunks.push(cur);
+              const dur = selectedScene.duration;
+              const perChunk = dur / chunks.length;
+              const idx = Math.min(Math.floor(sceneLocalTime / perChunk), chunks.length - 1);
+              const current = chunks[Math.max(0, idx)];
+              const fadeIn = Math.min((sceneLocalTime - idx * perChunk) / 0.4, 1);
+              return (
+                <div className="absolute bottom-[12%] left-1/2 -translate-x-1/2 w-[85%] max-w-[650px] text-center pointer-events-none z-50"
+                  style={{ opacity: fadeIn, transition: "opacity 0.3s ease" }}>
+                  <span
+                    className="inline-block bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-lg font-extrabold uppercase tracking-tight"
+                    style={{
+                      fontSize: "clamp(10px, 2.2vw, 20px)",
+                      textShadow: "0px 2px 4px rgba(0,0,0,0.9)",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {current.trim().toUpperCase()}
+                  </span>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Hidden indicator */}
             {selectedScene!.isHidden && (
