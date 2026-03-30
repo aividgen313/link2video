@@ -300,7 +300,7 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
         onDrop={handleFileDrop}
       >
         {/* Track labels (fixed left) */}
-        <div className="flex-shrink-0 flex flex-col" style={{ width: 110, background: C.trackAlt, borderRight: `1px solid ${C.border}`, zIndex: 10 }}>
+        <div className="flex-shrink-0 flex flex-col overflow-hidden" style={{ width: 240, background: C.trackAlt, borderRight: `1px solid ${C.border}`, zIndex: 10 }}>
           {/* Ruler label */}
           <div className="flex items-center justify-between px-2" style={{ height: 24, borderBottom: `1px solid ${C.border}` }}>
             <span className="text-[11px] font-mono" style={{ color: C.textMuted }}>{formatTime(totalDuration)}</span>
@@ -313,17 +313,17 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
               className="flex items-center justify-between px-1.5 group"
               style={{ height: track.isCollapsed ? 20 : perTrackHeight, borderBottom: `1px solid ${C.border}`, background: C.videoTrack }}
             >
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2 min-w-0 flex-1 px-2">
                 <button
                   onClick={() => updateTrack(track.id, { isCollapsed: !track.isCollapsed })}
-                  className="p-0.5 rounded transition-colors"
+                  className="p-1 rounded transition-colors flex-shrink-0"
                   style={{ color: C.textDim }}
                 >
-                  <span className="material-symbols-outlined text-[11px]">{track.isCollapsed ? "expand_more" : "expand_less"}</span>
+                  <span className="material-symbols-outlined text-[14px]">{track.isCollapsed ? "expand_more" : "expand_less"}</span>
                 </button>
-                <span className="text-[11px] font-bold" style={{ color: C.textDim }}>{track.label}</span>
+                <span className="text-[11px] font-bold truncate tracking-tight" style={{ color: C.textDim }}>{track.label}</span>
               </div>
-              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1.5 px-3 flex-shrink-0 border-l" style={{ borderColor: `${C.border}30` }}>
                 <button
                   onClick={() => updateTrack(track.id, { isMuted: !track.isMuted })}
                   className="p-0.5 rounded transition-colors"
@@ -342,11 +342,19 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                 </button>
                 <button
                   onClick={() => handleImportClick(track.id)}
-                  className="p-0.5 rounded transition-colors"
+                  className="p-0.5 rounded transition-colors hover:text-white"
                   style={{ color: C.textMuted }}
                   title="Import media"
                 >
                   <span className="material-symbols-outlined text-[11px]">add</span>
+                </button>
+                <button
+                  onClick={() => removeTrack(track.id)}
+                  className="p-0.5 rounded transition-colors hover:text-red-400"
+                  style={{ color: C.textMuted }}
+                  title="Delete track"
+                >
+                  <span className="material-symbols-outlined text-[11px]">delete</span>
                 </button>
               </div>
             </div>
@@ -371,17 +379,17 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
               className="flex items-center justify-between px-1.5 group"
               style={{ height: track.isCollapsed ? 20 : perTrackHeight, borderBottom: `1px solid ${C.border}`, background: C.audioTrack }}
             >
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2 min-w-0 flex-1 px-2">
                 <button
                   onClick={() => updateTrack(track.id, { isCollapsed: !track.isCollapsed })}
-                  className="p-0.5 rounded transition-colors"
+                  className="p-1 rounded transition-colors flex-shrink-0"
                   style={{ color: C.textDim }}
                 >
-                  <span className="material-symbols-outlined text-[11px]">{track.isCollapsed ? "expand_more" : "expand_less"}</span>
+                  <span className="material-symbols-outlined text-[14px]">{track.isCollapsed ? "expand_more" : "expand_less"}</span>
                 </button>
-                <span className="text-[11px] font-bold" style={{ color: C.textDim }}>{track.label}</span>
+                <span className="text-[11px] font-bold truncate tracking-tight" style={{ color: C.textDim }}>{track.label}</span>
               </div>
-              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1.5 px-3 flex-shrink-0 border-l" style={{ borderColor: `${C.border}30` }}>
                 <button
                   onClick={() => updateTrack(track.id, { isMuted: !track.isMuted })}
                   className="p-0.5 rounded transition-colors"
@@ -400,11 +408,19 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                 </button>
                 <button
                   onClick={() => handleImportClick(track.id)}
-                  className="p-0.5 rounded transition-colors"
+                  className="p-0.5 rounded transition-colors hover:text-white"
                   style={{ color: C.textMuted }}
                   title="Import audio"
                 >
                   <span className="material-symbols-outlined text-[11px]">add</span>
+                </button>
+                <button
+                  onClick={() => removeTrack(track.id)}
+                  className="p-0.5 rounded transition-colors hover:text-red-400"
+                  style={{ color: C.textMuted }}
+                  title="Delete track"
+                >
+                  <span className="material-symbols-outlined text-[11px]">delete</span>
                 </button>
               </div>
             </div>
@@ -608,14 +624,14 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
             <span className="material-symbols-outlined text-[14px]">remove</span>
           </button>
           <input type="range" min={5} max={150} value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-24 h-0.5" style={{ accentColor: C.accent }} />
-          <button onClick={() => setZoom(Math.min(150, zoom + 10))} className="p-0.5 rounded transition-colors"
+          <button onClick={() => setZoom(Math.min(150, zoom + 10))} className="p-1 rounded bg-white/5 hover:bg-white/10 transition-colors"
             style={{ color: C.textDim }}
             onMouseEnter={(e) => { e.currentTarget.style.color = "var(--editor-text)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = C.textDim; }}
           >
-            <span className="material-symbols-outlined text-[14px]">add</span>
+            <span className="material-symbols-outlined text-[16px]">add</span>
           </button>
-          <span className="text-[11px] font-mono" style={{ color: C.textMuted }}>{zoom}px/s</span>
+          <span className="text-[11px] font-mono pl-3 w-16 text-right" style={{ color: C.textMuted }}>{zoom}px/s</span>
         </div>
         <button
           onClick={() => {

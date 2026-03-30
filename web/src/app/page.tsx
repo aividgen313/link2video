@@ -14,7 +14,7 @@ const DURATION_PRESETS = [
   { label: "60 min", value: 60 },
   { label: "120 min", value: 120 },
 ];
-import { getHistory, deleteFromHistory, loadProjectState, syncHistoryWithCloud, type VideoHistoryItem } from "@/lib/videoHistory";
+import { getHistory, deleteFromHistory, loadProjectState, saveToHistory, syncHistoryWithCloud, type VideoHistoryItem } from "@/lib/videoHistory";
 import { getSavedStyles, saveStyle, deleteStyle, type SavedStyle } from "@/lib/savedStyles";
 
 function formatTimeAgo(date: Date): string {
@@ -201,6 +201,26 @@ export default function Home() {
       // Background sync with cloud
       syncHistoryWithCloud().then(synced => {
         setRecentVideos(synced);
+        // Thumbnail rescue logic for latest 6 items
+        let changed = false;
+        const missingThumbs = synced.slice(0, 6).filter(v => !v.thumbnailUrl);
+        if (missingThumbs.length > 0) {
+          Promise.all(missingThumbs.map(async (v) => {
+            try {
+              const state = await loadProjectState(v.id);
+              if (state && state.storyboardImages) {
+                const firstImgKey = Number(Object.keys(state.storyboardImages)[0]);
+                if (!isNaN(firstImgKey) && state.storyboardImages[firstImgKey]) {
+                  v.thumbnailUrl = state.storyboardImages[firstImgKey];
+                  await saveToHistory(v);
+                  changed = true;
+                }
+              }
+            } catch (e) {}
+          })).then(() => {
+            if (changed) setRecentVideos(getHistory());
+          });
+        }
       });
     }
   }, [hasMounted]);
@@ -1304,7 +1324,7 @@ export default function Home() {
               )}
             </div>
 
-            {/* Voiceover + Music + Captions — hide voice for music-video mode */}
+            {/* Audio & Captions */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {mode !== "music-video" && (
                 <div className="space-y-2">
@@ -1325,7 +1345,7 @@ export default function Home() {
               )}
 
               <div className="space-y-2">
-                <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Extras</label>
+                <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Audio & Captions</label>
                 <div className="space-y-2">
                   {[
                     ...(mode !== "music-video" ? [{ enabled: musicEnabled, toggle: () => setMusicEnabled(!musicEnabled), onIcon: "music_note", offIcon: "music_off", label: "Background Music" }] : []),
@@ -1393,7 +1413,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 stagger-children">
-              {recentVideos.map((v) => {
+              {recentVideos.slice(0, 6).map((v) => {
                 const date = new Date(v.createdAt);
                 const timeAgo = formatTimeAgo(date);
                 const totalRounded = Math.round(v.totalSeconds);
@@ -1415,10 +1435,10 @@ export default function Home() {
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); deleteFromHistory(v.id); setRecentVideos(getHistory()); }}
-                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-error/60"
+                        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center transition-all hover:bg-error shadow-lg"
                         title="Remove from history"
                       >
-                        <span className="material-symbols-outlined text-sm">close</span>
+                        <span className="material-symbols-outlined text-sm">delete</span>
                       </button>
                     </div>
                     <div className="p-4 md:p-5 space-y-3 flex-1 flex flex-col justify-between">

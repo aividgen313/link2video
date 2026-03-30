@@ -680,7 +680,7 @@ export default function ScriptBuilder() {
         <div className="grid grid-cols-12 gap-8 pb-20">
 
           {/* Left Side: Script Scenes with Image Previews */}
-          <div className="col-span-12 lg:col-span-7 space-y-6">
+          <div className="col-span-12 lg:col-span-12 grid grid-cols-2 gap-6 pb-12">
             {isLoading ? (
               <div className="flex justify-center py-20">
                 <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
@@ -691,22 +691,30 @@ export default function ScriptBuilder() {
                 onClick={() => setActiveScene(scene)}
                 className={`group relative glass-card rounded-2xl overflow-hidden border transition-all cursor-pointer ${activeScene?.id === scene.id ? 'border-primary ring-2 ring-primary/20' : 'border-transparent hover:border-outline-variant'}`}
               >
-                {/* Scene Image Preview */}
-                <div className="relative aspect-[16/7] w-full bg-surface-container-highest overflow-hidden">
-                  {storyboardImages[scene.id] ? (
-                    <img
-                      src={storyboardImages[scene.id]}
-                      alt={`Scene ${index + 1} preview`}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : generatingImages[scene.id] ? (
-                    <div className="w-full h-full flex items-center justify-center bg-surface-container-highest">
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-8 h-8 border-3 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                        <span className="text-[11px] text-outline font-body">Generating image...</span>
+                {/* Scene Image Preview - GUARANTEED SQUARE */}
+                <div className="relative w-full bg-surface-container-highest overflow-hidden rounded-xl border border-outline-variant/10 shadow-sm" style={{ paddingBottom: '100%', height: 0 }}>
+                  <div className="absolute inset-0">
+                    {storyboardImages[scene.id] ? (
+                      <img
+                        src={storyboardImages[scene.id]}
+                        alt={`Scene ${index + 1} preview`}
+                        className="w-full h-full object-cover"
+                        onError={() => {
+                          setStoryboardImages((prev: Record<number, string>) => {
+                            const copy = { ...prev };
+                            delete copy[scene.id];
+                            return copy;
+                          });
+                        }}
+                      />
+                    ) : generatingImages[scene.id] ? (
+                      <div className="w-full h-full flex flex-center bg-surface-container-highest">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-8 h-8 border-3 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                          <span className="text-[11px] text-outline font-body">Generating image...</span>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
+                    ) : (
                     <div className="w-full h-full flex items-center justify-center bg-surface-container-highest">
                       <div className="flex flex-col items-center gap-2 text-outline">
                         <span className="material-symbols-outlined text-3xl">image</span>
@@ -754,6 +762,7 @@ export default function ScriptBuilder() {
                         Generating
                       </span>
                     ) : null}
+                  </div>
                   </div>
                 </div>
 
@@ -896,7 +905,7 @@ export default function ScriptBuilder() {
               </div>
 
               {/* Active Scene Preview */}
-              <div className="relative aspect-video rounded-xl overflow-hidden group">
+              <div className="relative rounded-xl overflow-hidden group shadow-lg border border-outline-variant/10" style={{ aspectRatio: '1/1', width: '100%', minHeight: '300px' }}>
                 {activeScene && storyboardImages[activeScene.id] ? (
                   <img className="w-full h-full object-cover" alt="Scene Preview" src={storyboardImages[activeScene.id]} />
                 ) : activeScene && generatingImages[activeScene.id] ? (

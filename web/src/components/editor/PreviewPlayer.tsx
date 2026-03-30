@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useEditorContext, FilterType, EditorScene } from "@/context/EditorContext";
+import { useAppContext } from "@/context/AppContext";
 
 const FILTER_CSS: Record<FilterType, string> = {
   none: "",
@@ -38,6 +39,8 @@ export default function PreviewPlayer() {
     showSafeZones,
     previewScale, setPreviewScale,
   } = useEditorContext();
+
+  const { captionsEnabled } = useAppContext();
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -445,6 +448,32 @@ export default function PreviewPlayer() {
             {selectedScene!.isLocked && (
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/70 rounded-full p-3">
                 <span className="material-symbols-outlined text-2xl text-yellow-400" style={{ fontVariationSettings: "'FILL' 1" }}>lock</span>
+              </div>
+            )}
+
+            {/* Auto Captions Overlay */}
+            {captionsEnabled && selectedScene?.narration && (
+              <div className="absolute bottom-[12%] left-1/2 -translate-x-1/2 w-[85%] max-w-[650px] text-center pointer-events-none z-50">
+                <div className="flex flex-col gap-1 items-center justify-center">
+                  {/* Split long narration into smaller phrases for better readability */}
+                  {(selectedScene.narration.length > 80 
+                    ? selectedScene.narration.match(/[^.!?]+[.!?]*|.{1,80}(?=\s|$)/g)?.slice(0, 3) 
+                    : [selectedScene.narration]
+                  )?.map((phrase, i) => (
+                    <span 
+                      key={i}
+                      className="inline-block bg-black/70 backdrop-blur-md text-white px-3 py-1 rounded-md font-extrabold uppercase tracking-tight"
+                      style={{ 
+                        fontSize: "clamp(10px, 2.2vw, 20px)",
+                        textShadow: "0px 2px 4px rgba(0,0,0,0.9)",
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.5)"
+                      }}
+                    >
+                      {phrase.trim()}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 

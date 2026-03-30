@@ -126,12 +126,12 @@ function TimelineSceneInner({ scene, width, trackHeight, zoom = 40 }: Props) {
       {/* Colored top bar (clip color) */}
       <div className="absolute top-0 left-0 right-0 h-[3px] z-10" style={{ background: isSelected ? C.accent : C.success }} />
 
-      {/* Image fill — object-position center to show middle of image */}
+      {/* Image fill — object-position left to show full uncropped image */}
       {scene.imageUrl ? (
         <img
           src={scene.imageUrl}
           alt={`S${scene.orderIndex + 1}`}
-          className="w-full h-full object-cover object-center"
+          className="w-full h-full object-contain object-left bg-black/40"
           draggable={false}
         />
       ) : (

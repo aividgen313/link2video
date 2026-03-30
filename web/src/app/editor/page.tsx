@@ -121,13 +121,13 @@ function SourceMonitor() {
   const mediaAssets = useMemo(() => {
     const assets: { id: string; type: "image" | "audio" | "video"; url: string; label: string }[] = [];
     Object.entries(storyboardImages).forEach(([id, url]) => {
-      assets.push({ id: `img-${id}`, type: "image", url, label: `Scene ${id} Image` });
+      assets.push({ id: `img-${id}`, type: "image", url, label: `Scene ${Number(id) + 1} Image` });
     });
     Object.entries(sceneAudioUrls).forEach(([id, url]) => {
-      assets.push({ id: `aud-${id}`, type: "audio", url, label: `Scene ${id} Audio` });
+      assets.push({ id: `aud-${id}`, type: "audio", url, label: `Scene ${Number(id) + 1} Audio` });
     });
     Object.entries(sceneVideoUrls).forEach(([id, url]) => {
-      assets.push({ id: `vid-${id}`, type: "video", url, label: `Scene ${id} Video` });
+      assets.push({ id: `vid-${id}`, type: "video", url, label: `Scene ${Number(id) + 1} Video` });
     });
     return assets;
   }, [storyboardImages, sceneAudioUrls, sceneVideoUrls]);
@@ -187,7 +187,7 @@ function SourceMonitor() {
                 draggable
                 title={asset.label}
               >
-                <div className="aspect-square relative" style={{ background: "rgba(255,255,255,0.02)" }}>
+                <div className="relative" style={{ background: "rgba(255,255,255,0.02)", aspectRatio: "1 / 1" }}>
                   {asset.type === "image" ? (
                     <img src={asset.url} alt="" className="w-full h-full object-cover" draggable={false} />
                   ) : asset.type === "video" ? (
@@ -220,8 +220,8 @@ function SourceMonitor() {
         </div>
       ) : (
         /* ── Scene Grid (original) ── */
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 gap-2" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", alignContent: "start" }}>
-        {scenes.map((scene, index) => {
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 gap-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridAutoRows: "max-content", alignContent: "start" }}>
+        {scenes.filter(s => s.trackId === "v1").map((scene, index) => {
           const isSelected = selectedSceneId === scene.id;
           const isDragTarget = dragOver === index && dragFrom !== index;
           return (
@@ -229,46 +229,46 @@ function SourceMonitor() {
               key={scene.id}
               draggable
               onDragStart={() => handleDragStart(index)}
-              onDragOver={(e) => handleDragOver(e, index)}
+              onDragOver={(e) => handleDragOver(index)}
               onDrop={() => handleDrop(index)}
               onDragEnd={handleDragEnd}
               onClick={() => {
                 setSelectedSceneId(scene.id);
                 setPlayheadPosition(getSceneStartTime(scene.id));
               }}
-              className="cursor-pointer rounded-lg overflow-hidden transition-all hover:scale-[1.02] group/card"
+              className="cursor-pointer rounded-xl overflow-hidden shadow-sm group/card border-2 flex flex-col relative w-full"
               style={{
-                border: `2px solid ${isSelected ? C.accent : isDragTarget ? C.warn : "transparent"}`,
+                borderColor: isSelected ? C.accent : isDragTarget ? C.warn : "transparent",
                 opacity: scene.isHidden ? 0.3 : dragFrom === index ? 0.4 : 1,
                 background: C.panelDark,
-                boxShadow: isSelected ? `0 0 12px ${C.accent}30` : "none",
+                aspectRatio: "1 / 1.1",
               }}
             >
-              <div className="aspect-square relative" style={{ background: "rgba(255,255,255,0.02)" }}>
-                {scene.imageUrl ? (
-                  <img src={scene.imageUrl} alt="" className="w-full h-full object-cover" draggable={false} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="material-symbols-outlined text-sm" style={{ color: C.textMuted }}>image</span>
-                  </div>
-                )}
-                <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold text-white" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
+              <div className="relative w-full overflow-hidden" style={{ paddingBottom: "100%", height: 0, background: "rgba(255,255,255,0.02)" }}>
+                <div className="absolute inset-0">
+                  {scene.imageUrl ? (
+                    <img src={scene.imageUrl} alt="" className="w-full h-full object-cover block" draggable={false} />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-white/5 opacity-30">
+                      <span className="material-symbols-outlined text-lg">image</span>
+                      <span className="text-[7px] font-bold">SCENE {index + 1}</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Overlay Badges */}
+                <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-sm" style={{ background: C.accent }}>
                   {scene.orderIndex + 1}
                 </div>
-                <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md text-[9px] font-mono text-white/80" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
+                <div className="absolute bottom-1 right-1 px-1 py-0.5 rounded-md text-[8px] font-mono text-white/90 font-bold" style={{ background: "rgba(0,0,0,0.6)" }}>
                   {Math.round(scene.duration * 10) / 10}s
                 </div>
-                {(scene.overlays.length > 0 || scene.filter !== "none") && (
-                  <div className="absolute top-1 right-1 flex gap-0.5">
-                    {scene.overlays.length > 0 && <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[7px] font-bold" style={{ background: C.accent }}>T</span>}
-                    {scene.filter !== "none" && <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[7px] font-bold" style={{ background: C.warn }}>F</span>}
-                  </div>
-                )}
-                {/* Hover overlay */}
-                <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/20 transition-colors" />
               </div>
-              <div className="px-2 py-1.5" style={{ background: isSelected ? C.accentBg : "transparent" }}>
-                <p className="text-[10px] truncate" style={{ color: isSelected ? C.accent : C.textDim }}>{scene.narration.slice(0, 40)}</p>
+
+              <div className="px-1.5 py-1 flex-1 overflow-hidden" style={{ background: isSelected ? C.accentBg : "transparent" }}>
+                <p className="text-[9px] truncate" style={{ color: isSelected ? C.accent : C.textDim }}>
+                  {scene.narration}
+                </p>
               </div>
             </div>
           );
@@ -367,7 +367,7 @@ function EditorInner() {
     scriptData, pollenUsed, qualityTier,
     url, angle, storyboardImages, videoDimension,
     sceneAudioUrls, sceneVideoUrls, sceneDurations, finalVideoUrl,
-    setScriptData, setStoryboardImages, setSceneAudioUrls,
+    setScriptData, setStoryboardImages, setSceneAudioUrls, captionsEnabled, setCaptionsEnabled,
     setSceneVideoUrls, setSceneDurations, setFinalVideoUrl,
     setQualityTier, setVideoDimension, setUrl, setAngle,
   } = useAppContext();
@@ -654,7 +654,7 @@ function EditorInner() {
 
   return (
     <div
-      className="editor-container relative flex-1 w-full h-full flex flex-col overflow-hidden"
+      className="editor-container fixed inset-0 z-[100] m-0 p-0 flex flex-col overflow-hidden text-[13px] bg-background"
       style={{ background: C.bg, color: C.text, fontFamily: "Inter, 'SF Pro Display', -apple-system, system-ui, sans-serif" }}
       onDragOver={(e) => { e.preventDefault(); setIsDragOverEditor(true); }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setIsDragOverEditor(false); }}
@@ -997,6 +997,7 @@ function EditorInner() {
           <TSep />
           <TBtn icon="crop" label="Trim (T)" onClick={() => setShowTrim(!showTrim)} active={showTrim} />
           <TBtn icon="title" label="Text (Ctrl+T)" onClick={handleAddText} disabled={!selectedScene} badge={selectedScene?.overlays.length || undefined} />
+          <TBtn icon="closed_caption" label="Auto Captions" onClick={() => setCaptionsEnabled(!captionsEnabled)} active={captionsEnabled} />
           <TSep />
           <TBtn icon="upload" label="Import Media" onClick={() => importFileRef.current?.click()} />
           <TSep />
@@ -1089,7 +1090,9 @@ function EditorInner() {
           </div>
           {/* Preview area */}
           <div className="flex-1 relative min-h-0 p-2" style={{ background: "#0a0a0c" }}>
-            <PreviewPlayer />
+            <div className="absolute inset-2 flex flex-col min-h-0">
+              <PreviewPlayer />
+            </div>
             {showTextTool && <TextToolPanel onClose={() => setShowTextTool(false)} />}
           </div>
         </div>

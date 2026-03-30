@@ -207,11 +207,11 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   const [playheadPosition, setPlayheadPosition] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [musicTrack, setMusicTrack] = useState<MusicTrackState | null>(null);
-  const [zoom, setZoom] = useState(40);
+  const [zoom, setZoom] = useState(5);
   const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [showSafeZones, setShowSafeZones] = useState(false);
-  const [previewScale, setPreviewScale] = useState<"fit" | "fill" | "100">("fill");
+  const [previewScale, setPreviewScale] = useState<"fit" | "fill" | "100">("fit");
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspacePreset>("editing");
 
   // Undo/Redo history
@@ -242,7 +242,17 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     const savedTracks = (scriptData as any).editorTracks;
 
     if (savedScenes && Array.isArray(savedScenes) && savedScenes.length > 0) {
-      setScenesRaw(savedScenes);
+      // Re-sync media URLs from AppContext (they might have updated or been restored)
+      const syncedScenes = savedScenes.map((s: EditorScene) => {
+        const originalId = Math.floor(s.id / 10);
+        return {
+          ...s,
+          imageUrl: s.trackId === "v1" ? (storyboardImages[originalId] || s.imageUrl) : "",
+          aiVideoUrl: s.trackId === "v1" ? (sceneVideoUrls[originalId] || s.aiVideoUrl) : null,
+          audioUrl: s.trackId === "a1" ? (sceneAudioUrls[originalId] || s.audioUrl) : null,
+        };
+      });
+      setScenesRaw(syncedScenes);
       if (savedTracks) setTracks(savedTracks);
       
       // Reset history when restoring a new project

@@ -1,0 +1,127 @@
+
+> web@0.1.0 dev
+> next dev -p ${PORT:-3000}
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.109:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 750ms
+ GET / 200 in 904ms (compile: 778ms, render: 126ms)
+ GET /api/balance 200 in 2.1s (compile: 200ms, render: 1903ms)
+ GET /api/upload?path=projects.json 200 in 2.2s (compile: 216ms, render: 1968ms)
+ GET /api/upload?path=projects/proj_1774643923237/state.json 200 in 346ms (compile: 2ms, render: 344ms)
+ GET /api/balance 200 in 570ms (compile: 3ms, render: 567ms)
+ GET /api/upload?path=projects/proj_1774644046438/state.json 200 in 707ms (compile: 11ms, render: 697ms)
+ GET /api/upload?path=projects/proj_1774594463398/state.json 200 in 714ms (compile: 6ms, render: 708ms)
+ GET /editor 200 in 160ms (compile: 150ms, render: 10ms)
+ GET /api/upload?path=projects/proj_1774823425789/state.json 200 in 422ms (compile: 5ms, render: 417ms)
+ POST /api/upload 200 in 1489ms (compile: 3ms, render: 1486ms)
+ POST /api/upload 200 in 561ms (compile: 1721µs, render: 560ms)
+ GET /script 200 in 123ms (compile: 107ms, render: 16ms)
+ GET /script 200 in 13ms (compile: 1647µs, render: 11ms)
+ GET /script 200 in 14ms (compile: 4ms, render: 10ms)
+ GET /editor 200 in 116ms (compile: 4ms, render: 112ms)
+ GET /api/balance 200 in 810ms (compile: 3ms, render: 808ms)
+ GET /script 200 in 8ms (compile: 1279µs, render: 7ms)
+ GET /notepad 200 in 78ms (compile: 69ms, render: 9ms)
+ GET /assets 200 in 66ms (compile: 57ms, render: 9ms)
+ GET /api/upload?path=projects/1774673689819/state.json 200 in 485ms (compile: 1481µs, render: 483ms)
+ GET /script 200 in 18ms (compile: 2ms, render: 16ms)
+ GET /api/upload?path=projects/1774671620866/state.json 200 in 867ms (compile: 1360µs, render: 865ms)
+ GET /api/upload?path=projects/proj_1774649306954/state.json 404 in 284ms (compile: 1688µs, render: 283ms)
+ GET /api/upload?path=projects/proj_1774649306954/state.json 404 in 147ms (compile: 2ms, render: 145ms)
+ GET /editor 200 in 13ms (compile: 3ms, render: 11ms)
+ GET /api/upload?path=projects/proj_1774640622109/state.json 404 in 341ms (compile: 6ms, render: 335ms)
+ GET /api/upload?path=projects/proj_1774640622109/state.json 404 in 270ms (compile: 1478µs, render: 269ms)
+ GET /api/upload?path=projects/1774623603618/state.json 200 in 1089ms (compile: 4ms, render: 1085ms)
+ GET /script 200 in 21ms (compile: 4ms, render: 16ms)
+ GET / 200 in 17ms (compile: 5ms, render: 12ms)
+ GET /api/balance 200 in 813ms (compile: 1261µs, render: 812ms)
+ GET /api/upload?path=projects/proj_1774593358919/state.json 200 in 3.1s (compile: 1295µs, render: 3.1s)
+ GET /api/upload?path=projects/proj_1774383694197/state.json 200 in 521ms (compile: 1655µs, render: 519ms)
+ GET /api/upload?path=projects/proj_1774334283435/state.json 200 in 516ms (compile: 3ms, render: 512ms)
+ GET /api/upload?path=projects/proj_1774396461235/state.json 200 in 544ms (compile: 2ms, render: 542ms)
+ GET /api/upload?path=projects/proj_1774543951178/state.json 404 in 246ms (compile: 1130µs, render: 245ms)
+ GET /api/upload?path=projects/proj_1774543951178/state.json 404 in 140ms (compile: 1351µs, render: 139ms)
+ GET /api/upload?path=projects/proj_1774533676182/state.json 200 in 1019ms (compile: 3ms, render: 1016ms)
+ GET /api/upload?path=projects/proj_1774531628845/state.json 200 in 1096ms (compile: 1386µs, render: 1094ms)
+ GET /api/upload?path=projects/proj_1774501001108/state.json 200 in 648ms (compile: 1564µs, render: 646ms)
+ GET /api/upload?path=projects/1774491554791/state.json 200 in 589ms (compile: 1481µs, render: 588ms)
+ GET /api/upload?path=projects/proj_1774375153114/state.json 404 in 292ms (compile: 1062µs, render: 290ms)
+ GET /api/upload?path=projects/proj_1774375153114/state.json 404 in 223ms (compile: 1016µs, render: 222ms)
+ GET /api/upload?path=projects/proj_1774375167857/state.json 404 in 238ms (compile: 1816µs, render: 236ms)
+ GET /api/upload?path=projects/proj_1774375167857/state.json 404 in 135ms (compile: 1660µs, render: 133ms)
+ GET /api/upload?path=projects/proj_1774333739881/state.json 404 in 221ms (compile: 1058µs, render: 220ms)
+ GET /api/upload?path=projects/proj_1774333739881/state.json 404 in 157ms (compile: 1478µs, render: 156ms)
+ GET /api/upload?path=projects/proj_1774333691872/state.json 200 in 1452ms (compile: 1093µs, render: 1451ms)
+ GET /notepad 200 in 25ms (compile: 8ms, render: 17ms)
+ GET /assets 200 in 15ms (compile: 4ms, render: 11ms)
+ GET /api/upload?path=projects/proj_1774649306954/state.json 404 in 520ms (compile: 3ms, render: 517ms)
+ GET /api/upload?path=projects/proj_1774649306954/state.json 404 in 138ms (compile: 4ms, render: 133ms)
+ GET /api/upload?path=projects/proj_1774640622109/state.json 404 in 336ms (compile: 7ms, render: 329ms)
+ GET /api/upload?path=projects/proj_1774640622109/state.json 404 in 185ms (compile: 1506µs, render: 184ms)
+ GET /api/upload?path=projects/proj_1774543951178/state.json 404 in 156ms (compile: 1776µs, render: 154ms)
+ GET /api/upload?path=projects/proj_1774543951178/state.json 404 in 138ms (compile: 1054µs, render: 137ms)
+ GET /api/upload?path=projects/proj_1774375153114/state.json 404 in 156ms (compile: 4ms, render: 152ms)
+ GET /api/upload?path=projects/proj_1774375153114/state.json 404 in 162ms (compile: 1365µs, render: 160ms)
+ GET /api/upload?path=projects/proj_1774375167857/state.json 404 in 182ms (compile: 1201µs, render: 181ms)
+ GET /api/upload?path=projects/proj_1774333739881/state.json 404 in 144ms (compile: 5ms, render: 139ms)
+ GET /api/upload?path=projects/proj_1774375167857/state.json 404 in 165ms (compile: 1699µs, render: 163ms)
+ GET /api/upload?path=projects/proj_1774333739881/state.json 404 in 187ms (compile: 1226µs, render: 185ms)
+ GET /script 200 in 18ms (compile: 5ms, render: 13ms)
+ GET /editor 200 in 14ms (compile: 3ms, render: 12ms)
+ POST /api/upload 200 in 1242ms (compile: 3ms, render: 1239ms)
+ POST /api/upload 200 in 602ms (compile: 1603µs, render: 600ms)
+ POST /api/upload 200 in 785ms (compile: 1261µs, render: 784ms)
+ POST /api/upload 200 in 377ms (compile: 1588µs, render: 376ms)
+ POST /api/upload 200 in 1061ms (compile: 1131µs, render: 1059ms)
+ POST /api/upload 200 in 568ms (compile: 1044µs, render: 567ms)
+✓ Compiled in 94ms
+⚠ Fast Refresh had to perform a full reload when ./src/app/editor/page.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 204ms
+ GET /editor 200 in 33ms (compile: 1695µs, render: 31ms)
+ GET /api/balance 200 in 877ms (compile: 2ms, render: 875ms)
+ POST /api/upload 200 in 1473ms (compile: 1667µs, render: 1471ms)
+ POST /api/upload 200 in 644ms (compile: 3ms, render: 642ms)
+ GET /editor 200 in 56ms (compile: 6ms, render: 50ms)
+ GET /api/balance 200 in 659ms (compile: 2ms, render: 656ms)
+ GET /editor 200 in 44ms (compile: 1976µs, render: 42ms)
+ GET /api/balance 200 in 662ms (compile: 1233µs, render: 661ms)
+ POST /api/upload 200 in 903ms (compile: 1746µs, render: 901ms)
+ POST /api/upload 200 in 278ms (compile: 1221µs, render: 277ms)
+ GET /script 200 in 31ms (compile: 11ms, render: 20ms)
+ GET /script 200 in 52ms (compile: 3ms, render: 49ms)
+ GET /api/balance 200 in 695ms (compile: 1902µs, render: 693ms)
+ GET /editor 200 in 15ms (compile: 4ms, render: 11ms)
+ POST /api/upload 200 in 655ms (compile: 4ms, render: 651ms)
+ POST /api/upload 200 in 241ms (compile: 1906µs, render: 239ms)
+⚠ Fast Refresh had to perform a full reload when ./src/app/editor/page.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 138ms
+ GET /editor 200 in 251ms (compile: 80ms, render: 172ms)
+ GET /api/balance 200 in 650ms (compile: 2ms, render: 648ms)
+ POST /api/upload 200 in 1113ms (compile: 1499µs, render: 1112ms)
+ POST /api/upload 200 in 498ms (compile: 1742µs, render: 496ms)
+⚠ Fast Refresh had to perform a full reload when ./src/app/editor/page.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 45ms
+⨯ ReferenceError: captionsEnabled is not defined
+    at EditorInner (src/app/editor/page.tsx:1000:122)
+   998 |           <TBtn icon="crop" label="Trim (T)" onClick={() => setShowTrim(!showTrim)} active={showTrim} />
+   999 |           <TBtn icon="title" label="Text (Ctrl+T)" onClick={handleAddText} disabled={!selectedScene} badge={selectedScene?.overlays.length || undefined} />
+> 1000 |           <TBtn icon="closed_caption" label="Auto Captions" onClick={() => setCaptionsEnabled(!captionsEnabled)} active={captionsEnabled} />
+       |                                                                                                                          ^
+  1001 |           <TSep />
+  1002 |           <TBtn icon="upload" label="Import Media" onClick={() => importFileRef.current?.click()} />
+  1003 |           <TSep /> {
+  digest: '3788259201'
+}
+ GET /editor 500 in 396ms (compile: 70ms, render: 326ms)
+ GET /api/balance 200 in 808ms (compile: 4ms, render: 804ms)
+⚠ Fast Refresh had to perform a full reload when ./src/app/editor/page.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 64ms
+ GET /editor 200 in 252ms (compile: 69ms, render: 183ms)
+ GET /api/balance 200 in 597ms (compile: 3ms, render: 594ms)
+ POST /api/upload 200 in 1075ms (compile: 3ms, render: 1072ms)
+ POST /api/upload 200 in 447ms (compile: 1184µs, render: 446ms)

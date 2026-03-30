@@ -5,9 +5,9 @@ import { useAppContext } from "@/context/AppContext";
 import { exportManager, type ExportQuality } from "@/lib/exportManager";
 
 const QUALITY_PRESETS: Record<ExportQuality, { label: string; desc: string; fps: number; crf: number; icon: string }> = {
-  draft: { label: "Draft", desc: "Fast export, lower quality", fps: 15, crf: 32, icon: "bolt" },
-  standard: { label: "Standard", desc: "Good quality, balanced speed", fps: 25, crf: 23, icon: "tune" },
-  high: { label: "High", desc: "Best quality, slower export", fps: 30, crf: 18, icon: "hd" },
+  draft: { label: "720p", desc: "Fast export, lower quality", fps: 15, crf: 32, icon: "bolt" },
+  standard: { label: "1080p", desc: "Good quality, balanced speed", fps: 25, crf: 23, icon: "tune" },
+  high: { label: "4K", desc: "Best quality, slower export", fps: 30, crf: 18, icon: "hd" },
 };
 
 export default function ExportDialog({ onClose }: { onClose: () => void }) {
@@ -95,7 +95,6 @@ export default function ExportDialog({ onClose }: { onClose: () => void }) {
               >
                 <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>{p.icon}</span>
                 <span className="text-[11px] font-bold">{p.label}</span>
-                <span className="text-[9px] opacity-60">{p.fps}fps</span>
               </button>
             ))}
           </div>
