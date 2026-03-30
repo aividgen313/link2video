@@ -384,6 +384,7 @@ function EditorInner() {
     addOverlay, importMedia,
     activeWorkspace, setActiveWorkspace,
     applyDefaultTransitions, removeAllTransitions,
+    autoCaptionProject,
   } = useEditorContext();
   const { theme: C, isDark, toggle: toggleTheme } = useEditorTheme();
   const [showExport, setShowExport] = useState(false);
@@ -997,6 +998,7 @@ function EditorInner() {
           <TSep />
           <TBtn icon="crop" label="Trim (T)" onClick={() => setShowTrim(!showTrim)} active={showTrim} />
           <TBtn icon="title" label="Text (Ctrl+T)" onClick={handleAddText} disabled={!selectedScene} badge={selectedScene?.overlays.length || undefined} />
+          <TBtn icon="closed_caption" label="Auto Captions (CC)" onClick={autoCaptionProject} disabled={!scenes.some(s => s.narration)} />
           <TBtn icon="closed_caption" label="Auto Captions" onClick={() => setCaptionsEnabled(!captionsEnabled)} active={captionsEnabled} />
           <TSep />
           <TBtn icon="upload" label="Import Media" onClick={() => importFileRef.current?.click()} />

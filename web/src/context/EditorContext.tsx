@@ -41,6 +41,8 @@ export interface TextOverlay {
   shadowY?: number;
   shadowBlur?: number;
   animation?: "none" | "fade-in" | "slide-up" | "typewriter" | "scale-in" | "bounce" | "glow";
+  startTime?: number;
+  duration?: number;
 }
 
 export interface EditorScene {
@@ -177,6 +179,9 @@ interface EditorContextType {
   // Workspace
   activeWorkspace: WorkspacePreset;
   setActiveWorkspace: (w: WorkspacePreset) => void;
+
+  // Captions
+  autoCaptionProject: () => void;
 }
 
 const EditorContext = createContext<EditorContextType | null>(null);
@@ -189,7 +194,7 @@ export function useEditorContext() {
 
 // ── Provider ──
 
-const MAX_HISTORY = 50;
+const MAX_HISTORY = 10;
 
 const DEFAULT_TRACKS: EditorTrack[] = [
   { id: "v1", type: "video", label: "V1", isMuted: false, isLocked: false, isCollapsed: false, volume: 1, height: 60 },
@@ -837,6 +842,73 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     }
   }, [scenes, tracks, addTrack, setScenesWithHistory]);
 
+  // --- Auto-Captioning ---
+  const autoCaptionProject = useCallback(() => {
+    setScenesWithHistory(prev => {
+      return prev.map(scene => {
+        if (!scene.narration || scene.trackId !== "v1") return scene;
+        const manualOverlays = scene.overlays.filter(o => !o.id.startsWith("caption-"));
+        const narrationText = scene.narration.trim();
+        if (!narrationText) return scene;
+        const sentences = narrationText.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [narrationText];
+        const chunks: string[] = [];
+        let currentChunk = "";
+        for (const sentence of sentences) {
+          const trimmed = sentence.trim();
+          if (!trimmed) continue;
+          if (currentChunk && (currentChunk + " " + trimmed).length <= 120) {
+            currentChunk += " " + trimmed;
+          } else if (currentChunk) {
+            chunks.push(currentChunk.trim());
+            currentChunk = trimmed;
+          } else {
+            currentChunk = trimmed;
+          }
+        }
+        if (currentChunk.trim()) chunks.push(currentChunk.trim());
+        if (chunks.length === 1 && chunks[0].length > 120) {
+          const text = chunks[0];
+          chunks.length = 0;
+          const parts = text.split(/,\s*/);
+          let buf = "";
+          for (const part of parts) {
+            if (buf && (buf + ", " + part).length > 100) {
+              chunks.push(buf.trim());
+              buf = part;
+            } else {
+              buf = buf ? buf + ", " + part : part;
+            }
+          }
+          if (buf.trim()) chunks.push(buf.trim());
+        }
+        const numChunks = chunks.length;
+        const gap = 0.1;
+        const totalGap = gap * Math.max(0, numChunks - 1);
+        const usableDuration = Math.max(0, scene.duration - totalGap);
+        const durPerChunk = numChunks > 0 ? usableDuration / numChunks : 0;
+        const captionOverlays: TextOverlay[] = chunks.map((text, i) => ({
+          id: `caption-${scene.id}-${i}-${Date.now()}`,
+          text: text.toUpperCase(),
+          position: "lower-third" as const,
+          x: 50, y: 82,
+          fontSize: 12,
+          color: "#FFFFFF",
+          fontFamily: "Inter",
+          fontWeight: "900" as const,
+          textAlign: "center" as const,
+          textTransform: "uppercase" as const,
+          shadowEnabled: true,
+          shadowColor: "rgba(0,0,0,0.8)",
+          shadowBlur: 10,
+          animation: "fade-in" as const,
+          startTime: i * (durPerChunk + gap),
+          duration: durPerChunk,
+        }));
+        return { ...scene, overlays: [...manualOverlays, ...captionOverlays] };
+      });
+    });
+  }, [setScenesWithHistory]);
+
   const contextValue = useMemo(() => ({
     scenes, setScenes,
     selectedSceneId, setSelectedSceneId,
@@ -861,6 +933,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     showSafeZones, setShowSafeZones,
     previewScale, setPreviewScale,
     activeWorkspace, setActiveWorkspace,
+    autoCaptionProject,
   }), [
     scenes, setScenes,
     selectedSceneId, setSelectedSceneId,
@@ -885,6 +958,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     showSafeZones, setShowSafeZones,
     previewScale, setPreviewScale,
     activeWorkspace, setActiveWorkspace,
+    autoCaptionProject,
   ]);
 
   return (

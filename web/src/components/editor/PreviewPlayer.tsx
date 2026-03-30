@@ -43,7 +43,9 @@ export default function PreviewPlayer() {
   const { captionsEnabled } = useAppContext();
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(640);
   const containerRef = useRef<HTMLDivElement>(null);
+  const previewBoxRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
@@ -63,6 +65,22 @@ export default function PreviewPlayer() {
   // Keep a ref in sync with playheadPosition for the animation loop
   const posRef = useRef(playheadPosition);
   posRef.current = playheadPosition;
+
+  // Dynamic font scale: preview width vs export width (1920)
+  const fontScale = containerWidth / 1920;
+
+  // Track preview container size
+  useEffect(() => {
+    const el = previewBoxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // ── Playback animation loop ──
   useEffect(() => {
@@ -236,9 +254,9 @@ export default function PreviewPlayer() {
   };
 
   return (
-    <div ref={containerRef} className="flex flex-col h-full gap-1">
+    <div ref={containerRef} className="flex flex-col h-full min-h-0 gap-1">
       {/* Preview area */}
-      <div className="flex-1 flex items-center justify-center bg-black/60 rounded-xl overflow-hidden relative group">
+      <div ref={previewBoxRef} className="flex-1 min-h-0 flex items-center justify-center bg-black/60 rounded-xl overflow-hidden relative group">
         {selectedScene?.imageUrl || selectedScene?.aiVideoUrl ? (
           <>
             {/* AI Video or Ken Burns Image */}
@@ -335,8 +353,13 @@ export default function PreviewPlayer() {
               </div>
             )}
 
-            {/* Text overlays */}
-            {selectedScene!.overlays.map(overlay => {
+            {/* Text overlays - filter by time for captions */}
+            {selectedScene!.overlays.filter(overlay => {
+              if (!overlay.id.startsWith("caption-")) return true;
+              if (overlay.startTime == null || overlay.duration == null) return true;
+              const end = overlay.startTime + overlay.duration;
+              return sceneLocalTime >= overlay.startTime && sceneLocalTime < end;
+            }).map(overlay => {
               const hasStroke = (overlay.strokeWidth ?? 0) > 0;
               const hasBorder = (overlay.borderWidth ?? 0) > 0;
               const shadowStyle = overlay.shadowEnabled
@@ -346,7 +369,8 @@ export default function PreviewPlayer() {
               // Animation CSS based on overlay.animation and scene progress
               const anim = overlay.animation || "none";
               const animDuration = 0.6; // seconds for animation entrance
-              const animProgress = Math.min(sceneLocalTime / animDuration, 1);
+              const overlayElapsed = overlay.startTime != null ? sceneLocalTime - overlay.startTime : sceneLocalTime;
+              const animProgress = Math.min(overlayElapsed / animDuration, 1);
               let animStyle: React.CSSProperties = {};
 
               if (anim !== "none" && isPlaying) {
@@ -397,7 +421,7 @@ export default function PreviewPlayer() {
                     top: `${overlay.y}%`,
                     transform: "translate(-50%, -50%)",
                     fontFamily: overlay.fontFamily || "Inter",
-                    fontSize: `${overlay.fontSize * 0.6}px`,
+                    fontSize: `${overlay.fontSize * fontScale}px`,
                     color: overlay.color,
                     fontWeight: overlay.fontWeight,
                     fontStyle: overlay.fontStyle || "normal",
@@ -411,7 +435,7 @@ export default function PreviewPlayer() {
                     maxWidth: "90%",
                     opacity: overlay.opacity ?? 1,
                     backgroundColor: overlay.backgroundColor || "transparent",
-                    padding: `${Math.round((overlay.padding ?? 8) * 0.6)}px`,
+                    padding: `${Math.round((overlay.padding ?? 8) * fontScale)}px`,
                     borderRadius: `${overlay.borderRadius ?? 0}px`,
                     border: hasBorder ? `${overlay.borderWidth}px ${overlay.borderStyle ?? "solid"} ${overlay.borderColor ?? "#fff"}` : "none",
                     WebkitTextStroke: hasStroke ? `${overlay.strokeWidth}px ${overlay.strokeColor ?? "#000"}` : undefined,

@@ -372,12 +372,12 @@ export default function PropertiesPanel() {
               <div>
                 <label className="text-[11px] uppercase tracking-wider text-outline/50 block mb-1">Duration</label>
                 <div className="flex items-center justify-between bg-primary/5 p-1 rounded-full border border-primary/30 shadow-[0_0_12px_rgba(24,119,242,0.15)] glow-ring-subtle">
-                  <button onClick={() => updateScene(selectedScene.id, { duration: Math.max(2, selectedScene.duration - 1) })}
+                  <button onClick={() => updateScene(selectedScene.id, { duration: Math.round(Math.max(2, selectedScene.duration - 1) * 10) / 10 })}
                     className="w-8 h-8 rounded-lg bg-on-surface/[0.04] flex items-center justify-center text-on-surface/80 hover:bg-on-surface/[0.1] active:scale-95 transition-all">
                     <span className="material-symbols-outlined text-sm">remove</span>
                   </button>
-                  <span className="text-sm font-mono text-on-surface w-12 text-center font-bold">{selectedScene.duration}s</span>
-                  <button onClick={() => updateScene(selectedScene.id, { duration: Math.min(60, selectedScene.duration + 1) })}
+                  <span className="text-sm font-mono text-on-surface w-12 text-center font-bold">{Math.round(selectedScene.duration * 10) / 10}s</span>
+                  <button onClick={() => updateScene(selectedScene.id, { duration: Math.round(Math.min(60, selectedScene.duration + 1) * 10) / 10 })}
                     className="w-8 h-8 rounded-lg bg-on-surface/[0.04] flex items-center justify-center text-on-surface/80 hover:bg-on-surface/[0.1] active:scale-95 transition-all">
                     <span className="material-symbols-outlined text-sm">add</span>
                   </button>
