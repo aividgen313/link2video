@@ -127,7 +127,8 @@ export function getHistory(): VideoHistoryItem[] {
         typeof item === "object" && item !== null &&
         typeof (item as VideoHistoryItem).id === "string" &&
         typeof (item as VideoHistoryItem).title === "string" &&
-        typeof (item as VideoHistoryItem).createdAt === "string"
+        typeof (item as VideoHistoryItem).createdAt === "string" &&
+        ["basic", "medium", "pro"].includes((item as VideoHistoryItem).quality)
     );
     // Deduplicate and sort
     return items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

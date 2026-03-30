@@ -427,13 +427,13 @@ export default function Home() {
     if (appliedStyleId === id) setAppliedStyleId(null);
   };
 
-  const tier = QUALITY_TIERS[qualityTier];
+  const tier = QUALITY_TIERS[qualityTier] || QUALITY_TIERS.basic;
   // Estimate number of scenes: ~8s per scene = 7.5 scenes/min, rounded up
   const estScenes = Math.max(1, Math.ceil(targetDurationMinutes * 60 / 8));
 
   // Calculate pollen costs — single source of truth
   const totalPollen = calculateTotalCost(qualityTier, estScenes, musicEnabled);
-  const tierDef = QUALITY_TIERS[qualityTier];
+  const tierDef = QUALITY_TIERS[qualityTier] || QUALITY_TIERS.basic;
   const imageCostPollen = tierDef.pollenPerImageScene * estScenes;
   const ttsCostPollen = tierDef.pollenPerTTS * estScenes;
   // Count video scenes using same logic as calculateTotalCost
@@ -1424,7 +1424,7 @@ export default function Home() {
                       <div>
                         <h4 className="font-headline font-extrabold text-base leading-tight mb-1 line-clamp-2">{v.title}</h4>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${QUALITY_TIERS[v.quality].bgColor} ${QUALITY_TIERS[v.quality].color}`}>{QUALITY_TIERS[v.quality].label}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${(QUALITY_TIERS[v.quality] || QUALITY_TIERS.basic).bgColor} ${(QUALITY_TIERS[v.quality] || QUALITY_TIERS.basic).color}`}>{(QUALITY_TIERS[v.quality] || QUALITY_TIERS.basic).label}</span>
                           <p className="text-xs text-outline">{timeAgo}</p>
                         </div>
                       </div>

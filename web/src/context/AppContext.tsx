@@ -174,8 +174,8 @@ export const QUALITY_TIERS = {
 
 // Helper: calculate accurate total cost for a given tier and scene count
 export function calculateTotalCost(tierKey: QualityTier, sceneCount: number, musicEnabled: boolean = false): number {
-  const tier = QUALITY_TIERS[tierKey];
-  const imageCost = tier.pollenPerImageScene * sceneCount;
+  const tier = QUALITY_TIERS[tierKey] || QUALITY_TIERS.basic;
+  const imageCost = (tier.pollenPerImageScene || 0) * sceneCount;
   const ttsCost = tier.pollenPerTTS * sceneCount;
 
   // Calculate how many scenes get AI video
@@ -307,6 +307,7 @@ function loadAllSaved(): Record<string, any> {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const isHydrating = React.useRef(true);
   // Initialize with defaults (matches server render for hydration)
   const [mode, setMode] = useState<AppMode>("link");
   const [url, setUrl] = useState("");
@@ -371,39 +372,63 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Hydrate state from localStorage AFTER mount (avoids hydration mismatch)
   useEffect(() => {
     const saved = loadAllSaved();
-    if (Object.keys(saved).length === 0) return;
+    if (Object.keys(saved).length === 0) {
+      isHydrating.current = false;
+      return;
+    }
+    
+    // Batch updates where possible or just apply directly since it's on mount
     if (saved.mode) setMode(saved.mode);
     if (saved.url) setUrl(saved.url);
     if (saved.angle) setAngle(saved.angle);
     if (saved.scriptData) setScriptData(saved.scriptData);
-    if (saved.qualityTier) setQualityTier(saved.qualityTier);
+    
+    // Strict validation for quality tier
+    if (saved.qualityTier && ["basic", "medium", "pro"].includes(saved.qualityTier)) {
+      setQualityTier(saved.qualityTier);
+    } else {
+      setQualityTier("basic");
+    }
+    
     if (saved.globalVisualStyle) setGlobalVisualStyle(saved.globalVisualStyle);
     if (saved.videoDimension) setVideoDimension(saved.videoDimension);
     if (saved.selectedVoice) setSelectedVoice(saved.selectedVoice);
-    if (saved.musicEnabled !== undefined) setMusicEnabled(saved.musicEnabled);
-    if (saved.captionsEnabled !== undefined) setCaptionsEnabled(saved.captionsEnabled);
-    if (saved.targetDurationMinutes) setTargetDurationMinutes(saved.targetDurationMinutes);
+    if (saved.musicEnabled !== undefined) setMusicEnabled(!!saved.musicEnabled);
+    if (saved.captionsEnabled !== undefined) setCaptionsEnabled(!!saved.captionsEnabled);
+    if (saved.targetDurationMinutes) setTargetDurationMinutes(Number(saved.targetDurationMinutes) || 3);
     if (saved.storyboardImages) setStoryboardImages(saved.storyboardImages);
     if (saved.referenceImages) setReferenceImages(saved.referenceImages);
     if (saved.sceneDurations) setSceneDurations(saved.sceneDurations);
     if (saved.youtubeStyleSuffix) setYoutubeStyleSuffix(saved.youtubeStyleSuffix);
     if (saved.storyText) setStoryText(saved.storyText);
-    if (saved.characterProfiles) setCharacterProfiles(saved.characterProfiles);
+    if (saved.characterProfiles) setCharacterProfiles(Array.isArray(saved.characterProfiles) ? saved.characterProfiles : []);
     if (saved.activeStyle) setActiveStyle(saved.activeStyle);
     if (saved.settingText) setSettingText(saved.settingText);
     if (saved.audioFileName) setAudioFileName(saved.audioFileName);
     if (saved.lyrics) setLyrics(saved.lyrics);
-    if (saved.musicSegments) setMusicSegments(saved.musicSegments);
-    if (saved.audioDuration) setAudioDuration(saved.audioDuration);
-    if (saved.notepadData) setNotepadData(saved.notepadData);
+    if (saved.musicSegments) setMusicSegments(Array.isArray(saved.musicSegments) ? saved.musicSegments : []);
+    if (saved.audioDuration) setAudioDuration(Number(saved.audioDuration) || 0);
+    
+    if (saved.notepadData) {
+      setNotepadData({
+        projectName: saved.notepadData.projectName || "",
+        sources: Array.isArray(saved.notepadData.sources) ? saved.notepadData.sources : [],
+        images: Array.isArray(saved.notepadData.images) ? saved.notepadData.images : [],
+        synthesizedKnowledge: saved.notepadData.synthesizedKnowledge || null,
+        lastSynthesizedAt: saved.notepadData.lastSynthesizedAt || null,
+      });
+    }
+
+    // Hydration finished
+    setTimeout(() => {
+      isHydrating.current = false;
+    }, 100);
   }, []);
 
   // Persist key state to localStorage/sessionStorage.
-  // NOTE: audioFile, sceneAudioUrls, and sceneVideoUrls are excluded because
-  // they contain large base64 data URLs that easily exceed the ~5 MB quota.
-  // storyboardImages is included but stripped on quota failure (fallback) so
-  // the rest of the state (scriptData, settings, etc.) is always preserved.
   useEffect(() => {
+    if (isHydrating.current) return;
+
     try {
       const state = {
         mode, url, angle, scriptData, qualityTier, globalVisualStyle,
@@ -412,12 +437,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         storyboardImages,
         storyText, characterProfiles, activeStyle, settingText, audioFileName,
         lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
-        notepadData: { ...notepadData, sources: notepadData.sources.map(s => ({ ...s, rawContent: s.rawContent.substring(0, 10000) })) },
+        notepadData: { 
+          ...notepadData, 
+          sources: (notepadData.sources || []).map(s => ({ ...s, rawContent: (s.rawContent || "").substring(0, 10000) })) 
+        },
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
     } catch (e) {
-      // Quota exceeded — retry without storyboardImages (they're the largest)
+      // Quota exceeded — retry without storyboardImages
       console.warn("localStorage quota exceeded, retrying without images:", e);
       try {
         const fallbackState = {
@@ -427,10 +455,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           storyboardImages: {},
           storyText, characterProfiles, activeStyle, settingText, audioFileName,
           lyrics, musicSegments, audioDuration, youtubeStyleSuffix,
-          notepadData: { projectName: notepadData.projectName, sources: [], images: [], synthesizedKnowledge: notepadData.synthesizedKnowledge, lastSynthesizedAt: notepadData.lastSynthesizedAt },
+          notepadData: { 
+            projectName: notepadData.projectName, 
+            sources: [], 
+            images: [], 
+            synthesizedKnowledge: notepadData.synthesizedKnowledge, 
+            lastSynthesizedAt: notepadData.lastSynthesizedAt 
+          },
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(fallbackState));
-      } catch { /* truly full — nothing we can do */ }
+      } catch { /* truly full */ }
     }
   }, [
     mode, url, angle, scriptData, qualityTier, globalVisualStyle,
