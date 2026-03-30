@@ -427,18 +427,19 @@ export default function Home() {
     if (appliedStyleId === id) setAppliedStyleId(null);
   };
 
-  const tier = QUALITY_TIERS[qualityTier] || QUALITY_TIERS.basic;
+  const validQuality = (qualityTier && ["basic", "medium", "pro"].includes(qualityTier)) ? qualityTier as QualityTier : "basic";
+  const tier = QUALITY_TIERS[validQuality];
   // Estimate number of scenes: ~8s per scene = 7.5 scenes/min, rounded up
   const estScenes = Math.max(1, Math.ceil(targetDurationMinutes * 60 / 8));
 
   // Calculate pollen costs — single source of truth
-  const totalPollen = calculateTotalCost(qualityTier, estScenes, musicEnabled);
-  const tierDef = QUALITY_TIERS[qualityTier] || QUALITY_TIERS.basic;
+  const totalPollen = calculateTotalCost(validQuality, estScenes, musicEnabled);
+  const tierDef = QUALITY_TIERS[validQuality];
   const imageCostPollen = tierDef.pollenPerImageScene * estScenes;
   const ttsCostPollen = tierDef.pollenPerTTS * estScenes;
   // Count video scenes using same logic as calculateTotalCost
-  const videoScenesCount = qualityTier === "pro" ? estScenes
-    : qualityTier === "medium" ? (() => { let c = 0; for (let i = 0; i < estScenes; i++) { if (Math.floor(i / 3) % 2 === 0) c++; } return c; })()
+  const videoScenesCount = validQuality === "pro" ? estScenes
+    : validQuality === "medium" ? (() => { let c = 0; for (let i = 0; i < estScenes; i++) { if (Math.floor(i / 3) % 2 === 0) c++; } return c; })()
     : 0;
   const videoCostPollen = tierDef.pollenPerVideoScene * videoScenesCount;
   const musicCostPollen = musicEnabled ? POLLEN_COSTS.musicGeneration : 0;
@@ -1424,7 +1425,7 @@ export default function Home() {
                       <div>
                         <h4 className="font-headline font-extrabold text-base leading-tight mb-1 line-clamp-2">{v.title}</h4>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${(QUALITY_TIERS[v.quality] || QUALITY_TIERS.basic).bgColor} ${(QUALITY_TIERS[v.quality] || QUALITY_TIERS.basic).color}`}>{(QUALITY_TIERS[v.quality] || QUALITY_TIERS.basic).label}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${((v.quality && QUALITY_TIERS[v.quality as QualityTier]) || QUALITY_TIERS.basic).bgColor} ${((v.quality && QUALITY_TIERS[v.quality as QualityTier]) || QUALITY_TIERS.basic).color}`}>{((v.quality && QUALITY_TIERS[v.quality as QualityTier]) || QUALITY_TIERS.basic).label}</span>
                           <p className="text-xs text-outline">{timeAgo}</p>
                         </div>
                       </div>

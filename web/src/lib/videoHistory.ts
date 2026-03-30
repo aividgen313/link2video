@@ -123,12 +123,16 @@ export function getHistory(): VideoHistoryItem[] {
     if (!Array.isArray(parsed)) return [];
     // Filter out malformed entries missing required fields
     const items: VideoHistoryItem[] = parsed.filter(
-      (item: unknown): item is VideoHistoryItem =>
-        typeof item === "object" && item !== null &&
-        typeof (item as VideoHistoryItem).id === "string" &&
-        typeof (item as VideoHistoryItem).title === "string" &&
-        typeof (item as VideoHistoryItem).createdAt === "string" &&
-        ["basic", "medium", "pro"].includes((item as VideoHistoryItem).quality)
+      (item: unknown): item is VideoHistoryItem => {
+        if (typeof item !== "object" || item === null) return false;
+        const v = item as Record<string, unknown>;
+        if (typeof v.id !== "string") return false;
+        if (typeof v.title !== "string") return false;
+        if (typeof v.createdAt !== "string") return false;
+        if (typeof v.quality !== "string" || !["basic", "medium", "pro"].includes(v.quality)) return false;
+        if (typeof v.dimensionId !== "string") return false;
+        return true;
+      }
     );
     // Deduplicate and sort
     return items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

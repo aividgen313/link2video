@@ -372,57 +372,64 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Hydrate state from localStorage AFTER mount (avoids hydration mismatch)
   useEffect(() => {
     const saved = loadAllSaved();
-    if (Object.keys(saved).length === 0) {
+    if (!saved || Object.keys(saved).length === 0) {
       isHydrating.current = false;
       return;
     }
     
     // Batch updates where possible or just apply directly since it's on mount
-    if (saved.mode) setMode(saved.mode);
-    if (saved.url) setUrl(saved.url);
-    if (saved.angle) setAngle(saved.angle);
-    if (saved.scriptData) setScriptData(saved.scriptData);
+    if (saved.mode && ["link", "short-story", "music-video", "notepad"].includes(saved.mode)) setMode(saved.mode as AppMode);
+    if (saved.url && typeof saved.url === "string") setUrl(saved.url);
+    if (saved.angle && typeof saved.angle === "string") setAngle(saved.angle);
+    if (saved.scriptData && typeof saved.scriptData === "object") setScriptData(saved.scriptData);
     
     // Strict validation for quality tier
     if (saved.qualityTier && ["basic", "medium", "pro"].includes(saved.qualityTier)) {
-      setQualityTier(saved.qualityTier);
+      setQualityTier(saved.qualityTier as QualityTier);
     } else {
       setQualityTier("basic");
     }
     
-    if (saved.globalVisualStyle) setGlobalVisualStyle(saved.globalVisualStyle);
-    if (saved.videoDimension) setVideoDimension(saved.videoDimension);
-    if (saved.selectedVoice) setSelectedVoice(saved.selectedVoice);
+    if (saved.globalVisualStyle && typeof saved.globalVisualStyle === "string") setGlobalVisualStyle(saved.globalVisualStyle);
+    if (saved.videoDimension && typeof saved.videoDimension === "object") setVideoDimension(saved.videoDimension);
+    if (saved.selectedVoice && typeof saved.selectedVoice === "string") setSelectedVoice(saved.selectedVoice);
     if (saved.musicEnabled !== undefined) setMusicEnabled(!!saved.musicEnabled);
     if (saved.captionsEnabled !== undefined) setCaptionsEnabled(!!saved.captionsEnabled);
     if (saved.targetDurationMinutes) setTargetDurationMinutes(Number(saved.targetDurationMinutes) || 3);
-    if (saved.storyboardImages) setStoryboardImages(saved.storyboardImages);
-    if (saved.referenceImages) setReferenceImages(saved.referenceImages);
-    if (saved.sceneDurations) setSceneDurations(saved.sceneDurations);
-    if (saved.youtubeStyleSuffix) setYoutubeStyleSuffix(saved.youtubeStyleSuffix);
-    if (saved.storyText) setStoryText(saved.storyText);
+    if (saved.storyboardImages && typeof saved.storyboardImages === "object" && !Array.isArray(saved.storyboardImages)) setStoryboardImages(saved.storyboardImages);
+    if (saved.referenceImages && typeof saved.referenceImages === "object" && !Array.isArray(saved.referenceImages)) setReferenceImages(saved.referenceImages);
+    if (saved.sceneDurations && typeof saved.sceneDurations === "object" && !Array.isArray(saved.sceneDurations)) setSceneDurations(saved.sceneDurations);
+    if (saved.youtubeStyleSuffix && typeof saved.youtubeStyleSuffix === "string") setYoutubeStyleSuffix(saved.youtubeStyleSuffix);
+    if (saved.storyText && typeof saved.storyText === "string") setStoryText(saved.storyText);
     if (saved.characterProfiles) setCharacterProfiles(Array.isArray(saved.characterProfiles) ? saved.characterProfiles : []);
-    if (saved.activeStyle) setActiveStyle(saved.activeStyle);
-    if (saved.settingText) setSettingText(saved.settingText);
-    if (saved.audioFileName) setAudioFileName(saved.audioFileName);
-    if (saved.lyrics) setLyrics(saved.lyrics);
+    if (saved.activeStyle && typeof saved.activeStyle === "string") setActiveStyle(saved.activeStyle);
+    if (saved.settingText && typeof saved.settingText === "string") setSettingText(saved.settingText);
+    if (saved.audioFileName && typeof saved.audioFileName === "string") setAudioFileName(saved.audioFileName);
+    if (saved.lyrics && typeof saved.lyrics === "string") setLyrics(saved.lyrics);
     if (saved.musicSegments) setMusicSegments(Array.isArray(saved.musicSegments) ? saved.musicSegments : []);
     if (saved.audioDuration) setAudioDuration(Number(saved.audioDuration) || 0);
     
-    if (saved.notepadData) {
-      setNotepadData({
-        projectName: saved.notepadData.projectName || "",
+    // Schema Migration & Validation for NotepadData
+    let newNotepadData: NotepadData = { projectName: "", sources: [], images: [], synthesizedKnowledge: null, lastSynthesizedAt: null };
+    if (saved.notepadData && typeof saved.notepadData === "object") {
+      newNotepadData = {
+        projectName: typeof saved.notepadData.projectName === "string" ? saved.notepadData.projectName : "",
         sources: Array.isArray(saved.notepadData.sources) ? saved.notepadData.sources : [],
         images: Array.isArray(saved.notepadData.images) ? saved.notepadData.images : [],
-        synthesizedKnowledge: saved.notepadData.synthesizedKnowledge || null,
-        lastSynthesizedAt: saved.notepadData.lastSynthesizedAt || null,
-      });
+        synthesizedKnowledge: typeof saved.notepadData.synthesizedKnowledge === "string" ? saved.notepadData.synthesizedKnowledge : null,
+        lastSynthesizedAt: typeof saved.notepadData.lastSynthesizedAt === "number" ? saved.notepadData.lastSynthesizedAt : null,
+      };
     }
+    setNotepadData(newNotepadData);
 
     // Hydration finished
-    setTimeout(() => {
-      isHydrating.current = false;
-    }, 100);
+    // Use requestAnimationFrame to let React process the massive batch of state updates,
+    // then clear the hydration flag so the persistence effect can safely run.
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        isHydrating.current = false;
+      }, 150);
+    });
   }, []);
 
   // Persist key state to localStorage/sessionStorage.
