@@ -78,7 +78,8 @@ function NumInput({ value, onChange, min, max, step = 1, suffix = "" }: {
 export default function TextOverlayEditor() {
   const { 
     selectedScene, addOverlay, updateOverlay, removeOverlay,
-    globalCaptionStyle, updateGlobalCaptionStyle
+    globalCaptionStyle, setGlobalCaptionStyle, updateGlobalCaptionStyle,
+    autoCaptionProject
   } = useEditorContext();
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -194,7 +195,49 @@ export default function TextOverlayEditor() {
           </div>
         </div>
         
-        <p className="text-[9px] text-primary/60 mt-2 italic leading-tight">
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={() => updateGlobalCaptionStyle(globalCaptionStyle)}
+            className="flex-1 bg-primary text-white text-[10px] font-bold py-2 rounded-lg hover:bg-primary-dark transition-colors flex items-center justify-center gap-1.5 shadow-lg shadow-primary/20"
+          >
+            <span className="material-symbols-outlined text-sm">sync</span>
+            Sync All Styles
+          </button>
+          <button
+            onClick={() => {
+              if (confirm("This will replace all existing captions with new ones synchronized to the audio. Continue?")) {
+                autoCaptionProject();
+              }
+            }}
+            className="flex-1 bg-white/10 text-editor-text text-[10px] font-bold py-2 rounded-lg hover:bg-white/20 transition-colors border border-white/10 flex items-center justify-center gap-1.5"
+          >
+            <span className="material-symbols-outlined text-sm">auto_videocam</span>
+            Re-caption Project
+          </button>
+        </div>
+
+        {/* Style Presets */}
+        <div className="mt-4 pt-3 border-t border-white/5">
+          <Label>Style Presets</Label>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {[
+              { label: "Cinematic", style: { fontFamily: "Playfair Display", fontWeight: "700", italic: true, color: "#f5e6c8", shadowBlur: 15 } },
+              { label: "Modern", style: { fontFamily: "Inter", fontWeight: "900", color: "#ffffff", textTransform: "uppercase", shadowBlur: 10 } },
+              { label: "Neon", style: { fontFamily: "Impact", color: "#00ff88", shadowColor: "#00ff88", shadowBlur: 20 } },
+              { label: "Minimal", style: { fontFamily: "Roboto", fontWeight: "300", color: "#ffffff", opacity: 0.9, shadowEnabled: false } },
+            ].map(p => (
+              <button
+                key={p.label}
+                onClick={() => updateGlobalCaptionStyle(p.style as any)}
+                className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-[9px] text-editor-text-dim border border-white/5 transition-colors"
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        <p className="text-[9px] text-primary/60 mt-3 italic leading-tight">
           Updates all captions project-wide (IDs starting with "caption-")
         </p>
       </div>

@@ -646,7 +646,8 @@ export function EditorProvider({ children }: { children: ReactNode }) {
         let currentCharCount = 0;
 
         for (const word of words) {
-          if (currentCharCount + word.length > 42 && currentChunk.length > 0) {
+          // Limit to 25 characters for "Super-Sync" (no wrapping, high impact)
+          if (currentCharCount + word.length > 25 && currentChunk.length > 0) {
             chunks.push(currentChunk.join(" "));
             currentChunk = [];
             currentCharCount = 0;
@@ -658,14 +659,18 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 
         // 3. Create overlays with timing
         const numChunks = chunks.length;
-        const durPerChunk = scene.duration / numChunks;
+        // Add a tiny gap (0.1s) between segments for visual "pop"
+        const gap = 0.1;
+        const totalGap = gap * (numChunks - 1);
+        const usableDuration = Math.max(0, scene.duration - Math.max(0, totalGap));
+        const durPerChunk = numChunks > 0 ? usableDuration / numChunks : 0;
 
         chunks.forEach((text, i) => {
           newOverlays.push({
             id: `caption-${scene.id}-${i}-${Date.now()}`,
             text: text.toUpperCase(),
             ...globalCaptionStyle,
-            startTime: i * durPerChunk,
+            startTime: i * (durPerChunk + gap),
             duration: durPerChunk,
           });
         });

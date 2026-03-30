@@ -80,13 +80,9 @@ export default function PreviewPlayer() {
       // Update the fast-path ref
       playheadRef.current = next;
 
-      // Sync React state only every 100ms to keep UI updated without choking the render loop
-      if (now - lastStateUpdateTimeRef.current > 100) {
-        setPlayheadPosition(next, true); // true = update ref, but maybe we want to update state too?
-        // Actually, we want to update the STATE so other components (Timeline, Properties)
-        // can follow, but at a lower frequency.
-        // In EditorContext, I made setPlayheadPosition(pos, skipStateUpdate).
-        setPlayheadPosition(next); // This updates state.
+      // Sync React state more frequently (33ms = 30fps) for Super-Sync captions
+      if (now - lastStateUpdateTimeRef.current > 33) {
+        setPlayheadPosition(next);
         lastStateUpdateTimeRef.current = now;
       }
 
