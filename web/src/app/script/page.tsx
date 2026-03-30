@@ -181,7 +181,7 @@ export default function ScriptBuilder() {
       // Extract unique subjects from all visual prompts and narrations
       const allText = data.scenes.map((s: any) => `${s.narration} ${s.visual_prompt}`).join(" ");
 
-      // Ask AI to identify key subjects
+      // Ask system to identify key subjects
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -274,7 +274,7 @@ export default function ScriptBuilder() {
     router.push("/generate"); // Show detailed progress view
   };
 
-  // Continue Writing — AI generates more scenes to extend the script
+  // Continue Writing — System generates more scenes to extend the script
   const handleContinueWriting = async () => {
     if (!scriptData || isExtending) return;
     setIsExtending(true);
@@ -316,7 +316,7 @@ export default function ScriptBuilder() {
     }
   };
 
-  // End Story — AI generates a final concluding scene
+  // End Story — System generates a final concluding scene
   const handleEndStory = async () => {
     if (!scriptData || isExtending) return;
     setIsExtending(true);
@@ -512,7 +512,7 @@ export default function ScriptBuilder() {
             </div>
             <p className="text-sm text-outline px-10 leading-relaxed font-medium">
               {scriptGenerationProgress.elapsedSeconds < 5
-                ? "Connecting to deep-knowledge AI models..."
+                ? "Connecting to deep-knowledge synthesis models..."
                 : scriptGenerationProgress.elapsedSeconds < 25
                 ? "Analyzing your sources and world-building..."
                 : scriptGenerationProgress.elapsedSeconds < 60
@@ -577,7 +577,7 @@ export default function ScriptBuilder() {
                   
                   {/* Universal Tier Selection Pills */}
                   <div className="flex items-center gap-1.5 glass p-1.5 rounded-2xl border border-outline-variant/10 shadow-sm overflow-x-auto no-scrollbar">
-                    {(["free", "basic", "medium", "pro"] as QualityTier[]).map((t) => {
+                    {(["basic", "free", "medium", "pro"] as QualityTier[]).map((t) => {
                       const info = QUALITY_TIERS[t];
                       const active = qualityTier === t;
                       return (
@@ -644,7 +644,7 @@ export default function ScriptBuilder() {
                 </div>
                 <div className="flex-1">
                   <h4 className="text-amber-500 font-bold text-sm">Pollinations Credit Exhaustion (Demo Mode Active)</h4>
-                  <p className="text-amber-500/70 text-xs">Your Pollinations API balance is empty. We've generated a high-quality placeholder script so you can continue exploring the editor. Please top up your balance at <a href="https://pollinations.ai" target="_blank" className="underline font-bold">pollinations.ai</a> to restore full AI generation.</p>
+                  <p className="text-amber-500/70 text-xs">Your Pollinations API balance is empty. We've generated a high-quality placeholder script so you can continue exploring the editor. Please top up your balance at <a href="https://pollinations.ai" target="_blank" className="underline font-bold">pollinations.ai</a> to restore full generation capabilities.</p>
                 </div>
                 <button 
                   onClick={() => setScriptData({...scriptData, isDemo: false})}

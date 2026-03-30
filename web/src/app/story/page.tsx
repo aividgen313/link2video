@@ -74,7 +74,7 @@ export default function StoryAngleGenerator() {
       if (e?.name === "AbortError") {
         // Could be user navigation OR our 60s timeout
         if (!controller.signal.aborted) return;
-        setErrorMessage("Angle generation timed out — the AI servers may be busy. Tap Retry to try again.");
+        setErrorMessage("Angle generation timed out — the synthesis engine may be busy. Tap Retry to try again.");
       } else {
         console.error("Failed to fetch angles:", e);
         setErrorMessage("Network error: Unable to connect to the server. Tap Retry to try again.");
@@ -147,7 +147,7 @@ export default function StoryAngleGenerator() {
           </div>
           <h2 className="font-headline text-display-lg text-5xl font-black tracking-tight mb-4">Choose a Story Angle</h2>
           <p className="font-body text-lg text-outline max-w-2xl leading-relaxed">
-            Our AI analyzed your content and identified several narrative directions. Select the one that best fits your channel's vibe.
+            Our creative engine analyzed your content and identified several narrative directions. Select the one that best fits your channel's vibe.
           </p>
         </section>
 
@@ -194,7 +194,7 @@ export default function StoryAngleGenerator() {
             <div className="text-center space-y-2">
               <p className="font-headline font-extrabold text-xl">Brainstorming Angles...</p>
               <p className="text-sm text-outline">
-                {loadingElapsed < 3 ? "Connecting to AI model..." : loadingElapsed < 8 ? "Analyzing your topic..." : loadingElapsed < 18 ? "AI is crafting unique story angles..." : loadingElapsed < 35 ? "Polishing narrative options..." : loadingElapsed < 50 ? "Taking longer than usual — switching to backup model..." : "Almost there — finalizing..."}
+                {loadingElapsed < 3 ? "Connecting to synthesis engine..." : loadingElapsed < 8 ? "Analyzing your topic..." : loadingElapsed < 18 ? "Crafting unique story angles..." : loadingElapsed < 35 ? "Polishing narrative options..." : loadingElapsed < 50 ? "Taking longer than usual — switching to backup model..." : "Almost there — finalizing..."}
               </p>
               <div className="flex items-center justify-center gap-3 mt-3">
                 <span className="font-mono text-sm text-outline tabular-nums">

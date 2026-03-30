@@ -20,8 +20,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Link2Video AI - Creator Studio",
-  description: "Convert links into AI generated videos",
+  title: "Link2Video - Creator Studio",
+  description: "Convert links into high-quality videos",
 };
 
 export default function RootLayout({

@@ -1186,7 +1186,7 @@ export default function NotepadPage() {
                   </div>
                   <h3 className="font-bold text-xl mb-2" style={{ color: "var(--np-text)" }}>Build Your Knowledge Base</h3>
                   <p className="text-[14px] leading-relaxed mb-8" style={{ color: "var(--np-text-secondary)" }}>
-                    Add sources from text, URLs, PDFs, or your clipboard. The AI will extract key facts, synthesize them into unified knowledge, and generate a documentary video.
+                    Add sources from text, URLs, PDFs, or your clipboard. The system will extract key facts, synthesize them into unified knowledge, and generate a documentary video.
                   </p>
                   <div className="grid grid-cols-3 gap-3 w-full max-w-lg">
                     {([
@@ -1471,11 +1471,11 @@ export default function NotepadPage() {
                   <div className="space-y-2 p-3 rounded-lg animate-in fade-in slide-in-from-top-2" style={{ background: "var(--np-blue-light)", border: "1px solid var(--np-blue)" }}>
                     <p className="text-[12px] font-semibold" style={{ color: "var(--np-blue)" }}>Confirm Analysis</p>
                     <p className="text-[11px] leading-tight" style={{ color: "var(--np-text-secondary)" }}>
-                      AI will analyze {sources.length} sources to create a {targetDurationMinutes}m video.
+                      System will analyze {sources.length} sources to create a {targetDurationMinutes}m video.
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[11px] font-bold" style={{ color: "var(--np-text)" }}>
-                        {qualityTier === "basic" ? "Free Analysis" : `Est. Video Cost: ~$${calculateTotalCost(qualityTier, estimatedScenes).toFixed(2)}`}
+                        {qualityTier === "basic" ? "Budget Analysis" : `Est. Video Cost: ~$${calculateTotalCost(qualityTier, estimatedScenes, false, targetDurationMinutes).toFixed(2)}`}
                       </span>
                     </div>
                     <div className="flex gap-1.5 mt-2">
@@ -1537,10 +1537,10 @@ export default function NotepadPage() {
               {/* Quality Tier Selector */}
               <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--np-divider-light)" }}>
                 <div className="flex">
-                  {(["free", "basic", "medium", "pro"] as QualityTier[]).map((tier) => {
+                  {(["basic", "free", "medium", "pro"] as QualityTier[]).map((tier) => {
                       const t = QUALITY_TIERS[tier];
                       const isActive = qualityTier === tier;
-                      const cost = calculateTotalCost(tier, estimatedScenes).toFixed(2);
+                      const cost = calculateTotalCost(tier, estimatedScenes, false, targetDurationMinutes).toFixed(2);
                       return (
                         <button
                           key={tier}

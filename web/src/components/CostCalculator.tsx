@@ -31,7 +31,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({ currentTier }) =
   const imagesPerScene = 6;
   const imageCost = (scenesCount * imagesPerScene * POLLEN_COSTS.imageGeneration).toFixed(3);
   
-  const videoRate = (currentTier === 'free' || currentTier === 'basic') ? POLLEN_COSTS.videoPerSecondFree : POLLEN_COSTS.videoPerSecond;
+  const videoRate = (currentTier === 'basic') ? 0 : (currentTier === 'free') ? POLLEN_COSTS.videoPerSecondFree : POLLEN_COSTS.videoPerSecond;
   const estVideoSeconds = (videoSceneCount / scenesCount) * (targetDurationMinutes * 60);
   const videoCost = (estVideoSeconds * videoRate).toFixed(2);
   
@@ -76,7 +76,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({ currentTier }) =
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">API Model Estimates</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Production Estimates</h4>
           </div>
           <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">{tier.label}</span>
         </div>
@@ -92,10 +92,10 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({ currentTier }) =
 
           <div className="flex justify-between items-center text-[11px]">
             <div className="flex flex-col">
-              <span className="text-on-surface font-bold">Video (Wan AI / LTX-2)</span>
+              <span className="text-on-surface font-bold">Video Synthesis</span>
               <span className="text-outline/50 text-[9px] font-medium">Cinematic motion synthesis</span>
             </div>
-            <span className="text-on-surface font-black">${videoRate}/sec</span>
+            <span className="text-on-surface font-black">{videoRate === 0 ? "FREE" : `$${videoRate}/sec`}</span>
           </div>
 
           <div className="flex justify-between items-center text-[11px]">
@@ -119,7 +119,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({ currentTier }) =
               <span className="text-on-surface font-mono text-[10px]">${imageCost}</span>
             </div>
             <div className="flex justify-between text-[11px]">
-              <span className="text-outline text-[10px]">AI Video ({videoSceneCount})</span>
+              <span className="text-outline text-[10px]">Video Synthesis ({videoSceneCount})</span>
               <span className="text-on-surface font-mono text-[10px]">${videoCost}</span>
             </div>
             <div className="flex justify-between text-[11px]">
@@ -136,7 +136,7 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({ currentTier }) =
         {/* Beta Notice */}
         <div className="p-3 rounded-2xl bg-primary/5 border border-primary/10">
           <p className="text-[9px] text-on-surface/50 leading-relaxed">
-            <b className="text-primary uppercase tracking-[0.1em]">Beta Credit Bonus:</b> Pollinations is in beta. Buying $5.00 USD gives you 10 Pollen, effectively making the real cost of this project <b className="text-primary-container">50% lower</b> than estimated here.
+            <b className="text-primary uppercase tracking-[0.1em]">50% OFF SALE:</b> Limited time beta pricing. Credits are 50% off right now, effectively making the real cost of this project <b className="text-primary-container">50% lower</b> than estimated here.
           </p>
         </div>
       </div>

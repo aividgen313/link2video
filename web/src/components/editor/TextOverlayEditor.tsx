@@ -76,7 +76,10 @@ function NumInput({ value, onChange, min, max, step = 1, suffix = "" }: {
 }
 
 export default function TextOverlayEditor() {
-  const { selectedScene, addOverlay, updateOverlay, removeOverlay } = useEditorContext();
+  const { 
+    selectedScene, addOverlay, updateOverlay, removeOverlay,
+    globalCaptionStyle, updateGlobalCaptionStyle
+  } = useEditorContext();
   const [editingId, setEditingId] = useState<string | null>(null);
 
   if (!selectedScene) return null;
@@ -138,6 +141,64 @@ export default function TextOverlayEditor() {
 
   return (
     <div className="space-y-1">
+      {/* ── Universal Caption Controls ── */}
+      <div className="p-3 mb-4 rounded-xl border border-primary/20 bg-primary/5">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="material-symbols-outlined text-primary text-sm">settings_suggest</span>
+          <span className="text-[11px] font-bold uppercase tracking-widest text-primary">Universal Caption Styling</span>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Family</Label>
+            <select
+              value={globalCaptionStyle.fontFamily}
+              onChange={e => updateGlobalCaptionStyle({ fontFamily: e.target.value })}
+              className="w-full rounded px-1.5 py-1 text-[11px] focus:outline-none bg-editor-panel-alt text-editor-text border border-editor-border"
+            >
+              {FONTS.map(f => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label>Size</Label>
+            <NumInput value={globalCaptionStyle.fontSize || 48} onChange={v => updateGlobalCaptionStyle({ fontSize: v })} min={12} max={120} suffix="px" />
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3 mt-3">
+          <div className="flex-1">
+            <Label>Color</Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={globalCaptionStyle.color || "#ffffff"}
+                onChange={e => updateGlobalCaptionStyle({ color: e.target.value })}
+                className="w-8 h-8 rounded border-0 cursor-pointer p-0 bg-transparent"
+              />
+              <span className="text-[10px] font-mono text-editor-text-dim uppercase">{globalCaptionStyle.color}</span>
+            </div>
+          </div>
+          <div className="flex-1">
+            <Label>Weight</Label>
+            <select
+              value={globalCaptionStyle.fontWeight}
+              onChange={e => updateGlobalCaptionStyle({ fontWeight: e.target.value as any })}
+              className="w-full rounded px-1.5 py-1 text-[11px] focus:outline-none bg-editor-panel-alt text-editor-text border border-editor-border"
+            >
+              {FONT_WEIGHTS.map(w => (
+                <option key={w.value} value={w.value}>{w.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <p className="text-[9px] text-primary/60 mt-2 italic leading-tight">
+          Updates all captions project-wide (IDs starting with "caption-")
+        </p>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between mb-1">
         <span className="text-[11px] uppercase tracking-wider" style={{ color: "var(--editor-text-dim)" }}>Text Overlays</span>
@@ -222,7 +283,7 @@ export default function TextOverlayEditor() {
                     <div>
                       <Label>Weight</Label>
                       <select
-                        value={overlay.fontWeight}
+                        value={overlay.fontWeight || "normal"}
                         onChange={e => u(overlay.id, { fontWeight: e.target.value as any })}
                         className="w-full editor-input rounded px-1.5 py-1 text-[11px] focus:outline-none"
                       >
@@ -233,7 +294,7 @@ export default function TextOverlayEditor() {
                     </div>
                     <div>
                       <Label>Size</Label>
-                      <NumInput value={overlay.fontSize} onChange={v => u(overlay.id, { fontSize: v })} min={8} max={120} suffix="px" />
+                      <NumInput value={overlay.fontSize || 32} onChange={v => u(overlay.id, { fontSize: v })} min={8} max={120} suffix="px" />
                     </div>
                   </div>
 
@@ -242,7 +303,7 @@ export default function TextOverlayEditor() {
                     {/* Color */}
                     <input
                       type="color"
-                      value={overlay.color}
+                      value={overlay.color || "#ffffff"}
                       onChange={e => u(overlay.id, { color: e.target.value })}
                       className="w-6 h-6 rounded border-0 cursor-pointer"
                       title="Text color"
@@ -330,17 +391,40 @@ export default function TextOverlayEditor() {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label>X Position</Label>
-                    <input type="range" min={0} max={100} value={overlay.x} onChange={e => u(overlay.id, { x: Number(e.target.value), position: "custom" })} className="w-full h-0.5" style={{ accentColor: "#4a9eed" }} />
+                    <input type="range" min={0} max={100} value={overlay.x ?? 50} onChange={e => u(overlay.id, { x: Number(e.target.value), position: "custom" })} className="w-full h-0.5" style={{ accentColor: "#4a9eed" }} />
                   </div>
                   <div>
                     <Label>Y Position</Label>
-                    <input type="range" min={0} max={100} value={overlay.y} onChange={e => u(overlay.id, { y: Number(e.target.value), position: "custom" })} className="w-full h-0.5" style={{ accentColor: "#4a9eed" }} />
+                    <input type="range" min={0} max={100} value={overlay.y ?? 50} onChange={e => u(overlay.id, { y: Number(e.target.value), position: "custom" })} className="w-full h-0.5" style={{ accentColor: "#4a9eed" }} />
                   </div>
                 </div>
                 <div>
                   <Label>Opacity: {Math.round((overlay.opacity ?? 1) * 100)}%</Label>
                   <input type="range" min={5} max={100} value={Math.round((overlay.opacity ?? 1) * 100)} onChange={e => u(overlay.id, { opacity: Number(e.target.value) / 100 })} className="w-full h-0.5" style={{ accentColor: "#4a9eed" }} />
                 </div>
+              </Section>
+              
+              {/* ── Timing ── */}
+              <Section title="Timing & Duration" defaultOpen>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label>Start Time (s)</Label>
+                    <NumInput 
+                      value={overlay.startTime ?? 0} 
+                      onChange={v => u(overlay.id, { startTime: v })} 
+                      min={0} max={selectedScene.duration} step={0.1} suffix="s" 
+                    />
+                  </div>
+                  <div>
+                    <Label>Duration (s)</Label>
+                    <NumInput 
+                      value={overlay.duration ?? selectedScene.duration} 
+                      onChange={v => u(overlay.id, { duration: v })} 
+                      min={0.1} max={selectedScene.duration} step={0.1} suffix="s" 
+                    />
+                  </div>
+                </div>
+                <p className="text-[9px] text-editor-text-dim italic">Relative to scene start</p>
               </Section>
 
               {/* ── Background ── */}
@@ -467,10 +551,10 @@ export default function TextOverlayEditor() {
                     <span
                       style={{
                         fontFamily: overlay.fontFamily || "Inter",
-                        fontSize: Math.min(overlay.fontSize, 24),
-                        fontWeight: overlay.fontWeight,
+                        fontSize: Math.min(overlay.fontSize || 24, 24),
+                        fontWeight: overlay.fontWeight || "normal",
                         fontStyle: overlay.fontStyle,
-                        color: overlay.color,
+                        color: overlay.color || "#ffffff",
                         textDecoration: overlay.textDecoration || "none",
                         textTransform: (overlay.textTransform || "none") as any,
                         letterSpacing: overlay.letterSpacing ?? 0,

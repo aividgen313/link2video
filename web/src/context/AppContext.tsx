@@ -140,9 +140,22 @@ export const VOICES = [
 // ═══════════════════════════════════════════════════════════════
 
 export const QUALITY_TIERS = {
+  basic: {
+    label: "Budget",
+    description: "Ken Burns + Edge TTS — Cheapest option, zero synthesis cost.",
+    color: "text-emerald-400",
+    bgColor: "bg-emerald-400/10",
+    borderColor: "border-emerald-400/20",
+    useAIVideo: false,
+    videoSceneStrategy: "none" as const,
+    usePollsTTS: false, // Edge TTS (free)
+    imageModel: "flux",
+    textModel: "pollinations",
+    videoModel: undefined,
+  },
   free: {
-    label: "Free",
-    description: "FLUX + LTX-2 (Alternating images/video) to minimize cost.",
+    label: "Starter",
+    description: "Synthesis (Entry-level Video) + Edge TTS — Low cost.",
     color: "text-green-500",
     bgColor: "bg-green-500/10",
     borderColor: "border-green-500/30",
@@ -155,27 +168,14 @@ export const QUALITY_TIERS = {
     textModel: "pollinations",
     videoModel: "ltx-2",
   },
-  basic: {
-    label: "Basic",
-    description: "Ken Burns + Edge TTS — High Performance, Low Cost.",
-    color: "text-emerald-400",
-    bgColor: "bg-emerald-400/10",
-    borderColor: "border-emerald-400/20",
-    useAIVideo: false,
-    videoSceneStrategy: "none" as const,
-    usePollsTTS: false, // Edge TTS (free)
-    imageModel: "flux",
-    textModel: "pollinations",
-    videoModel: undefined,
-  },
   medium: {
     label: "Medium",
-    description: "Flux + Alternating AI Video & Ken Burns + ElevenLabs.",
+    description: "Flux + Alternating Pro Video (Wan) + ElevenLabs.",
     color: "text-primary",
     bgColor: "bg-primary/10",
     borderColor: "border-primary/20",
     useAIVideo: true,
-    videoSceneStrategy: "alternating" as const, // 3 AI video, 3 Ken Burns, repeating
+    videoSceneStrategy: "alternating" as const, // 3 video synthesis, 3 Ken Burns, repeating
     alternatingGroupSize: 3,
     usePollsTTS: true,
     imageModel: "flux",
@@ -184,7 +184,7 @@ export const QUALITY_TIERS = {
   },
   pro: {
     label: "Pro",
-    description: "Flux + AI Video (all scenes) + ElevenLabs — Maximum Quality.",
+    description: "Full Synthesis (all scenes) + ElevenLabs — Maximum Quality.",
     color: "text-tertiary",
     bgColor: "bg-tertiary/10",
     borderColor: "border-tertiary/20",

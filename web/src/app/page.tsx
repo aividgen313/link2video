@@ -150,15 +150,15 @@ const MODE_TABS: { mode: AppMode; label: string; icon: string; desc: string }[] 
   { mode: "link", label: "Link / Topic", icon: "link", desc: "Paste a URL or topic" },
   { mode: "short-story", label: "Story", icon: "auto_stories", desc: "Paste or write a story" },
   { mode: "music-video", label: "Music Video", icon: "music_note", desc: "Upload audio + lyrics" },
-  { mode: "director", label: "Director", icon: "movie_edit", desc: "Script with dialogue" },
+  { mode: "director", label: "Creative Director", icon: "movie_edit", desc: "Script with dialogue" },
 ];
 
 const PRO_TIPS = [
-  "Director Mode is best for character-heavy stories and dialogue.",
+  "Creative Director Mode is best for character-heavy stories and dialogue.",
   "Use 'Dynamic' resolution for the fastest preview generation.",
   "Add reference photos for characters to keep their look consistent.",
-  "Pro Tier uses a cinematically optimized video model.",
-  "You can edit any AI-generated narration in the Script phase.",
+  "Pro Tier uses a cinematically optimized video synthesis model.",
+  "You can edit any generated narration in the Script phase.",
   "Try 'Neon Noir' style for a futuristic cyberpunk aesthetic.",
 ];
 
@@ -514,17 +514,7 @@ export default function Home() {
   const estScenes = Math.max(1, Math.ceil(targetDurationMinutes * 60 / 8));
 
   // Calculate pollen costs — single source of truth
-  const totalPollen = calculateTotalCost(qualityTier, estScenes, false);
-  const tierDef = QUALITY_TIERS[qualityTier];
-  const imageCostPollen = tierDef.pollenPerImageScene * estScenes;
-  const ttsCostPollen = tierDef.pollenPerTTS * estScenes;
-  // Count video scenes using same logic as calculateTotalCost
-  const videoScenesCount = qualityTier === "pro" ? estScenes
-    : qualityTier === "medium" ? (() => { let c = 0; for (let i = 0; i < estScenes; i++) { if (Math.floor(i / 3) % 2 === 0) c++; } return c; })()
-    : qualityTier === "free" ? (() => { let c = 0; for (let i = 0; i < estScenes; i++) { if (i % 2 === 0) c++; } return c; })()
-    : 0;
-  const videoCostPollen = tierDef.pollenPerVideoScene * videoScenesCount;
-  const musicCostPollen = 0;
+  const totalPollen = calculateTotalCost(qualityTier, estScenes, false, targetDurationMinutes);
 
   const canGenerate = mode === "link" ? inputValue.trim().length > 0
     : mode === "short-story" ? storyText.trim().length > 0
@@ -743,7 +733,7 @@ export default function Home() {
                   <div className="space-y-2">
                     <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Quality Tier</label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {(["free", "basic", "medium", "pro"] as QualityTier[]).map((t) => {
+                      {(["basic", "free", "medium", "pro"] as QualityTier[]).map((t) => {
                         const info = QUALITY_TIERS[t];
                         const isActive = qualityTier === t;
                         const estCost = calculateTotalCost(t, estScenes, false).toFixed(2);
@@ -794,16 +784,6 @@ export default function Home() {
                   <div className="space-y-4">
                     <label className="text-[13px] font-headline font-bold text-on-surface/70 uppercase tracking-wider">Estimated Costs</label>
                     <CostCalculator currentTier={qualityTier} />
-                  </div>
-
-                  <div className="flex items-center justify-between px-4 py-3 rounded-xl border glass-subtle">
-                    <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-primary">closed_caption</span>
-                      <span className="text-xs font-bold text-on-surface">Enable Captions</span>
-                    </div>
-                    <button onClick={() => setCaptionsEnabled(!captionsEnabled)} className={`w-8 h-4 rounded-full relative transition-colors ${captionsEnabled ? "bg-primary" : "bg-outline/20"}`}>
-                      <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${captionsEnabled ? "translate-x-4" : "translate-x-0.5"}`} />
-                    </button>
                   </div>
                 </div>
 
@@ -878,16 +858,9 @@ export default function Home() {
             {/* Tabs */}
             <div className="flex border-b border-outline-variant/10">
               <button 
-                onClick={() => setSidebarTab("projects")}
-                className={`flex-1 px-5 py-4 font-headline font-black text-xs uppercase tracking-widest transition-all ${sidebarTab === "projects" ? "text-primary border-b-2 border-primary bg-primary/5" : "text-outline hover:text-on-surface"}`}
+                className="flex-1 px-5 py-4 font-headline font-black text-xs uppercase tracking-widest text-primary border-b-2 border-primary bg-primary/5"
               >
                 Projects
-              </button>
-              <button 
-                onClick={() => setSidebarTab("styles")}
-                className={`flex-1 px-5 py-4 font-headline font-black text-xs uppercase tracking-widest transition-all ${sidebarTab === "styles" ? "text-primary border-b-2 border-primary bg-primary/5" : "text-outline hover:text-on-surface"}`}
-              >
-                Captions
               </button>
             </div>
 

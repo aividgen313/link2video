@@ -34,8 +34,10 @@ export default function StoryboardPreview() {
     // Initialize statuses from existing images
     const init: Record<number, { status: ImgStatus; url?: string }> = {};
     scriptData.scenes.forEach((s) => {
-      init[s.id] = storyboardImages[s.id]
-        ? { status: "done", url: storyboardImages[s.id] }
+      const imgData = storyboardImages[s.id];
+      const url = Array.isArray(imgData) ? imgData[0] : imgData;
+      init[s.id] = url
+        ? { status: "done", url }
         : { status: "queued" };
     });
     setStatuses(init);
@@ -201,7 +203,7 @@ export default function StoryboardPreview() {
             className="text-outline hover:text-primary text-xs flex items-center gap-1 transition-colors"
           >
             <span className="material-symbols-outlined text-xs">movie_edit</span>
-            Skip to Editor (no AI video/audio)
+            Skip to Editor (no synthesis)
           </button>
         </div>
       </div>

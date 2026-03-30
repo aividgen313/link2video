@@ -309,7 +309,7 @@ function SourceMonitor() {
                       </span>
                     </div>
                     <p className="text-[8px] font-medium leading-[1.3] line-clamp-3 uppercase tracking-wider opacity-40 px-1" style={{ color: C.text }}>
-                      {scene.visual_prompt || scene.narration || "Awaiting AI Content"}
+                      {scene.visual_prompt || scene.narration || "Awaiting Content"}
                     </p>
                   </div>
                 )}
@@ -449,6 +449,7 @@ function EditorInner() {
     addOverlay, importMedia,
     activeWorkspace, setActiveWorkspace,
     applyDefaultTransitions, removeAllTransitions,
+    autoCaptionProject,
     resetProject
   } = useEditorContext();
   const { theme: C, isDark, toggle: toggleTheme } = useEditorTheme();
@@ -1071,7 +1072,7 @@ function EditorInner() {
             <div className="flex flex-col leading-none">
               <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: C.textMuted }}>Est. Pollen</span>
               <span className="text-[12px] font-bold tabular-nums" style={{ color: pollenUsed > 0 ? C.text : C.success }}>
-                {pollenUsed > 0 ? `${pollenUsed.toFixed(2)} ⚘` : "Free"}
+                {pollenUsed > 0 ? `${pollenUsed.toFixed(2)} ⚘` : "0.00 ⚘"}
               </span>
             </div>
             <span className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase" style={{
@@ -1114,9 +1115,11 @@ function EditorInner() {
 
           <TSep />
 
-          <Tooltip content="AI Director Assistance">
+          <TSep />
+
+          <Tooltip content="Creative Assistant">
             <button 
-              onClick={() => showStatus("AI Director analyzing scene composition...", "success")}
+              onClick={() => showStatus("Director analyzing scene composition...", "success")}
               className="w-10 h-10 rounded-xl flex items-center justify-center transition-all bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20"
             >
               <span className="material-symbols-outlined text-[20px] animate-pulse">auto_awesome</span>
@@ -1148,6 +1151,17 @@ function EditorInner() {
           <TBtn icon="delete_outline" label="Delete (Del)" onClick={() => selectedScene && scenes.length > 1 && deleteScene(selectedScene.id)} disabled={!selectedScene || scenes.length <= 1} danger tooltip="Delete Scene" />
           <TSep />
           <TBtn icon="crop" label="Trim (T)" onClick={() => setShowTrim(!showTrim)} active={showTrim} tooltip="Trim Clip" />
+          <TSep />
+          <TBtn 
+            icon="closed_caption" 
+            label="Auto-Caption" 
+            onClick={() => {
+              autoCaptionProject();
+              showStatus("Magic captions synchronized!", "success");
+            }} 
+            tooltip="Auto-Caption Scene Narration" 
+          />
+          <TSep />
           <TBtn icon="title" label="Text (Ctrl+T)" onClick={handleAddText} badge={selectedScene?.overlays.length || undefined} tooltip="Add Text Overlay" />
           <TSep />
           <TBtn icon="upload" label="Import Media" onClick={() => importFileRef.current?.click()} tooltip="Import Media" />

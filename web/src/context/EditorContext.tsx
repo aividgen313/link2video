@@ -13,13 +13,13 @@ export type KenBurnsDirection = "zoom-in" | "zoom-out" | "pan-left" | "pan-right
 export interface TextOverlay {
   id: string;
   text: string;
-  position: "center" | "lower-third" | "top" | "custom";
-  x: number;
-  y: number;
-  fontSize: number;
-  color: string;
-  fontFamily: string;
-  fontWeight: "normal" | "bold" | "100" | "200" | "300" | "400" | "500" | "600" | "700" | "800" | "900";
+  position?: "center" | "lower-third" | "top" | "custom";
+  x?: number;
+  y?: number;
+  fontSize?: number;
+  color?: string;
+  fontFamily?: string;
+  fontWeight?: "normal" | "bold" | "100" | "200" | "300" | "400" | "500" | "600" | "700" | "800" | "900";
   fontStyle?: "normal" | "italic";
   textAlign?: "left" | "center" | "right";
   textDecoration?: "none" | "underline" | "line-through";
@@ -41,6 +41,8 @@ export interface TextOverlay {
   shadowY?: number;
   shadowBlur?: number;
   animation?: "none" | "fade-in" | "slide-up" | "typewriter" | "scale-in" | "bounce" | "glow";
+  startTime?: number; // relative to scene start (s)
+  duration?: number; // duration of visibility (s)
 }
 
 export interface EditorScene {
@@ -145,6 +147,7 @@ interface EditorContextType {
   insertScene: (afterId: number | null) => void;
   mergeScenes: (id1: number, id2: number) => void;
   generateCaptionsForAllScenes: () => void;
+  autoCaptionProject: () => void;
   importMedia: (file: File, trackId?: string, atIndex?: number) => Promise<void>;
   resetProject: () => void;
   orientation: "16:9" | "9:16";
@@ -188,6 +191,9 @@ interface EditorContextType {
   // Status/Toast
   statusMessage: { text: string; type: "success" | "error" } | null;
   showStatus: (text: string, type: "success" | "error") => void;
+  globalCaptionStyle: Partial<TextOverlay>;
+  setGlobalCaptionStyle: (style: Partial<TextOverlay>) => void;
+  updateGlobalCaptionStyle: (updates: Partial<TextOverlay>) => void;
 }
 
 const EditorContext = createContext<EditorContextType | null>(null);
@@ -236,6 +242,23 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   const [orientation, setOrientation] = useState<"16:9" | "9:16">("16:9");
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // --- Global Caption Style ---
+  const [globalCaptionStyle, setGlobalCaptionStyle] = useState<Partial<TextOverlay>>({
+    fontSize: 48,
+    color: "#FFFFFF",
+    fontFamily: "Inter, system-ui",
+    fontWeight: "900",
+    textAlign: "center",
+    textTransform: "uppercase",
+    shadowEnabled: true,
+    shadowColor: "rgba(0,0,0,0.8)",
+    shadowBlur: 10,
+    position: "lower-third",
+    x: 50,
+    y: 80,
+    animation: "fade-in",
+  });
 
   const showStatus = useCallback((text: string, type: "success" | "error") => {
     if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
@@ -306,7 +329,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Default: Map AI script scenes to Editor scenes (V1/A1 pairs)
+    // Default: Map script scenes to Editor scenes (V1/A1 pairs)
     // Inherit orientation from the script generation settings if available
     const initialOrientation = (scriptData as any).aspect_ratio === "9:16" ? "9:16" : "16:9";
     setOrientation(initialOrientation);
@@ -598,11 +621,76 @@ export function EditorProvider({ children }: { children: ReactNode }) {
         id: maxId,
         overlays: scene.overlays.map(o => ({ ...o, id: `${o.id}-copy-${Date.now()}` })),
       };
-      const arr = [...prev];
-      arr.splice(idx + 1, 0, dupe);
-      return arr;
+      
+      const nextArr = [...prev];
+      nextArr.splice(idx + 1, 0, dupe);
+      return nextArr;
     });
   }, [setScenesWithHistory, tracks]);
+
+  // --- Auto-Captioning ---
+  const autoCaptionProject = useCallback(() => {
+    setScenesWithHistory(prev => {
+      return prev.map(scene => {
+        if (!scene.narration || scene.trackId !== "v1") return scene;
+
+        // 1. Clear existing captions (ID starts with caption-)
+        const newOverlays = scene.overlays.filter(o => !o.id.startsWith("caption-"));
+
+        // 2. Split narration into chunks
+        const words = scene.narration.trim().split(/\s+/);
+        if (words.length === 0) return scene;
+
+        const chunks: string[] = [];
+        let currentChunk: string[] = [];
+        let currentCharCount = 0;
+
+        for (const word of words) {
+          if (currentCharCount + word.length > 42 && currentChunk.length > 0) {
+            chunks.push(currentChunk.join(" "));
+            currentChunk = [];
+            currentCharCount = 0;
+          }
+          currentChunk.push(word);
+          currentCharCount += word.length + 1;
+        }
+        if (currentChunk.length > 0) chunks.push(currentChunk.join(" "));
+
+        // 3. Create overlays with timing
+        const numChunks = chunks.length;
+        const durPerChunk = scene.duration / numChunks;
+
+        chunks.forEach((text, i) => {
+          newOverlays.push({
+            id: `caption-${scene.id}-${i}-${Date.now()}`,
+            text: text.toUpperCase(),
+            ...globalCaptionStyle,
+            startTime: i * durPerChunk,
+            duration: durPerChunk,
+          });
+        });
+
+        return { ...scene, overlays: newOverlays };
+      });
+    });
+  }, [setScenesWithHistory, globalCaptionStyle]);
+
+  const updateGlobalCaptionStyle = useCallback((updates: Partial<TextOverlay>) => {
+    setGlobalCaptionStyle(prev => ({ ...prev, ...updates }));
+    
+    // Retroactively update all existing captions across all scenes
+    setScenesWithHistory(prev => {
+      return prev.map(scene => ({
+        ...scene,
+        overlays: scene.overlays.map(o => {
+          if (o.id.startsWith("caption-")) {
+            return { ...o, ...updates };
+          }
+          return o;
+        })
+      }));
+    });
+  }, [setScenesWithHistory]);
 
   const splitScene = useCallback((id: number, splitAt: number) => {
     setScenesWithHistory(prev => {
@@ -1088,6 +1176,8 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     previewScale, setPreviewScale,
     activeWorkspace, setActiveWorkspace,
     statusMessage, showStatus,
+    autoCaptionProject,
+    globalCaptionStyle, setGlobalCaptionStyle, updateGlobalCaptionStyle,
     resetProject,
   }), [
     scenes, selectedSceneId, selectedScene, playheadPosition, isPlaying,
@@ -1101,6 +1191,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     applyDefaultTransitions, snapEnabled, setSnapEnabled, showSafeZones,
     setShowSafeZones, previewScale, setPreviewScale, orientation, setOrientation,
     activeWorkspace, setActiveWorkspace, statusMessage, showStatus, resetProject,
+    autoCaptionProject, globalCaptionStyle, setGlobalCaptionStyle, updateGlobalCaptionStyle,
   ]);
 
   return (

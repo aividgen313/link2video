@@ -429,7 +429,13 @@ export default function PreviewPlayer() {
               // Animation CSS based on overlay.animation and scene progress
               const anim = overlay.animation || "none";
               const animDuration = 0.6; // seconds for animation entrance
-              const animProgress = Math.min(sceneLocalTime / animDuration, 1);
+              
+              const start = overlay.startTime ?? 0;
+              const dur = overlay.duration ?? selectedScene.duration;
+              if (sceneLocalTime < start || sceneLocalTime >= start + dur) return null;
+              
+              const relativeTime = sceneLocalTime - start;
+              const animProgress = Math.min(relativeTime / animDuration, 1);
               let animStyle: React.CSSProperties = {};
 
               if (anim !== "none" && isPlaying) {
@@ -444,7 +450,6 @@ export default function PreviewPlayer() {
                     };
                     break;
                   case "typewriter":
-                    const chars = Math.floor(overlay.text.length * animProgress);
                     // Handled via text clipping below
                     animStyle = { clipPath: `inset(0 ${(1 - animProgress) * 100}% 0 0)` };
                     break;
@@ -463,7 +468,7 @@ export default function PreviewPlayer() {
                     };
                     break;
                   case "glow":
-                    const glowIntensity = 5 + Math.sin(sceneLocalTime * 3) * 5;
+                    const glowIntensity = 5 + Math.sin(relativeTime * 3) * 5;
                     animStyle = {
                       textShadow: `${shadowStyle}, 0 0 ${glowIntensity}px ${overlay.color}, 0 0 ${glowIntensity * 2}px ${overlay.color}40`,
                     };
@@ -477,13 +482,13 @@ export default function PreviewPlayer() {
                   className="absolute pointer-events-none select-none"
                   style={{
                     zIndex: 50,
-                    left: `${overlay.x}%`,
-                    top: `${overlay.y}%`,
+                    left: `${overlay.x ?? 50}%`,
+                    top: `${overlay.y ?? 50}%`,
                     transform: "translate(-50%, -50%)",
                     fontFamily: overlay.fontFamily || "Inter",
-                    fontSize: `${overlay.fontSize * 0.6}px`,
-                    color: overlay.color,
-                    fontWeight: overlay.fontWeight,
+                    fontSize: `${(overlay.fontSize ?? 24) * 0.6}px`,
+                    color: overlay.color || "#ffffff",
+                    fontWeight: overlay.fontWeight || "normal",
                     fontStyle: overlay.fontStyle || "normal",
                     textAlign: overlay.textAlign || "center",
                     textDecoration: overlay.textDecoration || "none",
