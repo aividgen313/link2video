@@ -52,6 +52,7 @@ export type Scene = {
   lighting?: string;
   mood?: string;
   characters?: string[]; // character profile IDs referenced in this scene
+  visual_variations?: string[]; // distinct visual prompts for multi-image scenes (Action, Reaction, Detail, etc.)
 };
 
 export type ScriptData = {
@@ -142,10 +143,6 @@ export const QUALITY_TIERS = {
   free: {
     label: "Free",
     description: "FLUX + LTX-2 (Alternating images/video) to minimize cost.",
-    pollenPerImageScene: 0.001,
-    pollenPerTTS: 0,
-    pollenPerVideoScene: 0.08,
-    pollenFixed: 0.0009,
     color: "text-green-500",
     bgColor: "bg-green-500/10",
     borderColor: "border-green-500/30",
@@ -160,31 +157,20 @@ export const QUALITY_TIERS = {
   },
   basic: {
     label: "Basic",
-    description: "Free — Pollinations Text + Images + Ken Burns + Edge TTS",
-    // Basic is FREE: Edge TTS (free) + Pollinations images (free tier) + Ken Burns (client-side)
-    // Only cost is text generation (negligible) and images
-    pollenPerImageScene: 0.00012, // 1 image per scene
-    pollenPerTTS: 0,              // Edge TTS is free
-    pollenPerVideoScene: 0,       // Ken Burns is client-side, free
-    pollenFixed: 0.0009,          // 1 text generation call
+    description: "Ken Burns + Edge TTS — High Performance, Low Cost.",
     color: "text-emerald-400",
     bgColor: "bg-emerald-400/10",
     borderColor: "border-emerald-400/20",
     useAIVideo: false,
     videoSceneStrategy: "none" as const,
     usePollsTTS: false, // Edge TTS (free)
-    imageModel: "pollinations",
+    imageModel: "flux",
     textModel: "pollinations",
     videoModel: undefined,
   },
   medium: {
     label: "Medium",
-    description: "Pollinations Text + Images + Alternating AI Video & Ken Burns",
-    // Per-scene costs (applied individually based on whether scene gets AI video or not)
-    pollenPerImageScene: 0.00012, // 1 image per scene
-    pollenPerTTS: 0.001,          // ElevenLabs TTS per scene
-    pollenPerVideoScene: 0.40,    // AI video cost (only for video scenes, ~8s × $0.05/s)
-    pollenFixed: 0.002,           // text gen + music gen
+    description: "Flux + Alternating AI Video & Ken Burns + ElevenLabs.",
     color: "text-primary",
     bgColor: "bg-primary/10",
     borderColor: "border-primary/20",
@@ -192,37 +178,41 @@ export const QUALITY_TIERS = {
     videoSceneStrategy: "alternating" as const, // 3 AI video, 3 Ken Burns, repeating
     alternatingGroupSize: 3,
     usePollsTTS: true,
-    imageModel: "pollinations",
+    imageModel: "flux",
     textModel: "pollinations",
     videoModel: undefined,
   },
   pro: {
     label: "Pro",
-    description: "Pollinations Text + Images + AI Video (all scenes)",
-    pollenPerImageScene: 0.00012, // 1 image per scene
-    pollenPerTTS: 0.001,          // ElevenLabs TTS per scene
-    pollenPerVideoScene: 0.40,    // AI video cost per scene (~8s × $0.05/s)
-    pollenFixed: 0.002,           // text gen + music gen
+    description: "Flux + AI Video (all scenes) + ElevenLabs — Maximum Quality.",
     color: "text-tertiary",
     bgColor: "bg-tertiary/10",
     borderColor: "border-tertiary/20",
     useAIVideo: true,
     videoSceneStrategy: "all" as const,
     usePollsTTS: true,
-    imageModel: "pollinations",
+    imageModel: "flux",
     textModel: "pollinations",
     videoModel: undefined,
   },
 };
 
 // Helper: calculate accurate total cost for a given tier and scene count
-export function calculateTotalCost(tierKey: QualityTier, sceneCount: number, musicEnabled: boolean = false): number {
+export function calculateTotalCost(tierKey: QualityTier, sceneCount: number, musicEnabled: boolean = false, targetDurationMinutes: number = 3): number {
   const tier = QUALITY_TIERS[tierKey];
-  const totalImagesCalculated = sceneCount * (tier.pollenPerImageScene > 0 ? 4 : 1); // rough estimate for multi-image
-  const imageCost = tier.pollenPerImageScene * totalImagesCalculated;
-  const ttsCost = tier.pollenPerTTS * sceneCount;
+  
+  // 1. Text Generation (Script + Metadata)
+  const textCost = POLLEN_COSTS.textGeneration;
 
-  // Calculate how many scenes get AI video
+  // 2. Image Generation (6 images per scene for storyboard)
+  const imagesPerScene = 6; 
+  const totalImages = sceneCount * imagesPerScene;
+  const imageCost = totalImages * POLLEN_COSTS.imageGeneration;
+
+  // 3. TTS Generation (Estimate 0.01 per scene based on char counts)
+  const ttsCost = sceneCount * POLLEN_COSTS.ttsGeneration;
+
+  // 4. Video Generation (Based on total video duration)
   let videoSceneCount = 0;
   if (tier.useAIVideo) {
     if (tier.videoSceneStrategy === "all") {
@@ -235,23 +225,29 @@ export function calculateTotalCost(tierKey: QualityTier, sceneCount: number, mus
     }
   }
   
-  // Use per-second rate for more honest estimates ($0.05/sec)
-  const avgSecondsPerVideo = POLLEN_COSTS.avgSceneDuration || 8;
-  const videoCost = (tier.pollenPerVideoScene > 0) ? (videoSceneCount * avgSecondsPerVideo * POLLEN_COSTS.videoPerSecond) : 0;
+  // Estimate video duration: video seconds = (total duration / total scenes) * video scenes
+  const totalVideoSeconds = (videoSceneCount / sceneCount) * (targetDurationMinutes * 60);
+  const videoRate = (tierKey === 'free' || tierKey === 'basic') ? POLLEN_COSTS.videoPerSecondFree : POLLEN_COSTS.videoPerSecond;
+  const videoCost = totalVideoSeconds * videoRate;
   
-  const musicCost = musicEnabled ? POLLEN_COSTS.musicGeneration : 0;
+  // 5. Music Generation ($0.005 per second)
+  const musicCost = musicEnabled ? (targetDurationMinutes * 60 * POLLEN_COSTS.musicPerSecond) : 0;
 
-  return tier.pollenFixed + imageCost + ttsCost + videoCost + musicCost;
+  // Add 10% buffer for unexpected API retries/tokens
+  const baseTotal = textCost + imageCost + ttsCost + videoCost + musicCost;
+  return baseTotal * 1.1; 
 }
 
 // Pollinations pricing reference (1 pollen ≈ $1 USD)
+// NOTE: During Beta, $5 USD buys 10 Diamonds/Pollen (2x Bonus)
 export const POLLEN_COSTS = {
-  textGeneration: 0.0009,    // per API call (script, angles)
-  imageGeneration: 0.00012,  // per image (nanobanana-pro)
-  ttsGeneration: 0.001,      // per TTS request (elevenlabs)
-  videoPerSecond: 0.05,      // per second of AI video (wan model)
-  musicGeneration: 0.001,    // per music generation request
-  avgSceneDuration: 8,       // average scene duration in seconds
+  textGeneration: 0.001,      // per API call (average)
+  imageGeneration: 0.001,     // per image (Flux)
+  ttsGeneration: 0.002,      // per scene (approx. 200 characters)
+  videoPerSecond: 0.05,      // per second of Pro video (Wan)
+  videoPerSecondFree: 0.01,  // per second of Free video (LTX-2)
+  musicPerSecond: 0.005,     // per second of Music
+  avgSceneDuration: 6,       // average scene duration in seconds
 };
 
 // ── Background task types ──────────────────────────────────────────────────

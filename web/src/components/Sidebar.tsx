@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { recoverOrphanedProjects } from "@/lib/videoHistory";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -16,77 +17,86 @@ export default function Sidebar() {
     { href: "/editor", icon: "movie_edit", label: "Editor" },
   ];
 
-  const NavContent = () => (
-    <>
-      {/* Logo */}
-      <button
-        onClick={() => { router.push("/"); setMobileOpen(false); }}
-        className="w-12 h-12 rounded-[1.25rem] bg-primary flex items-center justify-center mb-6 hover:scale-110 press-scale transition-all duration-500 shadow-lg shadow-primary/25 group relative group"
-      >
-        <div className="absolute inset-0 rounded-[1.25rem] bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity btn-shimmer" />
-        <span className="material-symbols-outlined text-white text-2xl relative z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
-          play_arrow
-        </span>
-      </button>
-
-      {/* Navigation */}
-      <nav className="flex flex-col items-center gap-2 flex-1">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMobileOpen(false)}
-              title={item.label}
-              className={`w-12 h-12 rounded-2xl flex items-center justify-center spring-transition group relative ${
-                isActive
-                  ? "bg-primary/10 text-primary shadow-inner"
-                  : "text-outline hover:text-on-surface hover:bg-surface-variant/40"
-              }`}
-            >
-              <span
-                className="material-symbols-outlined text-[22px]"
-                style={isActive ? { fontVariationSettings: "'FILL' 1" } : { fontVariationSettings: "'wght' 300" }}
-              >
-                {item.icon}
-              </span>
-              
-              {/* Tooltip */}
-              <span className="absolute left-full ml-4 px-3 py-1.5 rounded-xl bg-on-surface text-surface text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 z-50 translate-x-1 group-hover:translate-x-0 shadow-xl">
-                {item.label}
-              </span>
-
-              {/* Active indicator */}
-              {isActive && (
-                <span className="absolute -left-[14px] w-[4px] h-6 bg-primary rounded-full shadow-[0_0_12px_rgba(37,99,235,0.5)]" />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Bottom actions */}
-      <div className="flex flex-col items-center gap-2 mt-auto">
-        <button
-          title="Settings"
-          onClick={() => router.push("/")}
-          className="w-12 h-12 rounded-2xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/40 spring-transition press-scale"
-        >
-          <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'wght' 300" }}>settings</span>
-        </button>
-        <div className="w-10 h-10 rounded-2xl overflow-hidden border border-outline-variant/20 mt-2 flex items-center justify-center bg-surface-container shadow-sm group hover:border-primary/40 transition-colors">
-          <span className="material-symbols-outlined text-outline group-hover:text-primary transition-colors text-xl">person</span>
-        </div>
-      </div>
-    </>
-  );
-
   return (
     <>
       {/* Desktop Sidebar — Floating Island */}
       <aside className="hidden md:flex w-[72px] flex-col items-center py-5 gap-2 shrink-0 sidebar-island relative z-40">
-        <NavContent />
+        {/* Logo */}
+        <button
+          onClick={() => { router.push("/"); setMobileOpen(false); }}
+          className="w-12 h-12 rounded-[1.25rem] bg-primary flex items-center justify-center mb-6 hover:scale-110 press-scale transition-all duration-500 shadow-lg shadow-primary/25 group relative"
+        >
+          <div className="absolute inset-0 rounded-[1.25rem] bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity btn-shimmer" />
+          <span className="material-symbols-outlined text-white text-2xl relative z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
+            play_arrow
+          </span>
+        </button>
+
+        {/* Navigation */}
+        <nav className="flex flex-col items-center gap-2 flex-1">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                title={item.label}
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center spring-transition group relative ${
+                  isActive
+                    ? "bg-primary/10 text-primary shadow-inner"
+                    : "text-outline hover:text-on-surface hover:bg-surface-variant/40"
+                }`}
+              >
+                <span
+                  className="material-symbols-outlined text-[22px]"
+                  style={isActive ? { fontVariationSettings: "'FILL' 1" } : { fontVariationSettings: "'wght' 300" }}
+                >
+                  {item.icon}
+                </span>
+                
+                {/* Tooltip */}
+                <span className="absolute left-full ml-4 px-3 py-1.5 rounded-xl bg-on-surface text-surface text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 z-50 translate-x-1 group-hover:translate-x-0 shadow-xl">
+                  {item.label}
+                </span>
+
+                {/* Active indicator */}
+                {isActive && (
+                  <span className="absolute -left-[14px] w-[4px] h-6 bg-primary rounded-full shadow-[0_0_12px_rgba(37,99,235,0.5)]" />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Bottom actions */}
+        <div className="flex flex-col items-center gap-2 mt-auto">
+          <button
+            title="Settings"
+            onClick={() => router.push("/")}
+            className="w-12 h-12 rounded-2xl flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-variant/40 spring-transition press-scale"
+          >
+            <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'wght' 300" }}>settings</span>
+          </button>
+          <button
+            title="Deep Recovery"
+            onClick={async () => {
+              const recovered = await recoverOrphanedProjects();
+              if (recovered && recovered.length > 0) {
+                alert(`Successfully recovered ${recovered.length} projects!`);
+                window.location.reload();
+              } else {
+                alert("No orphaned projects found in deep storage.");
+              }
+            }}
+            className="w-12 h-12 rounded-2xl flex items-center justify-center text-outline hover:text-primary hover:bg-primary/10 spring-transition press-scale"
+          >
+            <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'wght' 300" }}>healing</span>
+          </button>
+          <div className="w-10 h-10 rounded-2xl overflow-hidden border border-outline-variant/20 mt-2 flex items-center justify-center bg-surface-container shadow-sm group hover:border-primary/40 transition-colors">
+            <span className="material-symbols-outlined text-outline group-hover:text-primary transition-colors text-xl">person</span>
+          </div>
+        </div>
       </aside>
 
       {/* Mobile Top Bar */}
@@ -146,6 +156,26 @@ export default function Sidebar() {
             );
           })}
         </nav>
+        
+        {/* Mobile bottom actions */}
+        <div className="mt-auto pt-6 border-t border-outline-variant/10 flex flex-col gap-2">
+          <button
+            onClick={async () => {
+              const recovered = await recoverOrphanedProjects();
+              if (recovered && recovered.length > 0) {
+                alert(`Successfully recovered ${recovered.length} projects!`);
+                window.location.reload();
+              } else {
+                alert("No orphaned projects found in deep storage.");
+              }
+              setMobileOpen(false);
+            }}
+            className="flex items-center gap-3 px-4 py-3 rounded-full text-outline hover:text-primary hover:bg-primary/10 spring-transition"
+          >
+            <span className="material-symbols-outlined text-xl">healing</span>
+            <span className="font-medium text-sm">Deep Recovery</span>
+          </button>
+        </div>
       </aside>
     </>
   );

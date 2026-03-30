@@ -219,7 +219,8 @@ export default function PropertiesPanel() {
       const data = await res.json();
       if (data.success && data.videoUrl && !data.useKenBurns) {
         updateScene(selectedScene.id, { aiVideoUrl: data.videoUrl });
-        const videoCost = (selectedScene.duration || 8) * POLLEN_COSTS.videoPerSecond;
+        const rate = (qualityTier === 'basic' || qualityTier === 'free') ? (POLLEN_COSTS as any).videoPerSecondFree : POLLEN_COSTS.videoPerSecond;
+        const videoCost = (selectedScene.duration || 8) * rate;
         setPollenUsed((prev: number) => prev + videoCost);
         showStatus("AI video generated successfully", "success");
       } else {
@@ -550,6 +551,22 @@ export default function PropertiesPanel() {
                   loading={isRegeneratingVideo || isRegeneratingGenericVideo}
                   variant="tertiary"
                 />
+              </div>
+            </div>
+
+            {/* Pricing Transparency & Beta Bonus */}
+            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-2">
+              <div className="flex items-center gap-2 text-primary">
+                <span className="material-symbols-outlined text-[18px]">info</span>
+                <span className="text-[11px] font-black uppercase tracking-widest">Pricing & Beta Bonus</span>
+              </div>
+              <p className="text-[10px] text-on-surface/60 leading-relaxed font-medium">
+                Pollinations is in Beta. <b className="text-primary">$5 USD currently buys 10 Diamonds (Pollen)</b>, effectively giving you <b className="text-primary italic">2x Credits</b>.
+              </p>
+              <div className="pt-1 flex flex-wrap gap-2">
+                <div className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-tight text-white/40">Img: $0.001</div>
+                <div className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-tight text-white/40">Video: $0.01-0.05/s</div>
+                <div className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-tight text-white/40">Music: $0.005/s</div>
               </div>
             </div>
           </div>

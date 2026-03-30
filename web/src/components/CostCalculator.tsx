@@ -1,5 +1,5 @@
 import React from "react";
-import { QUALITY_TIERS, calculateTotalCost, QualityTier, useAppContext } from "@/context/AppContext";
+import { QUALITY_TIERS, calculateTotalCost, QualityTier, useAppContext, POLLEN_COSTS } from "@/context/AppContext";
 
 interface CostCalculatorProps {
   currentTier: QualityTier;
@@ -9,11 +9,12 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({ currentTier }) =
   const { targetDurationMinutes, setTargetDurationMinutes, scriptData } = useAppContext();
   const tier = QUALITY_TIERS[currentTier];
   
-  // Refined range based on user feedback
-  const durations = [1, 3, 5, 10, 12, 15];
+  // High-fidelity durations
+  const durations = [1, 2, 3, 5, 8, 10];
 
-  // Calculate current project breakdown if script exists
-  const scenesCount = scriptData?.scenes.length || Math.ceil(targetDurationMinutes * 60 / 8);
+  // Calculate current project breakdown
+  const avgSecPerScene = POLLEN_COSTS.avgSceneDuration || 6;
+  const scenesCount = scriptData?.scenes.length || Math.ceil(targetDurationMinutes * 60 / avgSecPerScene);
   
   let videoSceneCount = 0;
   if (tier.useAIVideo) {
@@ -27,20 +28,26 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({ currentTier }) =
     }
   }
 
-  const imageCost = (scenesCount * tier.pollenPerImageScene).toFixed(4);
-  const videoCost = (videoSceneCount * tier.pollenPerVideoScene).toFixed(2);
-  const ttsCost = (scenesCount * tier.pollenPerTTS).toFixed(3);
-  const total = calculateTotalCost(currentTier, scenesCount).toFixed(2);
+  const imagesPerScene = 6;
+  const imageCost = (scenesCount * imagesPerScene * POLLEN_COSTS.imageGeneration).toFixed(3);
+  
+  const videoRate = (currentTier === 'free' || currentTier === 'basic') ? POLLEN_COSTS.videoPerSecondFree : POLLEN_COSTS.videoPerSecond;
+  const estVideoSeconds = (videoSceneCount / scenesCount) * (targetDurationMinutes * 60);
+  const videoCost = (estVideoSeconds * videoRate).toFixed(2);
+  
+  const ttsCost = (scenesCount * POLLEN_COSTS.ttsGeneration).toFixed(3);
+  const total = calculateTotalCost(currentTier, scenesCount, true, targetDurationMinutes).toFixed(2);
   
   return (
     <div className="space-y-6">
       {/* Duration Selector */}
       <div className="space-y-3">
-        <label className="text-[10px] font-black uppercase tracking-widest text-outline/60 ml-1">Target Duration</label>
+        <label className="text-[10px] font-black uppercase tracking-widest text-outline/60 ml-1">Target Duration (Full-Gen Scale)</label>
         <div className="grid grid-cols-3 gap-2">
           {durations.map(min => {
             const isActive = targetDurationMinutes === min;
-            const cost = calculateTotalCost(currentTier, Math.ceil(min * 60 / 8), false).toFixed(2);
+            const estScenes = Math.ceil(min * 60 / avgSecPerScene);
+            const cost = calculateTotalCost(currentTier, estScenes, true, min).toFixed(2);
             
             return (
               <button 
@@ -77,26 +84,26 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({ currentTier }) =
         <div className="space-y-3">
           <div className="flex justify-between items-center text-[11px]">
             <div className="flex flex-col">
-              <span className="text-on-surface font-bold">Visuals (Flux.1 / LTX-2)</span>
-              <span className="text-outline/50 text-[9px] font-medium">High-fidelity scene generation</span>
+              <span className="text-on-surface font-bold">Visuals (Flux.1 / Pollinations)</span>
+              <span className="text-outline/50 text-[9px] font-medium">6 unique variations per scene</span>
             </div>
-            <span className="text-on-surface font-black">${tier.pollenPerImageScene}/img</span>
+            <span className="text-on-surface font-black">${POLLEN_COSTS.imageGeneration}/img</span>
           </div>
 
           <div className="flex justify-between items-center text-[11px]">
             <div className="flex flex-col">
-              <span className="text-on-surface font-bold">Video (Wan AI / SVD)</span>
+              <span className="text-on-surface font-bold">Video (Wan AI / LTX-2)</span>
               <span className="text-outline/50 text-[9px] font-medium">Cinematic motion synthesis</span>
             </div>
-            <span className="text-on-surface font-black">$0.05/sec</span>
+            <span className="text-on-surface font-black">${videoRate}/sec</span>
           </div>
 
           <div className="flex justify-between items-center text-[11px]">
             <div className="flex flex-col">
-              <span className="text-on-surface font-bold">Audio (ElevenLabs / Edge)</span>
-              <span className="text-outline/50 text-[9px] font-medium">Professional TTS narration</span>
+              <span className="text-on-surface font-bold">Audio (ElevenLabs TTS)</span>
+              <span className="text-outline/50 text-[9px] font-medium">Professional narration</span>
             </div>
-            <span className="text-on-surface font-black">{tier.pollenPerTTS === 0 ? "FREE" : `$${tier.pollenPerTTS}/scene`}</span>
+            <span className="text-on-surface font-black">${POLLEN_COSTS.ttsGeneration}/scene</span>
           </div>
         </div>
 
@@ -108,22 +115,29 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({ currentTier }) =
           
           <div className="space-y-2">
             <div className="flex justify-between text-[11px]">
-              <span className="text-outline">Images ({scenesCount})</span>
-              <span className="text-on-surface font-mono">${imageCost}</span>
+              <span className="text-outline text-[10px]">Images ({scenesCount * imagesPerScene})</span>
+              <span className="text-on-surface font-mono text-[10px]">${imageCost}</span>
             </div>
             <div className="flex justify-between text-[11px]">
-              <span className="text-outline">AI Video ({videoSceneCount})</span>
-              <span className="text-on-surface font-mono">${videoCost}</span>
+              <span className="text-outline text-[10px]">AI Video ({videoSceneCount})</span>
+              <span className="text-on-surface font-mono text-[10px]">${videoCost}</span>
             </div>
             <div className="flex justify-between text-[11px]">
-              <span className="text-outline">TTS Narration</span>
-              <span className="text-on-surface font-mono">${ttsCost}</span>
+              <span className="text-outline text-[10px]">TTS Narration & Music</span>
+              <span className="text-on-surface font-mono text-[10px]">${(parseFloat(ttsCost) + (targetDurationMinutes * 60 * POLLEN_COSTS.musicPerSecond)).toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center pt-2 mt-2 border-t border-white/10">
               <span className="text-primary font-black uppercase tracking-widest text-[10px]">Total Est.</span>
               <span className="text-primary font-black text-lg">${total}</span>
             </div>
           </div>
+        </div>
+
+        {/* Beta Notice */}
+        <div className="p-3 rounded-2xl bg-primary/5 border border-primary/10">
+          <p className="text-[9px] text-on-surface/50 leading-relaxed">
+            <b className="text-primary uppercase tracking-[0.1em]">Beta Credit Bonus:</b> Pollinations is in beta. Buying $5.00 USD gives you 10 Pollen, effectively making the real cost of this project <b className="text-primary-container">50% lower</b> than estimated here.
+          </p>
         </div>
       </div>
     </div>

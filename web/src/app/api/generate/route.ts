@@ -461,11 +461,20 @@ Structure: HOOK → SETUP → RISING TENSION → CLIMAX → RESOLUTION → FINAL
     const realisticEnforcement = !isArtisticStyle ? `\nABSOLUTE RULE: ALL visual_prompts MUST be PHOTOREALISTIC. NEVER use words like "illustration", "cartoon", "watercolor", "painting", "drawing", "sketch", "animated", "whimsical", "storybook" in visual_prompts. Every scene must look like a real photograph or cinematic film still. Think Netflix documentary B-roll, not children's book art.` : "";
 
     const aestheticRules = `CRITICAL AESTHETIC — ${visualStyle.toUpperCase()} STYLE:
-- Every single visual_prompt MUST start by reinforcing the style: "In the style of ${visualStyle}, ...".
+- Every single visual_prompt and EVERY variation in visual_variations MUST start by reinforcing the style: "In the style of ${visualStyle}, ...".
 - The overall aesthetic is: ${styleDesc}.${activeStyleModifier}
-- Consistency is non-negotiable. Every scene's visual_prompt MUST reflect this aesthetic perfectly.
+- Consistency is non-negotiable. Every visual_prompt MUST reflect this aesthetic perfectly.
 - NEVER drift into standard photorealism if an artistic style is selected.
 ${suffixRule}${settingRules}${realisticEnforcement}`;
+
+    const universalScriptRules = `
+UNIVERSAL NARRATION AND VISUAL RULES:
+- NARRATION IS FOR VOICEOVER: The 'narration' field must ONLY contain the words spoken by the narrator or characters.
+- NO PHYSICAL DESCRIPTIONS IN NARRATION: NEVER include physical descriptions of characters (e.g., "the tall man", "the dark-skinned athlete", "with blue eyes") in the narration text. These details are only for the visual prompts.
+- FOCUS ON STORY: Narration should focus on action, dialogue, emotion, and facts.
+- VISUAL VARIATIONS: Every scene must provide a 'visual_variations' array of 6 distinct cinematic perspectives.
+- EACH VARIATION MUST BE UNIQUE: Variation 1: Wide/Master, 2: Close-up/Interaction, 3: Low Angle/Power, 4: High Angle/Atmosphere, 5: Kinetic/Detail, 6: POV/Abstract.
+`;
 
     // ========== DIRECTOR MODE (Dialogue-Heavy) ==========
     if (mode === "director") {
@@ -485,12 +494,13 @@ DIRECTOR MODE RULES:
 - VISUAL SUBTEXT: The visual_prompt should show the character's emotion, reaction, or a meaningful object that complements the dialogue.
 
 ${aestheticRules}
+${universalScriptRules}
 
 INSTRUCTIONS:
 - Break the story into ${Math.ceil(durationMinutes * 60 / 6)} scenes. Each scene should be 4-8 seconds.
 - Scene 1 is a cold open — drop us into the middle of a conversation or a dramatic character moment.
 - Every visual_prompt MUST describe a specific kinetic action — characters are never standing still.
-- Ensure the character looks IDENTICAL in every scene by repeating their full physical description.
+- Ensure the character looks IDENTICAL in every scene by repeating their full physical description in ALL prompts and variations.
 
 Format as JSON:
 {
@@ -502,7 +512,15 @@ Format as JSON:
   "scenes": [
     {
       "narration": "CHARACTER: \\"Dialogue line that tells the story.\\"",
-      "visual_prompt": "In the style of ${visualStyle}, [SHOT TYPE] of [CHARACTER DESCRIPTION] [ACTING/MOVING] [SETTING] [LIGHTING]. Example: 'In the style of Wes Anderson, centered medium shot of ARTHUR, a man with a thin mustache and red bowtie, adjusted his glasses while looking skeptically at a map in a dusty library...'",
+      "visual_prompt": "Primary master shot description.",
+      "visual_variations": [
+        "In the style of ${visualStyle}, Variation 1: Wide cinematic master shot of...",
+        "In the style of ${visualStyle}, Variation 2: Extreme close-up of [Character]'s eyes reflecting...",
+        "In the style of ${visualStyle}, Variation 3: Low angle tracking shot behind [Character] as they walk...",
+        "In the style of ${visualStyle}, Variation 4: High angle overhead shot of the room...",
+        "In the style of ${visualStyle}, Variation 5: Macro detail shot of character's hand grasping...",
+        "In the style of ${visualStyle}, Variation 6: POV perspective through the eyes of..."
+      ],
       "duration_estimate_seconds": 6,
       "camera_angle": "medium shot",
       "lighting": "moody",
@@ -590,8 +608,16 @@ Format as JSON:
   },
   "scenes": [
     {
-      "narration": "1 sentence of punchy narration for this quick cut (3-6 seconds).",
-      "visual_prompt": "MUST START with 'In the style of ${visualStyle}, [Shot Type] of [Kinetic Action], featuring [Character Description], [Lighting], [Mood], [Setting]'. Example: 'In the style of Cinematic Documentary, extreme close-up of hands trembling while holding an old letter, featuring a man with weathered skin and grey hair...'",
+      "narration": "1 sentence of punchy narration. NO physical descriptions of characters here.",
+      "visual_prompt": "Primary kinetic action shot description.",
+      "visual_variations": [
+        "In the style of ${visualStyle}, [Variation 1 detail...]",
+        "In the style of ${visualStyle}, [Variation 2 detail...]",
+        "In the style of ${visualStyle}, [Variation 3 detail...]",
+        "In the style of ${visualStyle}, [Variation 4 detail...]",
+        "In the style of ${visualStyle}, [Variation 5 detail...]",
+        "In the style of ${visualStyle}, [Variation 6 detail...]"
+      ],
       "duration_estimate_seconds": 4,
       "camera_angle": "medium wide shot",
       "lighting": "warm afternoon light",
@@ -685,12 +711,20 @@ Format as JSON:
   "title": "Music Video Title",
   "angle": "Visual concept / theme",
   "character_identities": {
-    "Artist Name": "LOCKED physical description: skin tone, face, hair, build, style — appears verbatim in every visual_prompt"
+    "Artist Name": "LOCKED physical description: skin tone, face, hair, build, style — appears verbatim in every visual prompt"
   },
   "scenes": [
     {
       "narration": "Lyrics for this segment (shown as subtitles)",
-      "visual_prompt": "MUST START with 'In the style of ${visualStyle}, [Shot Type] of [High Energy Action], featuring [Artist Physical Description], [Setting], [Lighting], [Mood]'. Example: 'In the style of Anime, low angle tracking shot of the artist running through a neon-lit rainstorm, featuring a woman with blue hair and a silver jacket...'",
+      "visual_prompt": "Primary high-energy shot for this lyric/segment.",
+      "visual_variations": [
+        "In the style of ${visualStyle}, [Variation 1: Wide performance...]",
+        "In the style of ${visualStyle}, [Variation 2: Fast tracking...]",
+        "In the style of ${visualStyle}, [Variation 3: Close up artist...]",
+        "In the style of ${visualStyle}, [Variation 4: Handheld energy...]",
+        "In the style of ${visualStyle}, [Variation 5: Dutch angle kinetic...]",
+        "In the style of ${visualStyle}, [Variation 6: Abstract metaphor...]"
+      ],
       "duration_estimate_seconds": 4,
       "camera_angle": "tracking shot moving through crowd",
       "lighting": "neon lights, strobing",
@@ -830,6 +864,7 @@ You are in "Director Mode". Your goal is to create a masterpiece of cinematic st
 ` : ""}
 
 ${styleManual}
+${universalScriptRules}
 
 PACING AND NARRATIVE ARC:
 - Scene 1 MUST be a cold open hook — drop the viewer into the most dramatic, surprising, or emotional moment FIRST.
@@ -838,6 +873,13 @@ PACING AND NARRATIVE ARC:
 
 FORMAT:
 Generate exactly SCENE_COUNT_PLACEHOLDER scenes for this chapter.
+Each scene MUST include:
+1. "narration": Punchy voiceover text. NO physical descriptions.
+2. "visual_prompt": High-quality cinematographic shot description.
+3. "visual_variations": EXACTLY 6 variation prompts (Wide, Close, Low, High, Kinetic, Alternate).
+4. "duration_estimate_seconds": 4-8s.
+5. "camera_angle", "lighting", "mood", "characters".
+
 Return ONLY raw JSON with "title", "angle", "character_identities", and "scenes" array.
 - Return ONLY raw JSON. No markdown, no code blocks, no backticks, no explanations.
 - All strings must be valid JSON — escape double quotes with backslash (\\").
@@ -894,10 +936,16 @@ ${"CONTINUATION_PLACEHOLDER"}
         chunkNote = `
 CONTINUATION — CHAPTER ${chunk + 1} of ${totalChunks}:
 You are writing scenes ${allScenes.length + 1}-${allScenes.length + scenesThisChunk} of a ${totalScenesTarget}-scene script.
-The story so far ended with: "${prevSummary.substring(0, 500)}"
-Continue the story seamlessly. Do NOT repeat the hook or introduction.
-Keep the same title: "${title}"
-${isLastChunk ? "This is the FINAL chapter — build to a powerful, memorable conclusion." : "Build tension and progress the narrative forward."}
+WORLD CONTEXT: The overall theme is ${angleResult || angle}. The setting is ${settingText || 'as established'}.
+PREVIOUSLY: The story so far ended with: "${prevSummary.substring(0, 500)}"
+
+STRICT CONTINUITY:
+- Maintain character identity: ${JSON.stringify(characterIdentities)}
+- Use visual style: ${visualStyle}
+- NO SPACE PICTURES: Keep visuals grounded in the established world. Do NOT drift into generic or unrelated sci-fi unless explicit.
+- Return EXACTLY ${scenesThisChunk} scenes in the JSON.
+- Every scene must include 'visual_variations' (6 items) and 'narration' (no physical descriptions).
+- Return ONLY raw JSON.
 `;
       } else {
         chunkNote = `

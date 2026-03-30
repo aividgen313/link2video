@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAppContext, QUALITY_TIERS, VIDEO_DIMENSIONS, calculateTotalCost } from "@/context/AppContext";
+import { useAppContext, QUALITY_TIERS, VIDEO_DIMENSIONS, calculateTotalCost, POLLEN_COSTS } from "@/context/AppContext";
 import { pipelineManager, type PipelineProgressData, type SceneAssetStatus } from "@/lib/pipelineManager";
 import SocialCopyPanel from "@/components/SocialCopyPanel";
 
@@ -184,7 +184,9 @@ export default function VideoGeneration() {
                   <p className="font-bold text-sm text-on-surface">
                     {qualityTier === "basic" ? "FREE" : (() => {
                       const total = scenes.length || 0;
-                      const cost = calculateTotalCost(qualityTier, total, musicEnabled);
+                      // Estimate duration based on scene count if targetDurationMinutes is not directly available
+                      const estDurationMin = (total * (POLLEN_COSTS.avgSceneDuration || 6)) / 60;
+                      const cost = calculateTotalCost(qualityTier, total, musicEnabled, estDurationMin);
                       return cost > 0.01 ? `~${cost.toFixed(4)} pollen` : "~0.01 pollen";
                     })()}
                   </p>

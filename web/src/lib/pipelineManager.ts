@@ -53,6 +53,9 @@ export interface PipelineConfig {
   musicEnabled: boolean;
   captionsEnabled: boolean;
   storyboardImages: Record<number, string[]>;
+  sceneAudioUrls?: Record<number, string>;
+  sceneVideoUrls?: Record<number, string>;
+  sceneDurations?: Record<number, number>;
   url: string;
   mode: string;
   audioFile: string | null;
@@ -106,6 +109,7 @@ function getAudioDuration(dataUrl: string): Promise<number> {
 
 // ─── Video concurrency semaphore ─────────────────────────────
 const VIDEO_CONCURRENCY = 2;
+const SCENE_CONCURRENCY = 4; // Process 4 scenes at once (images + audio)
 
 function createSemaphore(max: number) {
   let active = 0;
@@ -245,21 +249,42 @@ class PipelineManager {
     const cached = config.storyboardImages[scene.id];
     if (cached && cached.length > 0) return cached;
 
-    const count = config.imagesPerScene || 4;
+    const count = config.imagesPerScene || 6;
     const images: string[] = [];
-
-    // Construct style-consistent prompt
-    let enhancedPrompt = scene.visual_prompt;
-    if (config.globalVisualStyle) enhancedPrompt = `In the style of ${config.globalVisualStyle}, ${enhancedPrompt}`;
-    if (config.youtubeStyleSuffix) enhancedPrompt = `${enhancedPrompt}, ${config.youtubeStyleSuffix}`;
-    if (characterPrefix) enhancedPrompt = `${enhancedPrompt}. Character Reference: ${characterPrefix}`;
 
     const width = config.videoDimension.width;
     const height = config.videoDimension.height;
 
     for (let i = 0; i < count; i++) {
       if (signal.aborted) break;
-      console.log(`[pipeline] Scene ${scene.id}: generating image ${i + 1}/${count}...`);
+
+      // Use the specific variation if provided, otherwise fallback to the base prompt
+      let basePrompt = scene.visual_prompt;
+      if (scene.visual_variations && scene.visual_variations.length > i) {
+        basePrompt = scene.visual_variations[i];
+      } else if (scene.visual_variations && scene.visual_variations.length > 0) {
+        // Use the first variation as a fallback for high-indexed slots
+        basePrompt = scene.visual_variations[0];
+      }
+
+      // Construct style-consistent prompt
+      let enhancedPrompt = basePrompt;
+      
+      // Only prepend style if it's not already at the start (to avoid "In the style of Anime, In the style of Anime...")
+      const stylePrefix = `In the style of ${config.globalVisualStyle || 'Cinematic Documentary'}`;
+      if (config.globalVisualStyle && !enhancedPrompt.toLowerCase().includes(stylePrefix.toLowerCase())) {
+        enhancedPrompt = `${stylePrefix}, ${enhancedPrompt}`;
+      }
+      
+      if (config.youtubeStyleSuffix && !enhancedPrompt.toLowerCase().includes(config.youtubeStyleSuffix.toLowerCase())) {
+        enhancedPrompt = `${enhancedPrompt}, ${config.youtubeStyleSuffix}`;
+      }
+      
+      if (characterPrefix && !enhancedPrompt.toLowerCase().includes("character reference")) {
+        enhancedPrompt = `${enhancedPrompt}. Character Reference: ${characterPrefix}`;
+      }
+
+      console.log(`[pipeline] Scene ${scene.id}: generating image ${i + 1}/${count} using variation: ${enhancedPrompt.substring(0, 50)}...`);
       
       const res = await fetch("/api/runware/image", {
         method: "POST",
@@ -269,7 +294,6 @@ class PipelineManager {
           width, 
           height, 
           model: modelName,
-          // Add some variety per frame
           seed: Math.floor(Math.random() * 1000000)
         }),
         signal,
@@ -460,36 +484,45 @@ class PipelineManager {
         : new Set<number>();
 
       const videoSemaphore = createSemaphore(VIDEO_CONCURRENCY);
+      const sceneSemaphore = createSemaphore(SCENE_CONCURRENCY);
 
-      // Accumulated results
-      const imageMap: Record<number, string[]> = {};
-      const audioMap: Record<number, string> = {};
-      const videoMap: Record<number, string> = {};
-      const durationMap: Record<number, number> = {};
+      // Accumulated results (initialized from config to support resuming)
+      const imageMap: Record<number, string[]> = { ...config.storyboardImages };
+      const audioMap: Record<number, string> = { ...config.sceneAudioUrls };
+      const videoMap: Record<number, string> = { ...config.sceneVideoUrls };
+      const durationMap: Record<number, number> = { ...config.sceneDurations };
       const sceneAssets: { images: string[]; audio: string | null; duration: number; narration: string; aiVideoUrl: string | null; sceneId: number }[] = new Array(totalScenes);
       let completedCount = 0;
 
       // ── Process all scenes (overlapped: image+audio → video) ──
 
       const scenePromises = scenes.map(async (scene, index) => {
+        await sceneSemaphore.acquire();
         try {
-        if (signal.aborted) return;
+          if (signal.aborted) return;
 
-        console.log(`[pipeline] Scene ${index + 1}/${totalScenes}: starting image + audio...`);
+          console.log(`[pipeline] Scene ${index + 1}/${totalScenes}: starting image + audio...`);
 
-        // Step A: Image + Audio in parallel
-        const charPrefix = this.buildCharacterPrefix(config, scene);
-        const [imgResult, audioResult] = await Promise.allSettled([
-          this.generateImage(scene, config, signal, charPrefix, tier.imageModel),
-          isMusicVideo ? Promise.resolve(null) : this.generateAudio(scene, config.selectedVoice, config.qualityTier === "basic" || config.qualityTier === "free", signal),
-        ]);
+          // Step A: Image + Audio in parallel (SKIP if already exists)
+          const charPrefix = this.buildCharacterPrefix(config, scene);
+          const existingImages = imageMap[scene.id];
+          const existingAudio = audioMap[scene.id];
 
-        if (signal.aborted) return;
+          const [imgResult, audioResult] = await Promise.allSettled([
+            existingImages && existingImages.length > 0 
+              ? Promise.resolve(existingImages)
+              : this.generateImage(scene, config, signal, charPrefix, tier.imageModel),
+            existingAudio
+              ? Promise.resolve(existingAudio)
+              : (isMusicVideo ? Promise.resolve(null) : this.generateAudio(scene, config.selectedVoice, config.qualityTier === "basic" || config.qualityTier === "free", signal)),
+          ]);
 
-        const imgArray = imgResult.status === "fulfilled" ? imgResult.value : null;
-        const audio = audioResult.status === "fulfilled" ? audioResult.value : null;
+          if (signal.aborted) return;
 
-        console.log(`[pipeline] Scene ${index + 1}: images=${imgArray ? imgArray.length : "FAIL"}, audio=${audio ? "ok" : isMusicVideo ? "skipped" : "FAIL"}`);
+          const imgArray = imgResult.status === "fulfilled" ? imgResult.value : null;
+          const audio = audioResult.status === "fulfilled" ? audioResult.value : null;
+
+          console.log(`[pipeline] Scene ${index + 1}: images=${imgArray ? imgArray.length : "FAIL"}, audio=${audio ? "ok" : isMusicVideo ? "skipped" : "FAIL"}`);
 
         if (!imgArray || imgArray.length === 0) {
           this.update({
@@ -607,6 +640,8 @@ class PipelineManager {
               [scene.id]: { ...this.data.sceneStatuses[scene.id], done: true, error: String(sceneErr) },
             },
           });
+        } finally {
+          sceneSemaphore.release();
         }
       });
 
@@ -773,15 +808,20 @@ class PipelineManager {
         console.warn("Cloud upload failed (assets saved locally only):", uploadErr);
       }
 
-      // ── Track credits ──
-      const videoCredits = validAssets.reduce((sum, a) => sum + (a.aiVideoUrl ? (a.duration * POLLEN_COSTS.videoPerSecond) : 0), 0);
-      const creditsUsed =
-        tier.pollenFixed +
-        tier.pollenPerImageScene * validAssets.length +
-        tier.pollenPerTTS * validAssets.length +
-        videoCredits +
-        (resolvedMusicUrl ? POLLEN_COSTS.musicGeneration : 0);
+      // ── Track credits (Corrected Pollinations Sync) ──
+      const imagesPerScene = 6;
+      const imageCost = scenes.length * imagesPerScene * POLLEN_COSTS.imageGeneration;
+      const ttsCost = scenes.length * POLLEN_COSTS.ttsGeneration;
+      
+      const videoRate = (config.qualityTier === 'free' || config.qualityTier === 'basic') 
+        ? POLLEN_COSTS.videoPerSecondFree 
+        : POLLEN_COSTS.videoPerSecond;
+      const videoCost = validAssets.reduce((sum, a) => sum + (a.aiVideoUrl ? (a.duration * videoRate) : 0), 0);
+      
+      const musicCost = resolvedMusicUrl ? (totalSecs * POLLEN_COSTS.musicPerSecond) : 0;
+      const textCost = POLLEN_COSTS.textGeneration;
 
+      const creditsUsed = (textCost + imageCost + ttsCost + videoCost + musicCost) * 1.1; // 10% buffer
       bridge.setPollenUsed(creditsUsed);
 
       // ── Final save ──

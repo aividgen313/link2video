@@ -627,9 +627,16 @@ body {
 
 @keyframes page-enter {
   from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: none; } /* Use none so it doesn't create permanent stacking context */
+  to   { opacity: 1; transform: none; }
 }
-.page-enter { animation: page-enter 0.25s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.page-enter { 
+  animation: page-enter 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards; 
+}
+/* Ensure sticky elements work by removing transform after animation */
+.page-enter-no-transform {
+  transform: none !important;
+  animation: none !important;
+}
 
 /* ═══════════════════════════════════════════════════════════
    EDITOR FULL-SCREEN OVERRIDES

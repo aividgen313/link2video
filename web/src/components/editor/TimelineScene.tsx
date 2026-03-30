@@ -25,7 +25,7 @@ interface Props {
 function TimelineSceneInner({ scene, width, trackHeight, zoom = 40 }: Props) {
   const { 
     selectedSceneId, setSelectedSceneId, setPlayheadPosition, getSceneStartTime, 
-    selectedSceneIds, toggleSceneSelection, updateScene, scenes, orientation 
+    selectedSceneIds, toggleSceneSelection, updateScene, scenes, orientation, deleteScene
   } = useEditorContext();
   const isSelected = selectedSceneId === scene.id;
   const isMultiSelected = selectedSceneIds.has(scene.id);
@@ -201,16 +201,25 @@ function TimelineSceneInner({ scene, width, trackHeight, zoom = 40 }: Props) {
       </div>
 
       {/* Badges row */}
-      <div className="absolute top-1 right-1 flex gap-0.5 z-10">
-        {scene.filter !== "none" && (
-          <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[7px] font-bold" style={{ background: C.warn }} title={`Filter: ${scene.filter}`}>F</div>
-        )}
-        {scene.overlays.length > 0 && (
-          <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[7px] font-bold" style={{ background: C.accent }} title={`${scene.overlays.length} overlay(s)`}>T</div>
-        )}
-        {scene.marker && (
-          <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[7px] font-bold" style={{ background: C.success }} title={scene.marker}>M</div>
-        )}
+      <div className="absolute top-1 right-1 flex items-start gap-1 z-10">
+        <button
+          onClick={(e) => { e.stopPropagation(); if (confirm("Delete this clip?")) deleteScene(scene.id); }}
+          className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-md bg-black/40 hover:bg-red-500/40 text-white/60 hover:text-white transition-all shadow-sm"
+          title="Delete Clip"
+        >
+          <span className="material-symbols-outlined text-[12px]">delete</span>
+        </button>
+        <div className="flex flex-col gap-0.5">
+          {scene.filter !== "none" && (
+            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[7px] font-bold" style={{ background: C.warn }} title={`Filter: ${scene.filter}`}>F</div>
+          )}
+          {scene.overlays.length > 0 && (
+            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[7px] font-bold" style={{ background: C.accent }} title={`${scene.overlays.length} overlay(s)`}>T</div>
+          )}
+          {scene.marker && (
+            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[7px] font-bold" style={{ background: C.success }} title={scene.marker}>M</div>
+          )}
+        </div>
       </div>
 
       {/* Status icons */}

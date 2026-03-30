@@ -25,8 +25,10 @@ export default function ScriptBuilder() {
     targetDurationMinutes,
     storyboardImages, setStoryboardImages,
     referenceImages, setReferenceImages,
+    sceneAudioUrls, sceneVideoUrls, sceneDurations,
     setSceneAudioUrls, setSceneVideoUrls, setSceneDurations,
     setFinalVideoUrl, setIsGenerating,
+    isGenerating,
     pollenUsed, setPollenUsed,
     storyText,
     characterProfiles, setCharacterProfiles,
@@ -246,6 +248,9 @@ export default function ScriptBuilder() {
         musicEnabled: false,
         captionsEnabled,
         storyboardImages,
+        sceneAudioUrls,
+        sceneVideoUrls,
+        sceneDurations,
         url,
         mode,
         audioFile,
@@ -553,85 +558,102 @@ export default function ScriptBuilder() {
 
       {/* Main Content — only when script data exists */}
       {scriptData && (
-        <div className="max-w-7xl mx-auto flex flex-col w-full mt-4 pr-1">
-          {/* Demo Mode Banner */}
-          {(scriptData as any).isDemo && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-500 mb-6">
-              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-amber-500">warning</span>
-              </div>
-              <div className="flex-1">
-                <h4 className="text-amber-500 font-bold text-sm">Pollinations Credit Exhaustion (Demo Mode Active)</h4>
-                <p className="text-amber-500/70 text-xs">Your Pollinations API balance is empty. We've generated a high-quality placeholder script so you can continue exploring the editor. Please top up your balance at <a href="https://pollinations.ai" target="_blank" className="underline font-bold">pollinations.ai</a> to restore full AI generation.</p>
-              </div>
-              <button 
-                onClick={() => setScriptData({...scriptData, isDemo: false})}
-                className="text-amber-500/40 hover:text-amber-500 transition-colors"
-              >
-                <span className="material-symbols-outlined text-sm">close</span>
-              </button>
-            </div>
-          )}
-
+        <div className="flex flex-col w-full mt-4">
           {/* Header Section — Sticky */}
-          <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-outline-variant/10 py-6 mb-4 -mx-4 px-8 shadow-md">
-            <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-2 h-6 bg-primary rounded-full" />
-                  <span className="font-black text-[10px] text-primary uppercase tracking-[0.3em]">Phase 02</span>
+          <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-2xl border-b border-outline-variant/10 py-6 mb-8 px-4 md:px-8 shadow-md -mx-4 md:-mx-8 transition-all duration-300">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-6 bg-primary rounded-full" />
+                    <span className="font-black text-[10px] text-primary uppercase tracking-[0.3em]">Phase 02</span>
+                  </div>
+                  <h2 className="font-headline text-2xl md:text-4xl font-black tracking-tight text-on-surface leading-tight">Story Script</h2>
                 </div>
-                <h2 className="font-headline text-2xl md:text-4xl font-black tracking-tight text-on-surface leading-tight">Story Script</h2>
-              </div>
 
-              {/* Quality + Settings bar */}
-              <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-                <PollensBalanceWidget />
-                
-                {/* Universal Tier Selection Pills */}
-                <div className="flex items-center gap-1.5 glass p-1.5 rounded-2xl border border-outline-variant/10 shadow-sm overflow-x-auto no-scrollbar">
-                  {(["free", "basic", "medium", "pro"] as QualityTier[]).map((t) => {
-                    const info = QUALITY_TIERS[t];
-                    const active = qualityTier === t;
-                    return (
+                {/* Quality + Settings bar */}
+                <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                  <PollensBalanceWidget />
+                  
+                  {/* Universal Tier Selection Pills */}
+                  <div className="flex items-center gap-1.5 glass p-1.5 rounded-2xl border border-outline-variant/10 shadow-sm overflow-x-auto no-scrollbar">
+                    {(["free", "basic", "medium", "pro"] as QualityTier[]).map((t) => {
+                      const info = QUALITY_TIERS[t];
+                      const active = qualityTier === t;
+                      return (
+                        <button
+                          key={t}
+                          onClick={() => setQualityTier(t)}
+                          className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
+                            active 
+                              ? `${info.bgColor} ${info.color} border border-${t === 'free' ? 'green-500/30' : t === 'basic' ? 'emerald-500/30' : t === 'medium' ? 'primary/30' : 'tertiary/30'} shadow-sm` 
+                              : "text-outline/60 hover:text-on-surface hover:bg-surface-variant/30"
+                          }`}
+                        >
+                          {info.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center gap-3 ml-auto">
+                    {/* Images progress indicator */}
+                    {totalScenes > 0 && (
+                      <div className="flex items-center gap-2 glass px-4 py-2.5 rounded-2xl border border-outline-variant/10">
+                        <span className={`material-symbols-outlined text-sm ${allImagesReady ? 'text-green-400' : 'text-primary animate-pulse'}`}>image</span>
+                        <span className={`text-[11px] font-black uppercase tracking-widest ${allImagesReady ? 'text-green-400' : 'text-outline'}`}>
+                          {imagesReady}/{totalScenes} <span className="hidden sm:inline">Images</span>
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Resume Generation Button */}
+                    {!allImagesReady && (
                       <button
-                        key={t}
-                        onClick={() => setQualityTier(t)}
-                        className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
-                          active 
-                            ? `${info.bgColor} ${info.color} border border-${t === 'free' ? 'green-500/30' : t === 'basic' ? 'emerald-500/30' : t === 'medium' ? 'primary/30' : 'tertiary/30'} shadow-sm` 
-                            : "text-outline/60 hover:text-on-surface hover:bg-surface-variant/30"
-                        }`}
+                        onClick={handleGenerateVideo}
+                        disabled={isGenerating}
+                        className="glass px-6 py-3 rounded-2xl font-headline font-black uppercase tracking-widest text-[10px] sm:text-xs hover:bg-surface-variant/50 transition-all flex items-center gap-2 border border-outline-variant/20 disabled:opacity-40 shadow-sm"
                       >
-                        {info.label}
+                        <span className={`material-symbols-outlined text-lg ${isGenerating ? 'animate-spin' : ''}`}>
+                          {isGenerating ? 'sync' : 'auto_fix_high'}
+                        </span>
+                        {isGenerating ? `Processing...` : 'Resume Rendering'}
                       </button>
-                    );
-                  })}
-                </div>
+                    )}
 
-                <div className="flex items-center gap-3 ml-auto">
-                  {/* Images progress indicator */}
-                  {totalScenes > 0 && (
-                    <div className="flex items-center gap-2 glass px-4 py-2.5 rounded-2xl border border-outline-variant/10">
-                      <span className={`material-symbols-outlined text-sm ${allImagesReady ? 'text-green-400' : 'text-primary animate-pulse'}`}>image</span>
-                      <span className={`text-[11px] font-black uppercase tracking-widest ${allImagesReady ? 'text-green-400' : 'text-outline'}`}>
-                        {imagesReady}/{totalScenes} <span className="hidden sm:inline">Images</span>
-                      </span>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleGenerateVideo}
-                    disabled={!allImagesReady}
-                    className="primary-gradient text-white px-8 py-3 rounded-2xl font-headline font-black uppercase tracking-widest text-xs hover:shadow-xl hover:scale-[1.02] transition-all flex items-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-40 disabled:grayscale disabled:scale-100"
-                  >
-                    <span className="material-symbols-outlined text-lg">movie</span>
-                    {allImagesReady ? 'Finalize Video' : `Generating (${imagesReady}/${totalScenes})`}
-                  </button>
+                    <button
+                      onClick={handleGenerateVideo}
+                      disabled={!allImagesReady || isGenerating}
+                      className="primary-gradient text-white px-8 py-3 rounded-2xl font-headline font-black uppercase tracking-widest text-xs hover:shadow-xl hover:scale-[1.02] transition-all flex items-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-40 disabled:grayscale disabled:scale-100"
+                    >
+                      <span className="material-symbols-outlined text-lg">movie</span>
+                      Finalize Video
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+
+          <div className="max-w-7xl mx-auto flex flex-col w-full pr-1">
+            {/* Demo Mode Banner */}
+            {(scriptData as any).isDemo && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-500 mb-6">
+                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-amber-500">warning</span>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-amber-500 font-bold text-sm">Pollinations Credit Exhaustion (Demo Mode Active)</h4>
+                  <p className="text-amber-500/70 text-xs">Your Pollinations API balance is empty. We've generated a high-quality placeholder script so you can continue exploring the editor. Please top up your balance at <a href="https://pollinations.ai" target="_blank" className="underline font-bold">pollinations.ai</a> to restore full AI generation.</p>
+                </div>
+                <button 
+                  onClick={() => setScriptData({...scriptData, isDemo: false})}
+                  className="text-amber-500/40 hover:text-amber-500 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+              </div>
+            )}
 
           {/* Two Column Layout */}
           <div className="grid grid-cols-12 gap-8 pb-10 mt-4">
@@ -915,7 +937,8 @@ export default function ScriptBuilder() {
             </div>
           </div>
         </div>
-      )}
-    </>
-  );
+      </div>
+    )}
+  </>
+);
 }

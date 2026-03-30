@@ -60,6 +60,10 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; sceneId: number } | null>(null);
   const [activeDragId, setActiveDragId] = useState<number | null>(null);
 
+  // Track renaming state
+  const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
+  const [tempTrackLabel, setTempTrackLabel] = useState("");
+
   // Resize handle
   const resizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
 
@@ -444,9 +448,38 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                 >
                   <span className="material-symbols-outlined text-[14px]">{track.isCollapsed ? "chevron_right" : "expand_more"}</span>
                 </button>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/90 leading-none">{track.label}</span>
-                  {!track.isCollapsed && <span className="text-[8px] text-white/20 font-bold uppercase tracking-tighter">Video Layer</span>}
+                <div className="flex flex-col flex-1 min-w-0">
+                  {editingTrackId === track.id ? (
+                    <input
+                      autoFocus
+                      onFocus={(e) => e.target.select()}
+                      className="bg-primary/20 text-white text-[10px] font-black uppercase tracking-widest px-1 py-0.5 rounded outline-none border border-primary/50 w-full"
+                      value={tempTrackLabel}
+                      onChange={(e) => setTempTrackLabel(e.target.value)}
+                      onBlur={() => {
+                        if (tempTrackLabel.trim()) updateTrack(track.id, { label: tempTrackLabel.trim() });
+                        setEditingTrackId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          if (tempTrackLabel.trim()) updateTrack(track.id, { label: tempTrackLabel.trim() });
+                          setEditingTrackId(null);
+                        }
+                        if (e.key === "Escape") setEditingTrackId(null);
+                      }}
+                    />
+                  ) : (
+                    <span 
+                      className="text-[10px] font-black uppercase tracking-widest text-white/90 leading-none cursor-text hover:text-primary transition-colors truncate"
+                      onClick={() => {
+                        setEditingTrackId(track.id);
+                        setTempTrackLabel(track.label);
+                      }}
+                    >
+                      {track.label}
+                    </span>
+                  )}
+                  {!track.isCollapsed && <span className="text-[8px] text-white/20 font-bold uppercase tracking-tighter truncate">Video Layer</span>}
                 </div>
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
@@ -507,9 +540,38 @@ export default function Timeline({ height, onHeightChange }: TimelineProps) {
                 >
                   <span className="material-symbols-outlined text-[14px]">{track.isCollapsed ? "chevron_right" : "expand_more"}</span>
                 </button>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#10b981] leading-none">{track.label}</span>
-                  {!track.isCollapsed && <span className="text-[8px] text-white/20 font-bold uppercase tracking-tighter">Audio Layer</span>}
+                <div className="flex flex-col flex-1 min-w-0">
+                  {editingTrackId === track.id ? (
+                    <input
+                      autoFocus
+                      onFocus={(e) => e.target.select()}
+                      className="bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest px-1 py-0.5 rounded outline-none border border-emerald-500/50 w-full"
+                      value={tempTrackLabel}
+                      onChange={(e) => setTempTrackLabel(e.target.value)}
+                      onBlur={() => {
+                        if (tempTrackLabel.trim()) updateTrack(track.id, { label: tempTrackLabel.trim() });
+                        setEditingTrackId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          if (tempTrackLabel.trim()) updateTrack(track.id, { label: tempTrackLabel.trim() });
+                          setEditingTrackId(null);
+                        }
+                        if (e.key === "Escape") setEditingTrackId(null);
+                      }}
+                    />
+                  ) : (
+                    <span 
+                      className="text-[10px] font-black uppercase tracking-widest text-emerald-400 leading-none cursor-text hover:text-emerald-300 transition-colors truncate"
+                      onClick={() => {
+                        setEditingTrackId(track.id);
+                        setTempTrackLabel(track.label);
+                      }}
+                    >
+                      {track.label}
+                    </span>
+                  )}
+                  {!track.isCollapsed && <span className="text-[8px] text-white/20 font-bold uppercase tracking-tighter truncate">Audio Layer</span>}
                 </div>
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
