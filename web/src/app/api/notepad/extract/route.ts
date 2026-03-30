@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { generateGeminiText } from "@/lib/gemini";
-import { parseAIResponse } from "@/lib/jsonUtils";
 
 export const maxDuration = 120;
 
@@ -90,38 +89,10 @@ export async function POST(req: NextRequest) {
           // Try to extract transcript/caption text from the page HTML
           // YouTube embeds captions in ytInitialPlayerResponse or timedtext data
           const htmlText = html;
-          
-          // Enhanced transcript extraction
-          try {
-            // Pattern 1: Look for player response JSON in the HTML
-            const playerResponseMatch = htmlText.match(/ytInitialPlayerResponse\s*=\s*({.+?});/);
-            let playerResponse = null;
-            if (playerResponseMatch) {
-              playerResponse = JSON.parse(playerResponseMatch[1]);
-            }
-
-            const captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-            
-            if (captionTracks && Array.isArray(captionTracks)) {
-              const englishTrack = captionTracks.find((t: any) =>
-                t.languageCode === "en" || t.languageCode?.startsWith("en")
-              ) || captionTracks[0];
-
-              if (englishTrack?.baseUrl) {
-                const captionRes = await fetch(englishTrack.baseUrl, {
-                  signal: AbortSignal.timeout(8000),
-                });
-                const captionXml = await captionRes.text();
-                const $captions = cheerio.load(captionXml, { xmlMode: true });
-                ytTranscript = $captions("text")
-                  .map((_i: number, el: any) => $captions(el).text().trim())
-                  .get()
-                  .join(" ")
-                  .replace(/\s+/g, " ")
-                  .trim();
-              }
-            } else {
-              // Fallback to older regex patterns if playerResponse is missing or empty
+          const captionMatch = htmlText.match(/"captions":\s*(\{[\s\S]*?"playerCaptionsTracklistRenderer"[\s\S]*?\})\s*,\s*"/);
+          if (captionMatch) {
+            try {
+              // Extract caption track URLs from the player response
               const captionUrlMatch = htmlText.match(/"captionTracks":\s*\[([\s\S]*?)\]/);
               if (captionUrlMatch) {
                 const trackJson = JSON.parse(`[${captionUrlMatch[1]}]`);
@@ -129,53 +100,26 @@ export async function POST(req: NextRequest) {
                   t.languageCode === "en" || t.languageCode?.startsWith("en")
                 ) || trackJson[0];
                 if (englishTrack?.baseUrl) {
-                  const captionRes = await fetch(englishTrack.baseUrl, {
-                    signal: AbortSignal.timeout(8000),
-                  });
-                  const captionXml = await captionRes.text();
-                  const $captions = cheerio.load(captionXml, { xmlMode: true });
-                  ytTranscript = $captions("text")
-                    .map((_i: number, el: any) => $captions(el).text().trim())
-                    .get()
-                    .join(" ")
-                    .replace(/\s+/g, " ")
-                    .trim();
-                }
-              }
-            }
-            // Strategy 3: If page parsing yielded nothing, try timedtext API directly
-            if (!ytTranscript) {
-              const vidIdMatch = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-              if (vidIdMatch) {
-                for (const lang of ["en", "en-US"]) {
                   try {
-                    const ttUrl = `https://www.youtube.com/api/timedtext?v=${vidIdMatch[1]}&lang=${lang}&fmt=srv3`;
-                    const ttRes = await fetch(ttUrl, { signal: AbortSignal.timeout(8000) });
-                    if (ttRes.ok) {
-                      const ttXml = await ttRes.text();
-                      if (ttXml.includes("<text")) {
-                        const $tt = cheerio.load(ttXml, { xmlMode: true });
-                        ytTranscript = $tt("text")
-                          .map((_i: number, el: any) => $tt(el).text().trim())
-                          .get()
-                          .join(" ")
-                          .replace(/\s+/g, " ")
-                          .trim();
-                        if (ytTranscript.length > 50) break;
-                      }
-                    }
-                  } catch { /* try next lang */ }
+                    const captionRes = await fetch(englishTrack.baseUrl, {
+                      signal: AbortSignal.timeout(8000),
+                    });
+                    const captionXml = await captionRes.text();
+                    const $captions = cheerio.load(captionXml, { xmlMode: true });
+                    ytTranscript = $captions("text")
+                      .map((_i: number, el: any) => $captions(el).text().trim())
+                      .get()
+                      .join(" ")
+                      .replace(/\s+/g, " ")
+                      .trim();
+                  } catch {
+                    // Caption fetch failed, continue without transcript
+                  }
                 }
               }
+            } catch {
+              // Caption parsing failed, continue without transcript
             }
-          } catch (e) {
-            console.warn("Transcript extraction failed:", e);
-          }
-
-          if (ytTranscript) {
-            console.log(`[YouTube] Transcript extracted: ${ytTranscript.length} chars`);
-          } else {
-            console.warn(`[YouTube] No transcript available for this video`);
           }
         }
 
@@ -231,7 +175,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        const content = mainContent.slice(0, 30000); // Increased limit for better context
+        const content = mainContent.slice(0, 15000);
         // Prefer YouTube og:title over generic <title> tag
         const title = (isYouTubeUrl(url) && ytTitle)
           ? ytTitle
@@ -299,6 +243,7 @@ Rules:
             try {
               const responseText = await generateGeminiText(prompt);
               let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+              cleanText = cleanText.replace(/```(?:json)?\s*\r?\n?/gi, "").trim();
 
               // Refusal detection: if the AI refused, fallback to basic metadata extraction
               if (detectRefusal(cleanText)) {
@@ -306,21 +251,21 @@ Rules:
                 return { sourceId: source.id, facts: buildFallbackFacts(source.title, source.rawContent) };
               }
 
-              try {
-                const factsData = parseAIResponse<any>(
-                  responseText,
-                  (parsed: any) => !!(parsed && (parsed.facts || Array.isArray(parsed)))
-                );
-                const facts = Array.isArray(factsData) ? factsData : (factsData.facts || []);
+              const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                const facts = parsed.facts || [];
+                // If parsed but empty facts, also check if the raw response was a refusal
                 if (facts.length === 0 && detectRefusal(responseText)) {
                   return { sourceId: source.id, facts: buildFallbackFacts(source.title, source.rawContent) };
                 }
                 return { sourceId: source.id, facts };
-              } catch {
-                // No JSON found — could be a refusal disguised without trigger phrases
-                console.warn(`No JSON found in response for source ${source.id}, using fallback`);
-                return { sourceId: source.id, facts: buildFallbackFacts(source.title, source.rawContent) };
               }
+
+              // No JSON found — could be a refusal disguised without trigger phrases
+              // Fallback to basic extraction
+              console.warn(`No JSON found in response for source ${source.id}, using fallback`);
+              return { sourceId: source.id, facts: buildFallbackFacts(source.title, source.rawContent) };
             } catch (err) {
               console.warn(`Extraction failed for source ${source.id}:`, err);
             }

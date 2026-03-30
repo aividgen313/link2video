@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateGeminiText } from "@/lib/gemini";
-import { parseAIResponse } from "@/lib/jsonUtils";
 
-export const maxDuration = 600; // Increased to 10 minutes for massive knowledge synthesis
+export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,74 +19,58 @@ export async function POST(req: NextRequest) {
       })
       .join("\n\n");
 
-    const prompt = `You are a Cinematic Director, Executive Producer, and Master of Visual Narrative. You think like a world-class Auteur—combining the information density of a documentary filmmaker with the visual flair of a high-budget commercial director. Your superpower is transforming "flat" information into an immersive, multi-sensory journey that commands absolute attention.
-
-GOAL: Perform a deep analysis of the provided sources and synthesize them into a production-ready Director's Treatment.
+    const prompt = `You are a knowledge synthesis engine for video script creation. You have extracted facts from multiple sources. Your job is to synthesize them into a unified, well-structured knowledge document that can be turned into a compelling ${targetDurationMinutes}-minute video.
 
 EXTRACTED KNOWLEDGE:
-${knowledgeDump.substring(0, 15000)}
+${knowledgeDump.substring(0, 10000)}
 
-Follow these strict rules for the synthesis:
-- Attention is Currency: Every second must justify its existence.
-- Semantic Motion: Camera movement represents focus, context, or connection.
-- Source Integrity: Use only provided data.
+Create a synthesis document with these sections:
 
-OUTPUT FORMAT (Return a JSON object with these fields):
+1. **CORE THESIS** (1-2 sentences): The central insight or story that connects all sources
+2. **KEY THEMES** (3-5 themes): Major topics that emerge across sources
+3. **NARRATIVE ARC**: A suggested story structure with beginning/middle/end
+4. **ESSENTIAL FACTS**: The 10-15 most compelling facts that MUST be in the video
+5. **SURPRISING INSIGHTS**: 3-5 unexpected connections or revelations from combining these sources
+6. **SUGGESTED TITLE**: A catchy video title
+7. **SUGGESTED ANGLE**: The best narrative angle for this content
+
+Return ONLY raw JSON (no markdown fences):
 {
-  "synthesis": "The full Director's Treatment following this structure:
-    # FILM TITLE AND LOGLINE
-    - Inferred Narrative Arc: A concise summary of the 'story'.
-    - Film Title: A sharp, evocative, 'theatrical' title.
-    - The Logline: A one-sentence hook.
-
-    # PRODUCTION DESIGN AND AUTEUR STYLE
-    - Cinematic DNA: Choose a specific filmic style (e.g., Noir, Minimalist Scandi, High-Tech Futurism, Handheld Documentary).
-    - The 'Look' (Color & Grade): Primary Palette (HEX codes) + Lighting & Texture (mood) + Sonic Identity (Audio Mood).
-    - Camera Language: Movement style (e.g., Majestic drone sweeps vs Jittery handheld).
-
-    # FORBIDDEN TROPES
-    - No 'Talking Head' shots > 3s, no generic corporate music, no scrolling text.
-
-    # NARRATIVE COMPOSITION RULES
-    - Rule 1 (The 3-Second Rule): Visual interest must evolve every 3s.
-    - Rule 2 (Typography as Architecture): Text exists within the 3D space.
-    - Rule 3 (Show, Don't Tell): Visual representation of scale/data.
-
-    # THE SCENE-BY-SCENE STORYBOARD (15–20 Granular Sequences)
-    For each scene: Scene # | Duration (3–6s) | Sequence Type | Visual Description | Camera Movement | On-Screen Text/Graphics | Voiceover/Script Fragment | Source Anchor.",
-
-  "suggestedTitle": "Theatrical Title",
-  "suggestedAngle": "Auteur Style / Production Design",
+  "synthesis": "The full synthesis text combining all sections above into a flowing narrative document (500-1000 words)",
+  "suggestedTitle": "Video title",
+  "suggestedAngle": "Best narrative angle",
   "themes": ["theme1", "theme2", "theme3"],
-  "coreThesis": "The central insight"
-}
+  "coreThesis": "Central insight"
+}`;
 
-Return ONLY raw JSON. No markdown fences.`;
-
-    console.log(`[synthesize] Generating cinematic treatment for ${sources.length} sources (${targetDurationMinutes}min)...`);
     const responseText = await generateGeminiText(prompt);
-    
-    const synthesisData = parseAIResponse(
-      responseText,
-      (parsed: any) => {
-        return !!(parsed.synthesis || parsed.suggestedTitle);
-      }
-    );
+    let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    cleanText = cleanText.replace(/```(?:json)?\s*\r?\n?/gi, "").trim();
+    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
 
-    if (!synthesisData || !(synthesisData as any).synthesis) {
-        // Recovery if JSON logic failed but we have cleanText
-        console.warn("[synthesize] JSON extraction failed completely, returning raw text as synthesis");
-        const cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return NextResponse.json(parsed);
+      } catch {
+        // If JSON parse fails, return the raw synthesis text
         return NextResponse.json({
-            synthesis: cleanText.substring(0, 5000),
-            suggestedTitle: "Untitled Video",
-            suggestedAngle: "Documentary Overview",
-            themes: [],
-            coreThesis: "",
+          synthesis: cleanText.substring(0, 3000),
+          suggestedTitle: "Untitled Video",
+          suggestedAngle: "Documentary Overview",
+          themes: [],
+          coreThesis: "",
         });
+      }
     }
 
-    return NextResponse.json(synthesisData);
+    return NextResponse.json({
+      synthesis: cleanText.substring(0, 3000),
+      suggestedTitle: "Untitled Video",
+      suggestedAngle: "Documentary Overview",
+      themes: [],
+      coreThesis: "",
+    });
   } catch (e: any) {
     console.error("Notepad synthesize error:", e);
     return NextResponse.json({ error: e.message || "Internal error" }, { status: 500 });

@@ -1,33 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { writeFile, mkdir, rm, stat } from "fs/promises";
-import { createWriteStream } from "fs";
-import { pipeline } from "stream/promises";
-import { Readable } from "stream";
+import { writeFile, mkdir, readFile, rm } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 
-// Allow up to 10 minutes for video stitching
-export const maxDuration = 600;
+// Allow up to 3 minutes for video stitching (default is 30s)
+export const maxDuration = 180;
 export const dynamic = "force-dynamic";
 
 const execAsync = promisify(exec);
-const EXEC_OPTS = { maxBuffer: 20 * 1024 * 1024 }; // 20 MB buffer for ffmpeg output
 
-/** Stream a fetch response to disk instead of buffering in memory */
-async function streamToDisk(url: string, destPath: string, timeoutMs = 60_000): Promise<number> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
-  if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-  if (!res.body) throw new Error("No response body");
-  const ws = createWriteStream(destPath);
-  // Convert web ReadableStream to Node Readable
-  const nodeStream = Readable.fromWeb(res.body as any);
-  await pipeline(nodeStream, ws);
-  const st = await stat(destPath);
-  return st.size;
-}
+type TransitionType = "none" | "fade" | "dissolve" | "wipe-left" | "wipe-right" | "zoom-in" | "zoom-out" | "slide-left" | "slide-right";
 
 /**
  * Server-side video stitching using system ffmpeg.
@@ -48,30 +33,15 @@ export async function POST(req: NextRequest) {
       musicUrl,
       userAudioDataUrl,
       captionsEnabled,
-      videoResolution, // "480p", "720p", "1080p", "4k"
     } = body;
 
     if (!scenes || !Array.isArray(scenes) || scenes.length === 0) {
       return NextResponse.json({ error: "No scenes provided" }, { status: 400 });
     }
 
-    // Use user-requested resolution or fallback to 480p for memory safety
-    const resId = videoResolution || "480p";
-    const MAX_HEIGHT = resId === "4k" ? 2160 : resId === "1080p" ? 1080 : resId === "720p" ? 720 : 480;
-    
-    // Scale proportionally to fit the target height
-    const reqW = resolution?.width ?? 1280;
-    const reqH = resolution?.height ?? 720;
-    const scale = Math.min(1, MAX_HEIGHT / reqH);
-    const W = Math.round((reqW * scale) / 2) * 2; // ensure even
-    const H = Math.round((reqH * scale) / 2) * 2;
-    const FPS = 24;
-    
-    // Memory-intensive high-res exports need more aggressive optimization
-    const CPU_THREADS = (resId === "4k" || resId === "1080p") ? 1 : 2;
-    const CRF = (resId === "4k") ? 32 : 30; // Slightly higher compression for 4K to save memory
-
-    console.log(`[/api/stitch] Resolution: ${reqW}x${reqH} → ${W}x${H} (${resId} mode, threads=${CPU_THREADS})`);
+    const W = resolution?.width ?? 1280;
+    const H = resolution?.height ?? 720;
+    const FPS = 25;
 
     // ── Step 1: Render individual clips ─────────────────────────────────────
     const clipPaths: string[] = [];
@@ -82,74 +52,27 @@ export async function POST(req: NextRequest) {
       // Use audio duration as ground truth when available; clamp to >= 3s
       const dur = Math.max(Math.ceil(scene.duration ?? 8), 3);
 
-      // ── Step 1a: Prepare Image(s) ─────────────────────────────
-      const imageArray = Array.isArray(scene.images) ? scene.images : [scene.image].filter(Boolean);
-      const subClips: string[] = [];
-      const subDur = dur / Math.max(1, imageArray.length);
-
-      for (let j = 0; j < imageArray.length; j++) {
-        const imgUrl = imageArray[j];
-        const imgPath = join(workDir, `img_${i}_${j}.jpg`);
-        const subClipPath = join(workDir, `subclip_${i}_${j}.mp4`);
-
-        // Get image
-        if (imgUrl.startsWith("data:")) {
-          const b64 = imgUrl.replace(/^data:[^;]+;base64,/, "");
-          await writeFile(imgPath, Buffer.from(b64, "base64"));
-        } else {
-          const r = await fetch(imgUrl, { signal: AbortSignal.timeout(20_000) });
-          if (!r.ok) throw new Error(`Image fetch failed: ${r.status}`);
-          await writeFile(imgPath, Buffer.from(await r.arrayBuffer()));
-        }
-
-        // Render sub-clip (simple linear Ken Burns)
-        // We use a slight zoompan (1.0 to 1.1) for each sub-frame
-        const subCmd = [
-          "ffmpeg -y -loglevel error",
-          `-loop 1 -t ${subDur} -i "${imgPath}"`,
-          `-vf "scale=ceil(${W}*1.2/2)*2:ceil(${H}*1.2/2)*2,zoompan=z='min(zoom+0.001,1.1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${Math.ceil(subDur * FPS)}:s=${W}x${H}:fps=${FPS}"`,
-          `-c:v libx264 -preset ultrafast -crf ${CRF} -pix_fmt yuv420p -r ${FPS} -threads ${CPU_THREADS} -t ${subDur}`,
-          `"${subClipPath}"`
-        ].join(" ");
-
-        await execAsync(subCmd, { timeout: 30_000, ...EXEC_OPTS });
-        subClips.push(subClipPath);
-        await rm(imgPath, { force: true }).catch(() => {});
+      // Write image
+      const imgPath = join(workDir, `img_${i}.jpg`);
+      if (typeof scene.image === "string" && scene.image.startsWith("data:")) {
+        const b64 = scene.image.replace(/^data:[^;]+;base64,/, "");
+        await writeFile(imgPath, Buffer.from(b64, "base64"));
+      } else if (typeof scene.image === "string") {
+        const r = await fetch(scene.image, { signal: AbortSignal.timeout(15_000) });
+        if (!r.ok) throw new Error(`Image fetch failed for scene ${i}: ${r.status}`);
+        await writeFile(imgPath, Buffer.from(await r.arrayBuffer()));
       }
 
-      // Concat sub-clips into a single combined image track for the scene
-      const combinedImgTrack = join(workDir, `img_track_${i}.mp4`);
-      if (subClips.length > 1) {
-        const subConcatTxt = join(workDir, `subconcat_${i}.txt`);
-        await writeFile(subConcatTxt, subClips.map(p => `file '${p}'`).join("\n"));
-        await execAsync(`ffmpeg -y -loglevel error -f concat -safe 0 -i "${subConcatTxt}" -c copy "${combinedImgTrack}"`, { timeout: 30_000, ...EXEC_OPTS });
-        await rm(subConcatTxt, { force: true }).catch(() => {});
-      } else {
-        await execAsync(`cp "${subClips[0]}" "${combinedImgTrack}"`);
-      }
-      for (const p of subClips) await rm(p, { force: true }).catch(() => {});
-
-      // ── Step 1b: Prepare Audio/Video ───────────────────────────
+      // Write audio
       const audPath = join(workDir, `aud_${i}.mp3`);
       let hasAudio = false;
-      if (scene.audio && typeof scene.audio === "string") {
-        try {
-          if (scene.audio.startsWith("data:")) {
-            const b64 = scene.audio.replace(/^data:[^;]+;base64,/, "");
-            await writeFile(audPath, Buffer.from(b64, "base64"));
-            hasAudio = true;
-          } else if (scene.audio.startsWith("http")) {
-            const aRes = await fetch(scene.audio, { signal: AbortSignal.timeout(20_000) });
-            if (aRes.ok) {
-              await writeFile(audPath, Buffer.from(await aRes.arrayBuffer()));
-              hasAudio = true;
-            }
-          }
-        } catch (audioErr) {
-          console.warn(`[/api/stitch] Scene ${i} audio error:`, audioErr);
-        }
+      if (scene.audio) {
+        const b64 = (scene.audio as string).replace(/^data:[^;]+;base64,/, "");
+        await writeFile(audPath, Buffer.from(b64, "base64"));
+        hasAudio = true;
       }
 
+      // Write video if present
       const vidPath = join(workDir, `vid_${i}.mp4`);
       let hasVideo = false;
       if (typeof scene.video === "string") {
@@ -158,147 +81,271 @@ export async function POST(req: NextRequest) {
             const b64 = scene.video.replace(/^data:[^;]+;base64,/, "");
             await writeFile(vidPath, Buffer.from(b64, "base64"));
             hasVideo = true;
-          } else if (scene.video.startsWith("http")) {
-            const size = await streamToDisk(scene.video, vidPath, 60_000);
-            if (size > 5000) hasVideo = true;
+          } else {
+            const vRes = await fetch(scene.video, { signal: AbortSignal.timeout(45_000) });
+            if (vRes.ok) {
+              await writeFile(vidPath, Buffer.from(await vRes.arrayBuffer()));
+              hasVideo = true;
+            }
           }
         } catch (e) {
-          console.warn(`[/api/stitch] Failed to fetch video for scene ${i}:`, e);
+          console.warn(`Failed to fetch video for scene ${i}, falling back to Ken Burns image.`);
         }
       }
 
-      // ── Step 1c: Subtitles & Transitions ──────────────────────
-      let subtitleFilter = "";
-      const { fontColor = "white", fontSize = 5, position = "bottom", showBackground = true } = body.captionStyle || {};
-      const textPath = join(workDir, `text_${i}.txt`);
-      if (captionsEnabled && scene.narration) {
-        const wrapText = (text: string, maxLen: number = 40) => {
-          const words = text.split(/\s+/);
-          let lines = [], currentLine = "";
-          words.forEach((word) => {
-            if ((currentLine + " " + word).trim().length > maxLen) {
-              lines.push(currentLine.trim());
-              currentLine = word;
-            } else currentLine += " " + word;
-          });
-          if (currentLine) lines.push(currentLine.trim());
-          return lines.join("\n").replace(/'/g, "\u2019"); // Escape single quotes
-        };
-        await writeFile(textPath, wrapText(scene.narration));
-        const escapedPath = textPath.replace(/\\/g, '/').replace(/:/g, '\\\\:');
-        
-        const fSize = Math.max(12, Math.round((H * fontSize) / 100));
-        let yPos = "h-th-h/10";
-        if (position === "top") yPos = "h/10";
-        if (position === "middle") yPos = "(h-th)/2";
-
-        const boxStr = showBackground ? ":box=1:boxcolor=black@0.5:boxborderw=10" : "";
-        subtitleFilter = `,drawtext=textfile='${escapedPath}':fontcolor=${fontColor}:fontsize=${fSize}:borderw=2:bordercolor=black:x=(w-text_w)/2:y=${yPos}:line_spacing=5${boxStr}`;
-      }
-
-      const transition = scene.transition || "fade";
-      const tDur = Math.min(scene.transitionDuration || 0.5, dur / 3);
-      const isFirst = i === 0, isLast = i === scenes.length - 1;
-      let fadeVF = "", fadeAF = "";
-      if (transition !== "none" && tDur > 0) {
-        const vParts = [];
-        if (!isFirst) vParts.push(`fade=t=in:st=0:d=${tDur}`);
-        if (!isLast) vParts.push(`fade=t=out:st=${dur - tDur}:d=${tDur}`);
-        if (vParts.length) fadeVF = "," + vParts.join(",");
-        
-        const aParts = [];
-        if (!isFirst) aParts.push(`afade=t=in:st=0:d=${tDur}`);
-        if (!isLast) aParts.push(`afade=t=out:st=${dur - tDur}:d=${tDur}`);
-        if (aParts.length && hasAudio) fadeAF = aParts.join(",");
-      }
-
+      // ── Render scene clip with strict duration enforcement ──────────
       const clipPath = join(workDir, `clip_${i}.mp4`);
-      const vfScale = `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}:(in_w-${W})/2:(in_h-${H})/2`;
-      
       let cmd: string;
+
       if (hasVideo) {
-        cmd = [
-          "ffmpeg -y -loglevel error",
-          `-i "${vidPath}"`,
-          hasAudio ? `-i "${audPath}"` : `-f lavfi -i "anullsrc=r=44100:cl=stereo"`,
-          `-vf "${vfScale}${subtitleFilter}${fadeVF}"`,
-          fadeAF ? `-af "${fadeAF}"` : "",
-          `-c:v libx264 -preset ultrafast -crf ${CRF} -pix_fmt yuv420p -r ${FPS} -threads ${CPU_THREADS}`,
-          `-c:a aac -b:a 96k -t ${dur} ${hasAudio ? "-shortest" : ""}`,
-          `"${clipPath}"`
-        ].filter(Boolean).join(" ");
+        const vfScale = `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}:(in_w-${W})/2:(in_h-${H})/2`;
+        if (hasAudio) {
+          // Use -t to enforce exact duration on BOTH streams — prevents drift
+          cmd = [
+            "ffmpeg -y",
+            `-loglevel error`,
+            `-i "${vidPath}"`,
+            `-i "${audPath}"`,
+            `-vf "${vfScale}"`,
+            `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r ${FPS}`,
+            `-c:a aac -b:a 96k -t ${dur} -shortest`,
+            `"${clipPath}"`
+          ].join(" ");
+        } else {
+          cmd = [
+            "ffmpeg -y",
+            `-loglevel error`,
+            `-i "${vidPath}"`,
+            `-f lavfi -i "anullsrc=r=44100:cl=stereo"`,
+            `-vf "${vfScale}"`,
+            `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r ${FPS}`,
+            `-c:a aac -b:a 96k -t ${dur}`,
+            `"${clipPath}"`
+          ].join(" ");
+        }
       } else {
-        cmd = [
-          "ffmpeg -y -loglevel error",
-          `-i "${combinedImgTrack}"`,
-          hasAudio ? `-i "${audPath}"` : `-f lavfi -i "anullsrc=r=44100:cl=stereo"`,
-          `-vf "null${subtitleFilter}${fadeVF}"`, // images already scaled/kenburns in combinedImgTrack
-          fadeAF ? `-af "${fadeAF}"` : "",
-          `-c:v libx264 -preset ultrafast -crf 30 -pix_fmt yuv420p -r ${FPS} -threads 1`,
-          `-c:a aac -b:a 96k -t ${dur} ${hasAudio ? "-shortest" : ""}`,
-          `"${clipPath}"`
-        ].filter(Boolean).join(" ");
+        // Ken Burns zoom-pan effect from image
+        const videoFilter = `scale=${W * 2}:${H * 2},zoompan=z='min(zoom+0.0015,1.5)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${dur * FPS}:s=${W}x${H}:fps=${FPS}`;
+        if (hasAudio) {
+          // Loop image for dur, then enforce -t to keep audio and video in lock-step
+          cmd = [
+            "ffmpeg -y",
+            `-loglevel error`,
+            `-loop 1 -t ${dur} -i "${imgPath}"`,
+            `-i "${audPath}"`,
+            `-vf "${videoFilter}"`,
+            `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r ${FPS}`,
+            `-c:a aac -b:a 96k -t ${dur} -shortest`,
+            `"${clipPath}"`
+          ].join(" ");
+        } else {
+          cmd = [
+            "ffmpeg -y",
+            `-loglevel error`,
+            `-loop 1 -t ${dur} -i "${imgPath}"`,
+            `-f lavfi -i "anullsrc=r=44100:cl=stereo"`,
+            `-vf "${videoFilter}"`,
+            `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r ${FPS}`,
+            `-c:a aac -b:a 96k -t ${dur}`,
+            `"${clipPath}"`
+          ].join(" ");
+        }
       }
 
-      console.log(`[/api/stitch] Rendering scene clip ${i + 1}/${scenes.length}...`);
-      await execAsync(cmd, { timeout: 120_000, ...EXEC_OPTS });
+      console.log(`[/api/stitch] Rendering clip ${i + 1}/${scenes.length} (video=${hasVideo}, duration=${dur}s)...`);
+      await execAsync(cmd, { timeout: 120_000 });
+      console.log(`[/api/stitch] Finished clip ${i + 1}/${scenes.length}`);
       clipPaths.push(clipPath);
-
-      // Cleanup scene temp files
-      await Promise.allSettled([
-        rm(audPath, { force: true }),
-        rm(vidPath, { force: true }),
-        rm(textPath, { force: true }),
-        rm(combinedImgTrack, { force: true })
-      ]);
+      clipDurations.push(dur);
     }
 
-    // ── Step 2: Concatenate demuxer ─────────────────────────────
-    console.log(`[/api/stitch] Concatenating ${clipPaths.length} clips...`);
-    const concatTxt = join(workDir, "concat.txt");
-    await writeFile(concatTxt, clipPaths.map(p => `file '${p}'`).join("\n"));
+    // ── Step 2: Concatenate clips with transitions ──────────────────────────
+    console.log(`[/api/stitch] Assembling ${clipPaths.length} clips...`);
     const masterPath = join(workDir, "master.mp4");
-    await execAsync(`ffmpeg -y -loglevel error -f concat -safe 0 -i "${concatTxt}" -c copy "${masterPath}"`, { timeout: 180_000, ...EXEC_OPTS });
 
-    // ── Step 3: Global Audio Mix ────────────────────────────────
-    const outputPath = join(workDir, "output.mp4");
-    if (userAudioDataUrl) {
-      const userAudioPath = join(workDir, "user_audio.mp3");
-      const b64 = userAudioDataUrl.replace(/^data:[^;]+;base64,/, "");
-      await writeFile(userAudioPath, Buffer.from(b64, "base64"));
-      await execAsync(`ffmpeg -y -loglevel error -i "${masterPath}" -i "${userAudioPath}" -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest "${outputPath}"`, { timeout: 60_000, ...EXEC_OPTS });
-    } else if (musicUrl) {
-      const musicPath = join(workDir, "music.mp3");
-      const mRes = await fetch(musicUrl, { signal: AbortSignal.timeout(20_000) });
-      if (mRes.ok) {
-        await writeFile(musicPath, Buffer.from(await mRes.arrayBuffer()));
-        await execAsync(`ffmpeg -y -loglevel error -i "${masterPath}" -i "${musicPath}" -filter_complex "[1:a]volume=0.18,afade=t=out:st=-3:d=3[bgm];[0:a][bgm]amix=inputs=2:duration=first[aout]" -map 0:v -map "[aout]" -c:v copy -c:a aac -b:a 128k "${outputPath}"`, { timeout: 60_000, ...EXEC_OPTS });
-      } else await execAsync(`ffmpeg -y -loglevel error -i "${masterPath}" -c copy "${outputPath}"`, { timeout: 30_000, ...EXEC_OPTS });
+    // Check if any scene has a transition
+    const hasTransitions = scenes.some(
+      (s: any, i: number) => i > 0 && s.transition && s.transition !== "none"
+    );
+
+    if (hasTransitions && clipPaths.length >= 2) {
+      // Use xfade filter for crossfade transitions between clips
+      await assembleWithTransitions(clipPaths, scenes, clipDurations, masterPath, workDir, W, H, FPS);
     } else {
-      await execAsync(`ffmpeg -y -loglevel error -i "${masterPath}" -c copy "${outputPath}"`, { timeout: 30_000, ...EXEC_OPTS });
+      // Simple concat (fast, no re-encoding)
+      const concatTxt = join(workDir, "concat.txt");
+      await writeFile(concatTxt, clipPaths.map(p => `file '${p}'`).join("\n"));
+      await execAsync(
+        `ffmpeg -y -loglevel error -f concat -safe 0 -i "${concatTxt}" -c copy "${masterPath}"`,
+        { timeout: 120_000 }
+      );
     }
 
-    // ── Step 4: Stream response ─────────────────────────────────
-    const outputStat = await stat(outputPath);
-    console.log(`[/api/stitch] Streaming final video (${(outputStat.size / 1048576).toFixed(1)}MB)...`);
-    const { createReadStream } = await import("fs");
-    const fileStream = createReadStream(outputPath);
-    const webStream = Readable.toWeb(fileStream as any) as any;
-    return new NextResponse(webStream, {
+    // ── Step 3: Mix background music or user audio ─────────────────────────
+    const outputPath = join(workDir, "output.mp4");
+
+    if (userAudioDataUrl && typeof userAudioDataUrl === "string") {
+      try {
+        console.log(`[/api/stitch] Writing user audio for music-video mode...`);
+        const userAudioPath = join(workDir, "user_audio.mp3");
+        const base64Match = userAudioDataUrl.match(/^data:[^;]+;base64,(.+)$/);
+        if (base64Match) {
+          await writeFile(userAudioPath, Buffer.from(base64Match[1], "base64"));
+        } else {
+          const uRes = await fetch(userAudioDataUrl, { signal: AbortSignal.timeout(15_000) });
+          if (uRes.ok) await writeFile(userAudioPath, Buffer.from(await uRes.arrayBuffer()));
+        }
+        console.log(`[/api/stitch] Overlaying user audio as primary track...`);
+        await execAsync([
+          `ffmpeg -y -loglevel error`,
+          `-i "${masterPath}" -i "${userAudioPath}"`,
+          `-map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest "${outputPath}"`
+        ].join(" "), { timeout: 60_000 });
+      } catch (err) {
+        console.error(`[/api/stitch] User audio overlay failed:`, err);
+        await execAsync(`ffmpeg -y -loglevel error -i "${masterPath}" -c copy "${outputPath}"`, { timeout: 30_000 });
+      }
+    } else if (musicUrl && typeof musicUrl === "string") {
+      try {
+        console.log(`[/api/stitch] Downloading background music...`);
+        const musicPath = join(workDir, "music.mp3");
+        const mRes = await fetch(musicUrl, { signal: AbortSignal.timeout(15_000) });
+        if (mRes.ok) {
+          await writeFile(musicPath, Buffer.from(await mRes.arrayBuffer()));
+          console.log(`[/api/stitch] Mixing music with fade-out into final output...`);
+          // Add fade-out on music in last 3 seconds for smooth ending
+          await execAsync([
+            `ffmpeg -y -loglevel error`,
+            `-i "${masterPath}" -i "${musicPath}"`,
+            `-filter_complex "[1:a]volume=0.18,afade=t=out:st=-3:d=3[bgm];[0:a][bgm]amix=inputs=2:duration=first:dropout_transition=3[a]"`,
+            `-map 0:v -map "[a]" -c:v copy -c:a aac -b:a 128k "${outputPath}"`
+          ].join(" "), { timeout: 60_000 });
+        } else {
+          await execAsync(`ffmpeg -y -loglevel error -i "${masterPath}" -c copy "${outputPath}"`, { timeout: 30_000 });
+        }
+      } catch {
+        await execAsync(`ffmpeg -y -loglevel error -i "${masterPath}" -c copy "${outputPath}"`, { timeout: 30_000 });
+      }
+    } else {
+      await execAsync(`ffmpeg -y -loglevel error -i "${masterPath}" -c copy "${outputPath}"`, { timeout: 30_000 });
+    }
+
+    console.log(`[/api/stitch] Success! Streaming MP4 payload back to client...`);
+
+    const videoData = await readFile(outputPath);
+    return new NextResponse(videoData, {
       status: 200,
       headers: {
         "Content-Type": "video/mp4",
-        "Content-Length": outputStat.size.toString(),
+        "Content-Length": videoData.length.toString(),
         "Content-Disposition": `attachment; filename="video.mp4"`,
       },
     });
 
   } catch (err) {
-    console.error("[/api/stitch] FAILED:", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Stitching failed" }, { status: 500 });
+    console.error("[/api/stitch] Error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Stitching failed" },
+      { status: 500 }
+    );
   } finally {
     rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
+// ── Transition assembly ────────────────────────────────────────────────────
+// Uses ffmpeg xfade (video) + acrossfade (audio) filters for smooth transitions.
+// Falls back to simple concat if xfade fails (older ffmpeg versions).
 
+async function assembleWithTransitions(
+  clipPaths: string[],
+  scenes: any[],
+  durations: number[],
+  outputPath: string,
+  workDir: string,
+  W: number,
+  H: number,
+  FPS: number,
+) {
+  // Map transition types to xfade names
+  const xfadeMap: Record<string, string> = {
+    fade: "fade",
+    dissolve: "dissolve",
+    "wipe-left": "wipeleft",
+    "wipe-right": "wiperight",
+    "zoom-in": "smoothup",
+    "zoom-out": "smoothdown",
+    "slide-left": "slideleft",
+    "slide-right": "slideright",
+  };
+
+  // Build chain of xfade filters
+  // For N clips: N-1 transitions, each consuming 2 inputs
+  const n = clipPaths.length;
+  const inputs = clipPaths.map((p, i) => `-i "${p}"`).join(" ");
+
+  // Calculate offsets (when each transition starts)
+  // offset[i] = cumulative duration up to clip i, minus transition overlap
+  let cumulativeOffset = 0;
+  const vFilters: string[] = [];
+  const aFilters: string[] = [];
+
+  for (let i = 0; i < n - 1; i++) {
+    const transition: TransitionType = scenes[i + 1]?.transition || "fade";
+    const transDur = Math.min(scenes[i + 1]?.transitionDuration || 0.5, 1.0); // cap at 1s for stability
+    const xfadeName = xfadeMap[transition] || "fade";
+
+    const offset = Math.max(durations[i] - transDur, 1); // ensure at least 1s before transition
+
+    const vIn = i === 0 ? `[0:v]` : `[vfade${i}]`;
+    const aIn = i === 0 ? `[0:a]` : `[afade${i}]`;
+    const vOut = i === n - 2 ? `[vout]` : `[vfade${i + 1}]`;
+    const aOut = i === n - 2 ? `[aout]` : `[afade${i + 1}]`;
+
+    const totalOffset = i === 0 ? offset : cumulativeOffset;
+    if (i === 0) {
+      cumulativeOffset = offset;
+    } else {
+      cumulativeOffset += durations[i] - transDur;
+    }
+
+    vFilters.push(`${vIn}[${i + 1}:v]xfade=transition=${xfadeName}:duration=${transDur}:offset=${totalOffset}${vOut}`);
+    aFilters.push(`${aIn}[${i + 1}:a]acrossfade=d=${transDur}:c1=tri:c2=tri${aOut}`);
+  }
+
+  if (vFilters.length === 0) {
+    // Single clip — just copy
+    const concatTxt = join(workDir, "concat.txt");
+    await writeFile(concatTxt, clipPaths.map(p => `file '${p}'`).join("\n"));
+    await execAsync(
+      `ffmpeg -y -loglevel error -f concat -safe 0 -i "${concatTxt}" -c copy "${outputPath}"`,
+      { timeout: 120_000 }
+    );
+    return;
+  }
+
+  const filterComplex = [...vFilters, ...aFilters].join(";");
+  const cmd = [
+    `ffmpeg -y -loglevel error`,
+    inputs,
+    `-filter_complex "${filterComplex}"`,
+    `-map "[vout]" -map "[aout]"`,
+    `-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -r ${FPS}`,
+    `-c:a aac -b:a 96k`,
+    `"${outputPath}"`,
+  ].join(" ");
+
+  try {
+    console.log(`[/api/stitch] Applying transitions between ${n} clips...`);
+    await execAsync(cmd, { timeout: 120_000 });
+  } catch (e) {
+    // xfade failed (maybe old ffmpeg version) — fall back to simple concat
+    console.warn(`[/api/stitch] xfade transitions failed, falling back to simple concat:`, e);
+    const concatTxt = join(workDir, "concat.txt");
+    await writeFile(concatTxt, clipPaths.map(p => `file '${p}'`).join("\n"));
+    await execAsync(
+      `ffmpeg -y -loglevel error -f concat -safe 0 -i "${concatTxt}" -c copy "${outputPath}"`,
+      { timeout: 120_000 }
+    );
+  }
+}

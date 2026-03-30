@@ -21,7 +21,6 @@ export interface ExportPayload {
   videoDimension: any;
   quality: ExportQuality;
   preset: { fps: number; crf: number; label: string; desc: string; icon: string };
-  captionsEnabled?: boolean;
 }
 
 type Subscriber = (data: ExportProgressData) => void;
@@ -181,13 +180,11 @@ class ExportManager {
 
       if (this.abortFlag) return;
 
-      // ── Attempt server-side stitch first (with retry) ────────────────────
-      this.update({ state: "exporting", status: "Initializing render engine...", progress: 5 });
+      // ── Attempt server-side stitch first (with 502 retry) ──────────────────
+      this.update({ state: "exporting", status: "Preparing scenes…", progress: 10 });
 
       const W = payload.videoDimension?.width || 1280;
       const H = payload.videoDimension?.height || 720;
-
-      this.update({ status: "Preparing assets and scene data...", progress: 10 });
 
       // Build scene payloads for server
       const videoScenes = visibleScenes.filter((s) => s.trackId === "v1" || !s.trackId).sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
@@ -210,7 +207,7 @@ class ExportManager {
         throw new Error("No scenes with images to export");
       }
 
-      this.update({ status: "Stitching clips on server...", progress: 20 });
+      this.update({ status: "Stitching video on server…", progress: 20 });
 
       try {
         const blob = await callStitchWithRetry(
@@ -218,7 +215,7 @@ class ExportManager {
           { width: W, height: H },
           payload.musicTrack?.url ?? null,
           null, // userAudioDataUrl not applicable here
-          payload.captionsEnabled ?? false,
+          false,
           (msg) => {
             if (!this.abortFlag) this.update({ status: msg, progress: 50 });
           },
@@ -255,7 +252,7 @@ class ExportManager {
       });
 
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("FFmpeg load timeout — try again or use a faster connection")), 120000)
+        setTimeout(() => reject(new Error("FFmpeg timeout")), 30000)
       );
 
       await Promise.race([loadPromise, timeoutPromise]);
@@ -288,7 +285,7 @@ class ExportManager {
 
           await this.ffmpeg!.exec([
             "-loop", "1", "-i", imgFile,
-            "-vf", `scale=${w * 2.5}:${h * 2.5}:force_original_aspect_ratio=increase,crop=${w * 2.5}:${h * 2.5},zoompan=z='min(zoom+0.0015,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${scene.duration * fps}:s=${w}x${h}:fps=${fps}`,
+            "-vf", `scale=${w * 2}:${h * 2},zoompan=z='min(zoom+0.0015,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${scene.duration * fps}:s=${w}x${h}:fps=${fps}`,
             "-c:v", "libx264", "-t", String(scene.duration),
             "-pix_fmt", "yuv420p", "-r", String(fps),
             "-crf", String(payload.preset.crf),
@@ -336,9 +333,7 @@ class ExportManager {
       await this.ffmpeg!.exec([
         "-f", "concat", "-safe", "0", "-i", "concat.txt",
         "-c:v", "libx264", "-c:a", "aac",
-        "-pix_fmt", "yuv420p",
         "-crf", String(payload.preset.crf),
-        "-movflags", "+faststart",
         "master.mp4",
       ]);
 

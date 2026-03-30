@@ -1,144 +1,90 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
-import { generateGeminiText, sanitizeForContentFilter } from "@/lib/gemini";
-import { 
-  extractJsonFromText, 
-  parseAIResponse,
-  repairJson,
-  sanitizeJsonString, 
-  tryCompleteJson 
-} from "@/lib/jsonUtils";
+import { generateGeminiText } from "@/lib/gemini";
 
-// Script generation can take many minutes for large scene counts
-export const maxDuration = 900; // 15 minutes to support long (20min) video generation
+// Script generation can take 2+ minutes for large scene counts
+export const maxDuration = 180;
+
+function repairJson(str: string): string {
+  let repaired = str.replace(/(\d+)'(\d+)"/g, '$1 foot $2');
+  repaired = repaired.replace(/(\d+)'(\d+)\\"/g, '$1 foot $2');
+  return repaired;
+}
+
+function tryCompleteJson(str: string): string {
+  let s = str.trim();
+  let braces = 0, brackets = 0, inString = false, escape = false;
+  for (const ch of s) {
+    if (escape) { escape = false; continue; }
+    if (ch === '\\') { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') braces++;
+    else if (ch === '}') braces--;
+    else if (ch === '[') brackets++;
+    else if (ch === ']') brackets--;
+  }
+  if (inString) s += '"';
+  for (let i = 0; i < brackets; i++) s += ']';
+  for (let i = 0; i < braces; i++) s += '}';
+  return s;
+}
 
 function parseScriptData(responseText: string): any {
   console.log("Raw AI response (first 500 chars):", responseText.substring(0, 500));
-  console.log("Raw AI response length:", responseText.length);
 
+  let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  cleanText = cleanText.replace(/```(?:json)?\s*\r?\n?/gi, '').trim();
+  const jsonMatch = cleanText.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  let jsonStr = jsonMatch ? jsonMatch[0] : cleanText;
+
+  let scriptData;
   try {
-    return parseAIResponse(
-      responseText,
-      (parsed: any) => {
-        // Validation: Is it a script container, a scenes array, or a single scene?
-        return !!(
-          (parsed && parsed.scenes && Array.isArray(parsed.scenes)) ||
-          (Array.isArray(parsed) && parsed.length > 0 && (parsed[0].narration || parsed[0].visual_prompt)) ||
-          (parsed && (parsed.narration || parsed.visual_prompt))
-        );
-      },
-      (validObjects: any[]) => {
-        let title = "Untitled";
-        let angle = "General";
-        let character_identities = {};
-        const collectedScenes: any[] = [];
-
-        for (const obj of validObjects) {
-          if (obj.scenes && Array.isArray(obj.scenes)) {
-            if (title === "Untitled") title = obj.title || title;
-            if (angle === "General") angle = obj.angle || angle;
-            if (Object.keys(character_identities).length === 0) character_identities = obj.character_identities || character_identities;
-            collectedScenes.push(...obj.scenes);
-          } else if (Array.isArray(obj)) {
-            collectedScenes.push(...obj);
-          } else {
-            collectedScenes.push(obj);
-          }
-        }
-
-        return {
-          title,
-          angle,
-          character_identities,
-          scenes: collectedScenes.map((scene: any, index: number) => ({
-            ...scene,
-            id: scene.id ?? index + 1,
-            scene_number: scene.scene_number ?? index + 1,
-            duration_estimate_seconds: Math.min(scene.duration_estimate_seconds || 7, 12),
-          }))
-        };
-      }
-    );
-  } catch (err) {
-    // Final desperate fallback if nothing collected from blocks: search for "scenes": [ in the raw text
-    console.warn("parseAIResponse failed. Attempting desperate raw extraction...");
-    const cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-    const scenesMatch = cleanText.match(/"scenes"\s*:\s*\[/);
-    if (scenesMatch && scenesMatch.index !== undefined) {
-      const fromScenes = cleanText.substring(scenesMatch.index + '"scenes":'.length);
-      const blocksAfter = extractJsonFromText(fromScenes.replace(/^\s*/, ''));
-      if (blocksAfter.length > 0) {
-        try {
-          const arr = JSON.parse(tryCompleteJson(repairJson(blocksAfter[0])));
-          if (Array.isArray(arr) && arr.length > 0) {
-            console.log(`Desperate fallback extracted ${arr.length} scenes`);
-            return {
-              title: "Untitled",
-              angle: "General",
-              character_identities: {},
-              scenes: arr.map((scene: any, index: number) => ({
-                ...scene,
-                id: scene.id ?? index + 1,
-                scene_number: scene.scene_number ?? index + 1,
-                duration_estimate_seconds: Math.min(scene.duration_estimate_seconds || 7, 12),
-              }))
-            };
-          }
-        } catch { /* fail */ }
+    scriptData = JSON.parse(repairJson(jsonStr));
+    console.log("Successfully parsed script with", scriptData.scenes?.length || 0, "scenes");
+  } catch (e) {
+    try {
+      const completed = tryCompleteJson(repairJson(jsonStr));
+      scriptData = JSON.parse(completed);
+      console.log("Parsed script after completion with", scriptData.scenes?.length || 0, "scenes");
+    } catch (e2) {
+      // Last resort: try stripping trailing commas and re-parsing
+      try {
+        let cleaned = repairJson(jsonStr);
+        // Remove trailing commas before ] or }
+        cleaned = cleaned.replace(/,\s*([\]}])/g, '$1');
+        // Try completing again after comma cleanup
+        cleaned = tryCompleteJson(cleaned);
+        scriptData = JSON.parse(cleaned);
+        console.log("Parsed script after deep cleanup with", scriptData.scenes?.length || 0, "scenes");
+      } catch (e3) {
+        console.error("JSON Parse failed for response:", responseText.substring(0, 1000));
+        throw new Error("Failed to parse AI response as JSON.");
       }
     }
-    throw err;
   }
+
+  if (!scriptData.scenes || !Array.isArray(scriptData.scenes)) {
+    throw new Error("AI response missing required 'scenes' array");
+  }
+
+  scriptData.scenes = scriptData.scenes.map((scene: any, index: number) => ({
+    ...scene,
+    id: scene.id ?? index + 1,
+    scene_number: scene.scene_number ?? index + 1,
+    duration_estimate_seconds: scene.duration_estimate_seconds || 8,
+  }));
+
+  return scriptData;
 }
 
-/**
- * Generate script with retry + prompt sanitization. Used for all single-call modes.
- * Retries up to 2 times: first with original prompt, then with sanitized prompt.
- */
-async function generateScriptWithRetry(prompt: string): Promise<NextResponse> {
-  const MAX_RETRIES = 2;
-  let lastError: any = null;
-
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const promptToUse = attempt >= MAX_RETRIES
-        ? sanitizeForContentFilter(prompt)
-        : prompt;
-
-      if (attempt > 0) {
-        console.log(`Script generation retry ${attempt}/${MAX_RETRIES}${attempt >= MAX_RETRIES ? " (sanitized)" : ""}...`);
-        await new Promise(r => setTimeout(r, 2000));
-      }
-
-      const responseText = await generateGeminiText(promptToUse);
-      return NextResponse.json(parseScriptData(responseText));
-    } catch (err: any) {
-      lastError = err;
-      console.warn(`Script generation attempt ${attempt + 1} failed: ${err.message}`);
-    }
-  }
-  
-  throw lastError;
+function parseAndReturnScript(responseText: string): NextResponse {
+  return NextResponse.json(parseScriptData(responseText));
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, url, angle, visualStyle = "Cinematic Documentary", durationMinutes = 3, continueFrom, endStory, existingTitle, mode, storyText, characterProfiles, lyrics, musicSegments, youtubeStyleSuffix, activeStyle, settingText, action, narration, visual_prompt, mood, directorMode } = await req.json();
-
-    // ========== REWRITE NARRATION ACTION ==========
-    if (action === "rewrite_narration" && narration) {
-      console.log("Rewriting narration for visual prompt:", visual_prompt);
-      const rewritePrompt = `Rewrite the following narration to be more engaging and fit a ${mood || "cinematic"} mood. 
-Keep it roughly the same length. The narration accompanies this visual scene: "${visual_prompt || "N/A"}".
-
-CURRENT NARRATION:
-${narration}
-
-Return ONLY the new narration text. Do not include any JSON, prefixes, or explanations.`;
-      const responseText = await generateGeminiText(rewritePrompt);
-      const newNarration = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-      return NextResponse.json({ narration: newNarration });
-    }
+    const { topic, url, angle, visualStyle = "Cinematic Documentary", durationMinutes = 3, continueFrom, endStory, existingTitle, mode, storyText, characterProfiles, lyrics, musicSegments, youtubeStyleSuffix, activeStyle, settingText } = await req.json();
 
     // Short Story, Music Video, and Notepad modes don't need topic/url
     if (!topic && !url && mode !== "short-story" && mode !== "music-video" && mode !== "notepad" && mode !== "extract-characters" && mode !== "extract-subjects") {
@@ -163,14 +109,12 @@ Keep to the most important 5-8 subjects max.`;
 
       try {
         const responseText = await generateGeminiText(subjectPrompt);
-        try {
-          const parsed = parseAIResponse<any>(
-            responseText,
-            (p: any) => !!(p && p.subjects && Array.isArray(p.subjects))
-          );
+        let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+        cleanText = cleanText.replace(/```(?:json)?\s*\r?\n?/gi, '').trim();
+        const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
           return NextResponse.json(parsed);
-        } catch {
-          console.warn("Subject extraction parse failed, returning empty");
         }
       } catch (err) {
         console.warn("Subject extraction failed:", err);
@@ -199,21 +143,23 @@ Return ONLY raw JSON (no markdown fences):
 { "characters": [ { "id": "char_001", "name": "...", "appearance": "...", "age": "...", "gender": "...", "clothing": "...", "role": "protagonist" } ] }`;
 
       const responseText = await generateGeminiText(charPrompt);
-      try {
-        const parsed = parseAIResponse<any>(
-          responseText,
-          (p: any) => !!(p && p.characters && Array.isArray(p.characters))
-        );
-        return NextResponse.json(parsed);
-      } catch {
-        return NextResponse.json({ characters: [] });
+      let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+      cleanText = cleanText.replace(/```(?:json)?\s*\r?\n?/gi, '').trim();
+      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          return NextResponse.json(parsed);
+        } catch {
+          return NextResponse.json({ characters: [] });
+        }
       }
+      return NextResponse.json({ characters: [] });
     }
 
     let extractedText = "";
     if (mode === "notepad" && storyText) {
-      // Wrap synthesis text to prevent the AI from interpreting treatment formatting as output instructions
-      extractedText = `[BEGIN RESEARCH NOTES — use these facts as source material for the script]\n${storyText.substring(0, 12000)}\n[END RESEARCH NOTES]`;
+      extractedText = storyText.substring(0, 12000);
     } else if (mode === "short-story" && storyText) {
       extractedText = storyText.substring(0, 8000);
     } else if (mode === "music-video" && lyrics) {
@@ -224,7 +170,7 @@ Return ONLY raw JSON (no markdown fences):
       try {
         const response = await fetch(url, {
           headers: { "User-Agent": "Mozilla/5.0 (compatible; Link2Video/1.0)" },
-          signal: AbortSignal.timeout(900000), // 15 min for long video scripting
+          signal: AbortSignal.timeout(15000),
         });
         const html = await response.text();
         const $ = cheerio.load(html);
@@ -455,85 +401,9 @@ Structure: HOOK → SETUP → RISING TENSION → CLIMAX → RESOLUTION → FINAL
     const suffixRule = youtubeStyleSuffix ? `\nADDITIONAL STYLE SUFFIX — Append the following to EVERY visual_prompt: "${youtubeStyleSuffix}"` : "";
     const activeStyleModifier = activeStyle ? `\nThe visual mood and framing should also strongly reflect a "${activeStyle}" narrative format.` : "";
     const settingRules = settingText ? `\nCRITICAL SETTING / LOCATION: The user has specified the following setting/location for the story: "${settingText}". You MUST use this setting prominently in the visual_prompts and adapt the narrative to fit this environment.` : "";
+    const aestheticRules = `CRITICAL AESTHETIC: You must write visual_prompts in the style of: ${styleDesc}.${activeStyleModifier}\nEvery scene's visual_prompt MUST reflect this aesthetic consistently.${suffixRule}${settingRules}`;
 
-    // For documentary/notepad modes, force photorealistic style unless user explicitly chose an artistic style
-    const isArtisticStyle = ["Animated Storytime", "3D Render", "Anime", "Manga Panel", "Comic Book", "Graphic Novel", "Flat Vector", "Chibi Cartoon", "Pixel Art", "Retro Game", "Low Poly 3D", "Storybook Illustration", "Claymation", "Stop Motion", "Papercraft"].includes(visualStyle);
-    const realisticEnforcement = !isArtisticStyle ? `\nABSOLUTE RULE: ALL visual_prompts MUST be PHOTOREALISTIC. NEVER use words like "illustration", "cartoon", "watercolor", "painting", "drawing", "sketch", "animated", "whimsical", "storybook" in visual_prompts. Every scene must look like a real photograph or cinematic film still. Think Netflix documentary B-roll, not children's book art.` : "";
-
-    const aestheticRules = `CRITICAL AESTHETIC — ${visualStyle.toUpperCase()} STYLE:
-- Every single visual_prompt and EVERY variation in visual_variations MUST start by reinforcing the style: "In the style of ${visualStyle}, ...".
-- The overall aesthetic is: ${styleDesc}.${activeStyleModifier}
-- Consistency is non-negotiable. Every visual_prompt MUST reflect this aesthetic perfectly.
-- NEVER drift into standard photorealism if an artistic style is selected.
-${suffixRule}${settingRules}${realisticEnforcement}`;
-
-    const universalScriptRules = `
-UNIVERSAL NARRATION AND VISUAL RULES:
-- NARRATION IS FOR VOICEOVER: The 'narration' field must ONLY contain the words spoken by the narrator or characters.
-- NO PHYSICAL DESCRIPTIONS IN NARRATION: NEVER include physical descriptions of characters (e.g., "the tall man", "the dark-skinned athlete", "with blue eyes") in the narration text. These details are only for the visual prompts.
-- FOCUS ON STORY: Narration should focus on action, dialogue, emotion, and facts.
-- VISUAL VARIATIONS: Every scene must provide a 'visual_variations' array of 6 distinct cinematic perspectives.
-- EACH VARIATION MUST BE UNIQUE: Variation 1: Wide/Master, 2: Close-up/Interaction, 3: Low Angle/Power, 4: High Angle/Atmosphere, 5: Kinetic/Detail, 6: POV/Abstract.
-`;
-
-    // ========== DIRECTOR MODE (Dialogue-Heavy) ==========
-    if (mode === "director") {
-      console.log("Generating script in Director Mode...");
-      const directorPrompt = `
-You are a world-class film director and screenwriter. Your goal is to convert the following input into a character-driven, dialogue-heavy cinematic script.
-
-INPUT:
-${extractedText}
-
-DIRECTOR MODE RULES:
-- FOCUS ON DIALOGUE: At least 70% of the scenes should feature spoken dialogue between characters in the narration.
-- DIALOGUE FORMAT: In the 'narration' field, use the format: CHARACTER NAME: "Spoken dialogue line."
-- INTERNAL MONOLOGUE: Use [NAME] (V.O.): "Internal thoughts" for non-spoken narration.
-- CHARACTER DYNAMICS: Focus on the tension, emotion, and relationship between characters.
-- CINEMATIC SHOTS: Use sophisticated camera language (tracking, orbital, extreme close-up, Dutch angle).
-- VISUAL SUBTEXT: The visual_prompt should show the character's emotion, reaction, or a meaningful object that complements the dialogue.
-
-${aestheticRules}
-${universalScriptRules}
-
-INSTRUCTIONS:
-- Break the story into ${Math.ceil(durationMinutes * 60 / 6)} scenes. Each scene should be 4-8 seconds.
-- Scene 1 is a cold open — drop us into the middle of a conversation or a dramatic character moment.
-- Every visual_prompt MUST describe a specific kinetic action — characters are never standing still.
-- Ensure the character looks IDENTICAL in every scene by repeating their full physical description in ALL prompts and variations.
-
-Format as JSON:
-{
-  "title": "A compelling film title",
-  "angle": "The director's vision / theme",
-  "character_identities": {
-    "NAME": "LOCKED physical description: skin tone, hair, eyes, build, clothing style"
-  },
-  "scenes": [
-    {
-      "narration": "CHARACTER: \\"Dialogue line that tells the story.\\"",
-      "visual_prompt": "Primary master shot description.",
-      "visual_variations": [
-        "In the style of ${visualStyle}, Variation 1: Wide cinematic master shot of...",
-        "In the style of ${visualStyle}, Variation 2: Extreme close-up of [Character]'s eyes reflecting...",
-        "In the style of ${visualStyle}, Variation 3: Low angle tracking shot behind [Character] as they walk...",
-        "In the style of ${visualStyle}, Variation 4: High angle overhead shot of the room...",
-        "In the style of ${visualStyle}, Variation 5: Macro detail shot of character's hand grasping...",
-        "In the style of ${visualStyle}, Variation 6: POV perspective through the eyes of..."
-      ],
-      "duration_estimate_seconds": 6,
-      "camera_angle": "medium shot",
-      "lighting": "moody",
-      "mood": "tense",
-      "characters": ["NAME"]
-    }
-  ]
-}
-
-Return ONLY raw JSON. No markdown.`;
-      return await generateScriptWithRetry(directorPrompt);
-    }
-
+    // ========== SHORT STORY MODE ==========
     if (mode === "short-story") {
       console.log("Generating script from short story...");
 
@@ -556,45 +426,33 @@ You are an elite cinematographer and screenwriter who has directed award-winning
 SHORT STORY:
 ${extractedText}
 
-${directorMode ? `
-DIRECTOR MODE: CINEMATIC AUTEUR
-- Use unconventional camera angles and rhythmic cuts.
-- ELIMINATE STATIC SHOTS: Every character must be walking, running, or in physical motion.
-- High-motion camera work: orbital shots, low-angle tracking, Dutch tilts.
-- Emphasize atmosphere and visual subtext.
-- Use a bold, curated color palette.
-- The tone should be sophisticated and evocative.
-` : ""}
-
 INSTRUCTIONS:
 - Parse the story into a series of visual scenes following a clear dramatic arc: HOOK → Setup → Rising Tension → Climax → Resolution
 - Scene 1 MUST be a cold open — drop viewers into the most dramatic or intriguing moment
-- Each scene should be 3-6 seconds with 1 sentence of narration — like quick documentary cuts
-- PACING IS CRITICAL: Think like a real documentary editor — fast cuts, every sentence gets a NEW visual
-- SCENE DIVERSITY: For every 15 seconds of story, you MUST generate at least 3-4 distinct scenes with different visual_prompts.
-- EVERY SCENE MUST BE IN MOTION: No characters standing still. Every scene must have physical action.
+- Each scene should be 12-16 seconds of dense narration (approx. 3-4 sentences per scene)
+- Screenwriting rule: 1 page = 1 minute. Ensure you write ENOUGH dialogue for each scene!
 - The narration should be adapted from the story — rewrite as compelling cinematic voiceover (not word-for-word copy)
-- Use active verbs in narration to drive the story forward
 - Vary the emotional tempo: tense → reflective → explosive → quiet → revelation
 - Include "breathing room" — not every scene should be high-intensity
 - The final 2-3 scenes must build to a satisfying climax and memorable conclusion
-- Target approximately ${Math.ceil(durationMinutes * 60 / 4)} scenes for a ${durationMinutes}-minute video (one scene per 4 seconds = fast-paced cuts like a real documentary)
+- Target approximately ${Math.ceil(durationMinutes * 60 / 8)} scenes for a ${durationMinutes}-minute video
 ${characterSheet}
 
-VISUAL PROMPT RULES — MANDATORY SHOT VARIETY:
-- EVERY SCENE MUST BE IN MOTION: No characters standing still. Every scene must have physical action (walking, reaching, turning, etc.).
-- B-ROLL DIVERSITY: At least 30% of scenes must NOT feature the main subject — show environments, objects, or cinematic cutaways.
-- NARRATIVE SYNCHRONIZATION: Every visual_prompt MUST be a direct visual representation of the specific action described in the narration for that scene.
-- VISUAL NARRATIVE EVOLUTION: NEVER repeat the same camera angle, same pose, or same visual concept twice in a row.
-- visual_prompt must be a PURE CINEMATIC DESCRIPTION — NEVER include metadata like "Name:", "Height:", "Age:", "Role:", character stats, or text overlays.
-- Write visual_prompt like a movie shot description, NOT a character profile sheet.
+VISUAL PROMPT RULES:
+- Each visual_prompt describes exactly what appears on screen: camera angle, lighting, mood, characters, setting, color palette
+- VARY camera angles across scenes: wide establishing → medium → close-up → extreme close-up → aerial → tracking → POV
+- NEVER use the same camera angle for 3+ consecutive scenes
+- Use camera movement to match emotion: slow push-in for tension, pull-back for revelation, handheld for chaos
+- Include specific lighting: "golden hour warmth", "harsh fluorescent", "neon-soaked", "candlelit intimacy", "overcast gray"
+- visual_prompt must be a PURE CINEMATIC DESCRIPTION — NEVER include metadata like "Name:", "Height:", "Age:", "Role:", character stats, or text overlays
+- Write visual_prompt like a movie shot description, NOT a character profile sheet
 
 ABSOLUTE RULE — CHARACTER IDENTITY LOCK (NON-NEGOTIABLE):
 - The MAIN CHARACTER must look IDENTICAL in EVERY SINGLE scene — same skin tone, same face, same hair, same build
 - COPY-PASTE the same physical description into every visual_prompt where a character appears
 - NEVER change a character's race, skin tone, or physical features between scenes
 - If Scene 1 has "a young Black woman with box braids, dark brown skin, athletic build" then EVERY later scene with that character MUST repeat that exact description
-- Each visual_prompt MUST start with the style ("In the style of ${visualStyle}") followed by the character's full physical description before describing the specific scene action.
+- Each visual_prompt MUST start with the character's full physical description before describing the scene
 - Think of it like a movie — the same actor plays the role from beginning to end
 
 ${aestheticRules}
@@ -604,25 +462,17 @@ Format as JSON:
   "title": "Video title based on the story",
   "angle": "The narrative perspective",
   "character_identities": {
-    "Character Name": "LOCKED physical description: skin tone, hair, eyes, build, clothing style"
+    "Character Name": "LOCKED physical description that appears verbatim in every visual_prompt featuring this character"
   },
   "scenes": [
     {
-      "narration": "1 sentence of punchy narration. NO physical descriptions of characters here.",
-      "visual_prompt": "Primary kinetic action shot description.",
-      "visual_variations": [
-        "In the style of ${visualStyle}, [Variation 1 detail...]",
-        "In the style of ${visualStyle}, [Variation 2 detail...]",
-        "In the style of ${visualStyle}, [Variation 3 detail...]",
-        "In the style of ${visualStyle}, [Variation 4 detail...]",
-        "In the style of ${visualStyle}, [Variation 5 detail...]",
-        "In the style of ${visualStyle}, [Variation 6 detail...]"
-      ],
-      "duration_estimate_seconds": 4,
+      "narration": "Voiceover text adapted from the story. Must be 3-4 sentences (approx 12-16 seconds worth) to ensure the scene has enough dialogue.",
+      "visual_prompt": "MUST START with the character's full physical description, then camera angle, lighting, mood, setting",
+      "duration_estimate_seconds": 15,
       "camera_angle": "medium wide shot",
       "lighting": "warm afternoon light",
       "mood": "contemplative",
-      "characters": ["Character Name"]
+      "characters": ["character_name"]
     }
   ]
 }
@@ -630,9 +480,11 @@ Format as JSON:
 CRITICAL JSON RULES:
 - Return ONLY raw JSON. No markdown, no code blocks, no backticks.
 - All strings must be valid JSON — escape double quotes with backslash.
+- For heights, use "6 foot 2" not "6'2\\"".
 `;
 
-      return await generateScriptWithRetry(storyPrompt);
+      const responseText = await generateGeminiText(storyPrompt);
+      return parseAndReturnScript(responseText);
     }
 
     // ========== MUSIC VIDEO MODE ==========
@@ -666,14 +518,6 @@ ${lyrics ? `SONG LYRICS:\n${extractedText}` : "INSTRUMENTAL TRACK (no lyrics)"}
 ${segmentInstructions}
 ${characterSheet}
 
-${directorMode ? `
-DIRECTOR MODE: CINEMATIC AUTEUR
-- Use rhythmic, dynamic cuts that match the beat.
-- MAXIMUM DYNAMISM: Characters must be in high-energy motion (dancing, running, performance art).
-- Unconventional, high-concept visual metaphors.
-- Bold lighting and stylized color grading.
-` : ""}
-
 INSTRUCTIONS:
 - Create visually striking, music-video-worthy scenes
 - Match visual energy to the music structure:
@@ -683,25 +527,23 @@ INSTRUCTIONS:
   * Bridge: transition, ethereal, different mood/location
   * Outro: resolution, fade-out, emotional conclusion
 - The "narration" field should contain the lyrics for that segment (these become subtitles, NOT voiceover)
-- SCENE DIVERSITY: For long segments (> 6s), split them into multiple sequential scenes to provide visual variety. Each scene should be 3-5s.
 - If a segment has no lyrics, set narration to a brief description for subtitle display
 - Visual prompts should be cinematic and dynamic — think real music video production
 
-VISUAL PROMPT RULES — MAXIMUM DYNAMISM:
-- Music videos use HIGH-ENERGY dynamic camera work — dolly zooms, fast pans, handheld chaos, crane sweeps.
-- VARY SHOTS: Alternate between artist performance, high-concept visual metaphors, and environmental B-roll.
-- EVERY SCENE MUST HAVE MOTION: Dancing, running, performance, or atmospheric movements. No posing.
-- B-ROLL DIVERSITY: Show abstract visuals, objects, or locations for at least 30% of the video to keep it cinematic.
-- NARRATIVE SYNCHRONIZATION: The visual concept MUST directly reflect the emotional tone and context of the lyrics/narration for this specific scene.
-- VISUAL NARRATIVE EVOLUTION: Every shot must feel like a new perspective. NEVER repeat a shot's framing or pose in consecutive scenes.
-- visual_prompt must be a PURE CINEMATIC DESCRIPTION — NEVER include metadata like "Name:", "Height:", "Age:", character stats, or text overlays.
-- Write visual_prompt like a movie director's shot description, NOT a character sheet.
+VISUAL PROMPT RULES:
+- Include camera_angle (tracking shot, crane shot, close-up, dolly zoom, etc.)
+- Include lighting (neon, strobe, golden hour, spotlight, etc.)
+- Include mood (energetic, melancholic, triumphant, mysterious, etc.)
+- Music videos use MORE dynamic camera work than documentaries — be creative!
+- Include choreography or movement descriptions where appropriate
+- visual_prompt must be a PURE CINEMATIC DESCRIPTION — NEVER include metadata like "Name:", "Height:", "Age:", character stats, or text overlays
+- Write visual_prompt like a music video director's shot description, NOT a character sheet
 
 ABSOLUTE RULE — ARTIST/CHARACTER IDENTITY LOCK (NON-NEGOTIABLE):
 - The artist/main character must look IDENTICAL in EVERY SINGLE scene — same skin tone, same face, same hair, same build
 - COPY-PASTE the same physical description into every visual_prompt where they appear
 - NEVER change a character's race, skin tone, or physical features between scenes
-- Every visual_prompt featuring a character MUST start with the style ("In the style of ${visualStyle}") followed by their full physical description
+- Every visual_prompt featuring a character MUST start with their full physical description
 - Think of it like a real music video — the same person performs throughout
 
 ${aestheticRules}
@@ -711,21 +553,13 @@ Format as JSON:
   "title": "Music Video Title",
   "angle": "Visual concept / theme",
   "character_identities": {
-    "Artist Name": "LOCKED physical description: skin tone, face, hair, build, style — appears verbatim in every visual prompt"
+    "Artist Name": "LOCKED physical description: skin tone, face, hair, build, style — appears verbatim in every visual_prompt"
   },
   "scenes": [
     {
       "narration": "Lyrics for this segment (shown as subtitles)",
-      "visual_prompt": "Primary high-energy shot for this lyric/segment.",
-      "visual_variations": [
-        "In the style of ${visualStyle}, [Variation 1: Wide performance...]",
-        "In the style of ${visualStyle}, [Variation 2: Fast tracking...]",
-        "In the style of ${visualStyle}, [Variation 3: Close up artist...]",
-        "In the style of ${visualStyle}, [Variation 4: Handheld energy...]",
-        "In the style of ${visualStyle}, [Variation 5: Dutch angle kinetic...]",
-        "In the style of ${visualStyle}, [Variation 6: Abstract metaphor...]"
-      ],
-      "duration_estimate_seconds": 4,
+      "visual_prompt": "MUST START with artist's full physical description, then camera angle, action, setting, lighting, mood",
+      "duration_estimate_seconds": 30,
       "camera_angle": "tracking shot moving through crowd",
       "lighting": "neon lights, strobing",
       "mood": "energetic",
@@ -739,7 +573,8 @@ CRITICAL JSON RULES:
 - All strings must be valid JSON — escape double quotes with backslash.
 `;
 
-      return await generateScriptWithRetry(musicPrompt);
+      const responseText = await generateGeminiText(musicPrompt);
+      return parseAndReturnScript(responseText);
     }
 
     // ========== LINK/TOPIC MODE (original) ==========
@@ -775,8 +610,16 @@ Return ONLY the reference descriptions. No commentary.`;
       console.warn("Reference sheet generation failed, continuing without it");
     }
 
-    // COMPREHENSIVE STYLE SYSTEM
-    const styleManual = `${aestheticRules}
+    // STEP 2: Build the script generation prompt with reference sheet injected
+    const prompt = `
+You are an elite YouTube scriptwriter and viral content creator.
+You specialize in creating HIGH-RETENTION scripts that keep viewers watching until the very last second.
+Every script you write feels like it belongs on a channel with millions of subscribers.
+
+Subject Matter: ${extractedText}
+Angle: ${angle}
+
+${narrativeInstructions}
 
 UNIVERSAL WRITING RULES:
 - Vary sentence length for rhythm and pacing — SHORT. Then longer, more reflective beats.
@@ -787,35 +630,31 @@ UNIVERSAL WRITING RULES:
 - Use psychological triggers: curiosity, suspense, surprise, empathy, aspiration
 - ALWAYS write in English unless the topic specifically involves other languages
 - The narration must tell the ACTUAL STORY from the source material — stick to the REAL facts, events, and people
+- NEVER narrate physical descriptions of characters — that's what the visual_prompt is for
+- The narration should NEVER say things like "He stands 6 foot 2 with a muscular frame" — instead, TELL THE STORY
 - Narration = storytelling voiceover. Visual_prompt = what the camera sees. Keep them separate.
+
+PACING AND NARRATIVE ARC:
+- Scene 1 MUST be a cold open hook — drop the viewer into the most dramatic, surprising, or emotional moment FIRST
+- Follow a clear dramatic arc: Hook → Setup → Rising Tension → Climax → Resolution/Twist
+- Vary the emotional tempo: tense → reflective → explosive → quiet → revelation
+- Include "breathing room" scenes — not every scene should be high-intensity; quiet moments make loud ones hit harder
+- Plant questions early and answer them later — create micro-mysteries that keep viewers watching
+- Use cliffhanger transitions between scenes: end one scene with a question, start the next with a partial answer
+- The last 2-3 scenes must build to a climactic payoff or satisfying twist — NEVER let the ending fizzle out
 
 CAMERA AND CINEMATIC LANGUAGE:
 - Vary camera angles across scenes: wide establishing → medium → close-up → extreme close-up → aerial → tracking → POV
 - NEVER use the same camera angle for 3+ consecutive scenes
 - Use camera movement to match emotion: slow push-in for tension, pull-back for revelation, handheld for chaos, steady for authority
 - Include specific shot descriptions: "low angle looking up", "over-the-shoulder", "bird's-eye view", "Dutch angle"
+- Lighting should evolve with the story mood: warm golden for hope, cold blue for isolation, harsh contrast for conflict, soft diffused for intimacy
 
-MANDATORY SHOT VARIETY — Rotate between these every 2-3 scenes:
-1. ACTION: Subject actively moving/doing something.
-2. ENVIRONMENT: Atmosphere only, no people.
-3. DETAIL: Extreme close-up of object/texture.
-4. CROWD: Groups in motion.
-5. REACTION: Close-up of face showing emotion.
-6. ARTISTIC: Montage, time-lapse, or abstract.
-
-ABSOLUTE BANS — NEVER DO THESE:
-- NEVER write "standing", "posing", "looking at camera", "staring", "facing forward", "standing in front of"
-- NEVER have the main subject simply standing in a location doing nothing
-- NEVER show the same subject in the same pose, setting, or composition twice
-- NEVER have more than 3 consecutive scenes featuring the main subject — you MUST cut away to environment, objects, or other people
-- NEVER describe a generic "portrait" — every scene must have MOTION, ACTION, or a specific visual story
-
-B-ROLL DIVERSITY: At least 30% of scenes must NOT feature the main subject. Show environments, objects, or crowds instead.
-
-VISUAL NARRATIVE EVOLUTION:
-- Each scene's visual MUST feel like a meaningful progression from the previous one.
-- NEVER repeat the same camera angle, same pose, or same visual concept for the same subject in two consecutive scenes.
-- If Scene N is a close-up of the subject, Scene N+1 MUST be either a wide shot, a B-roll cutaway, or an action shot in a different setting.
+VISUAL PROMPT RULES — EXTREME LIKENESS REQUIRED:
+- Each scene's visual_prompt must describe EXACTLY what should appear on screen
+- Be specific about: camera movement, mood, lighting, subject, composition
+- Think cinematic B-roll, Ken Burns-style photography, atmospheric footage
+- The visual must emotionally reinforce the narration
 
 CRITICAL — PHOTOREALISTIC ACCURACY AND CHARACTER CONSISTENCY:
 - Every person mentioned MUST be described with their EXACT physical appearance: specific skin tone, facial features, hairstyle, body type, clothing, and signature look
@@ -830,11 +669,9 @@ ABSOLUTE RULE — CHARACTER IDENTITY LOCK (THIS IS NON-NEGOTIABLE):
 - Copy-paste the SAME physical description for the main character into every visual_prompt: same skin tone, same face shape, same hairstyle, same build, same clothing style
 - NEVER change a character's race, skin tone, facial features, or body type between scenes
 - If Scene 1 shows "a young Black man with short dreads, medium brown skin, lean build, wearing a black hoodie" then Scene 8 MUST also describe "a young Black man with short dreads, medium brown skin, lean build" — NOT "a man" or "a figure" or someone who looks different
-- EVERY scene featuring a character must start with the style ("In the style of ${visualStyle}") followed by the SHOT TYPE and ACTION, then the character's FULL physical description (skin tone + hair + build + clothing minimum)
+- EVERY scene featuring a character must repeat their FULL physical description (skin tone + hair + build + clothing minimum)
 - Think of it like a movie — the same actor plays the role in every scene. The appearance NEVER changes.
 - Add a "characters" array to each scene listing which characters appear, so the system can enforce consistency
-- DYNAMIC ACTION RULE: Every prompt MUST lead with a kinetic action verb (e.g. "walking", "running", "grasping", "turning", "reaching", "shouting").
-- NO POSED SHOTS: Never use "standing", "sitting", "looking at camera". Use active verbs that imply movement or mid-action.
 
 CRITICAL — VISUAL PROMPTS MUST BE PURE IMAGE DESCRIPTIONS:
 - visual_prompt must ONLY describe what the camera sees — like a cinematographer's shot description
@@ -845,42 +682,69 @@ CRITICAL — VISUAL PROMPTS MUST BE PURE IMAGE DESCRIPTIONS:
 - The visual_prompt should read like a movie scene description, NOT a character profile
 - WRONG: "John Smith, male, age 30, height 6 foot 2, muscular build, role: protagonist, wearing blue suit"
 - RIGHT: "A tall muscular man in a tailored navy blue suit walks through a rain-soaked city street at night, neon signs reflecting off wet pavement, medium tracking shot, moody blue lighting"
-${visualReferenceSheet ? `VISUAL REFERENCE SHEET: ${visualReferenceSheet}` : ""}
-${characterProfiles && characterProfiles.length > 0 ? `USER-PROVIDED CHARACTER REFERENCES: ${characterProfiles.map((cp: any) => `${cp.name}: ${cp.appearance}`).join(", ")}` : ""}
-`;
+${visualReferenceSheet ? `
+VISUAL REFERENCE SHEET — USE THESE EXACT DESCRIPTIONS IN EVERY VISUAL PROMPT:
+${visualReferenceSheet}
 
-    const prompt = `
-You are an elite YouTube scriptwriter and viral content creator.
-You specialize in creating HIGH-RETENTION scripts that keep viewers watching until the very last second.
+You MUST use the physical descriptions from the reference sheet above when writing visual_prompts. Copy key details directly into each prompt.` : ""}
+${characterProfiles && characterProfiles.length > 0 ? `
+USER-PROVIDED CHARACTER REFERENCES (these take priority over auto-generated descriptions):
+${characterProfiles.map((cp: any) => `${(cp.role || "CHARACTER").toUpperCase()} - ${cp.name}: ${cp.appearance}${cp.clothing ? `, wearing ${cp.clothing}` : ""}`).join("\n")}
+IMPORTANT: Use these user-provided character descriptions for EVERY visual_prompt that features these characters. Their appearance details are authoritative.` : ""}
 
-Subject Matter: ${extractedText}
-Angle: ${angle}
+${aestheticRules}
 
-${directorMode ? `
-DIRECTOR MODE: CINEMATIC AUTEUR
-You are in "Director Mode". Your goal is to create a masterpiece of cinematic storytelling.
-- ELIMINATE STATIC SHOTS: Characters must NEVER just stand there. They must be moving, acting, and in motion.
-- Use unconventional camera angles. Include circular dollies and tracking shots.
-` : ""}
+SCRIPT OUTPUT:
+The target video duration is ${durationMinutes} minute(s) (${durationMinutes * 60} seconds total).
+Generate approximately ${"SCENE_COUNT_PLACEHOLDER"} scenes to fill this duration.
+Each scene MUST have 12-18 seconds of dense narration (approx. 3-5 sentences). 
+Screenwriting rule: 1 page = 1 minute. Write thick, detailed dialogue paragraphs so the scenes are substantial!
 
-${styleManual}
-${universalScriptRules}
+Each scene must have:
+- narration: The voiceover text (cinematic, immersive, emotionally engaging, 3-5 sentences long!)
+- visual_prompt: Detailed AI image generation prompt describing the exact visual moment (camera angle, lighting, mood, subject). MUST include the FULL physical description of any character who appears.
+- duration_estimate_seconds: Duration based on narration length (typically 12-18 seconds per scene)
+- characters: Array of character names that appear in this scene
 
-PACING AND NARRATIVE ARC:
-- Scene 1 MUST be a cold open hook — drop the viewer into the most dramatic, surprising, or emotional moment FIRST.
-- Follow a clear dramatic arc: Hook → Setup → Rising Tension → Climax → Resolution/Twist.
-- The last 2-3 scenes must build to a climactic payoff or satisfying twist.
+The JSON response must also include a top-level "character_identities" object mapping each character name to their LOCKED physical description. Example:
+"character_identities": {
+  "Marcus": "young Black man, dark brown skin, short dreadlocks, lean athletic build, angular jawline, brown eyes, wearing black hoodie and jeans",
+  "Detective Garcia": "Latina woman, olive skin, shoulder-length dark hair pulled back, mid-40s, sharp features, wearing gray blazer"
+}
+This identity string MUST be embedded verbatim in EVERY visual_prompt where that character appears. No exceptions.
 
-FORMAT:
-Generate exactly SCENE_COUNT_PLACEHOLDER scenes for this chapter.
-Each scene MUST include:
-1. "narration": Punchy voiceover text. NO physical descriptions.
-2. "visual_prompt": High-quality cinematographic shot description.
-3. "visual_variations": EXACTLY 6 variation prompts (Wide, Close, Low, High, Kinetic, Alternate).
-4. "duration_estimate_seconds": 4-8s.
-5. "camera_angle", "lighting", "mood", "characters".
+QUALITY CHECK BEFORE RESPONDING:
+- Does the HOOK make you stop scrolling? (If not, rewrite scene 1)
+- Does the story have real emotional stakes — can you FEEL something?
+- Is there genuine tension, escalation, and progression — not just a list of facts?
+- Does it feel like a Netflix documentary, not a Wikipedia article or school report?
+- Are camera angles varied? (No 3 consecutive scenes with same angle)
+- Does the emotional tempo shift — tense, then quiet, then explosive?
+- Is every scene visually distinct? Can you picture each one as a unique, striking image?
+- Would this realistically get millions of views?
+- Does the FINAL LINE leave a lasting impression — a mic-drop moment?
 
-Return ONLY raw JSON with "title", "angle", "character_identities", and "scenes" array.
+Format your response as a JSON object with:
+{
+  "title": "Compelling, clickable video title",
+  "angle": "The narrative angle/hook",
+  "character_identities": {
+    "Character Name": "LOCKED physical description: skin tone, face shape, hair, build, clothing — this exact string appears in every visual_prompt featuring this character"
+  },
+  "scenes": [
+    {
+      "narration": "The voiceover text — cinematic, emotionally engaging, tells the story. MUST be 3-5 sentences long to fill 12-18 seconds of screen time.",
+      "visual_prompt": "MUST START with the character's full physical description from character_identities, then camera angle, action, setting, lighting, mood, color palette",
+      "duration_estimate_seconds": 15,
+      "camera_angle": "e.g. wide establishing, close-up, tracking shot, aerial, low angle, over-the-shoulder",
+      "lighting": "e.g. golden hour, harsh fluorescent, neon-lit, candlelight, overcast",
+      "mood": "e.g. tense, hopeful, chaotic, melancholic, triumphant",
+      "characters": ["Character Name"]
+    }
+  ]
+}
+
+CRITICAL JSON RULES:
 - Return ONLY raw JSON. No markdown, no code blocks, no backticks, no explanations.
 - All strings must be valid JSON — escape double quotes with backslash (\\").
 - For heights, use feet-inches format without quote marks (e.g. "6 foot 6" not "6'6\\"").
@@ -889,9 +753,9 @@ ${"CONTINUATION_PLACEHOLDER"}
 `;
 
     // STEP 3: Generate the script — chunked for long durations
-    // Fast-paced cuts: ~5 seconds per scene = ~12 scenes per minute
-    const totalScenesTarget = Math.ceil(durationMinutes * 60 / 5);
-    const CHUNK_SIZE = 10; // Reduced to 10 for maximum reliability against model truncation
+    // Adjusted math: 15 seconds per scene means ~4 scenes per minute
+    const totalScenesTarget = Math.ceil(durationMinutes * 60 / 15);
+    const CHUNK_SIZE = 25; // max scenes per AI call — keeps response reliable
 
     if (continueFrom || endStory) {
       // Continuation/ending modes — single shot, small output
@@ -902,7 +766,8 @@ ${"CONTINUATION_PLACEHOLDER"}
         .replace("SCENE_COUNT_PLACEHOLDER", String(Math.min(totalScenesTarget, CHUNK_SIZE)))
         .replace("CONTINUATION_PLACEHOLDER", continuationNote);
       console.log("Generating continuation/ending...");
-      return await generateScriptWithRetry(singlePrompt);
+      const responseText = await generateGeminiText(singlePrompt);
+      return parseAndReturnScript(responseText);
     }
 
     if (totalScenesTarget <= CHUNK_SIZE) {
@@ -911,7 +776,8 @@ ${"CONTINUATION_PLACEHOLDER"}
         .replace("SCENE_COUNT_PLACEHOLDER", String(totalScenesTarget))
         .replace("CONTINUATION_PLACEHOLDER", "");
       console.log(`Generating script (${totalScenesTarget} scenes, single call)...`);
-      return await generateScriptWithRetry(singlePrompt);
+      const responseText = await generateGeminiText(singlePrompt);
+      return parseAndReturnScript(responseText);
     }
 
     // ========== CHUNKED GENERATION for long videos ==========
@@ -920,7 +786,6 @@ ${"CONTINUATION_PLACEHOLDER"}
     let allScenes: any[] = [];
     let title = "";
     let angleResult = "";
-    let characterIdentities = {};
 
     for (let chunk = 0; chunk < totalChunks; chunk++) {
       const scenesRemaining = totalScenesTarget - allScenes.length;
@@ -936,16 +801,10 @@ ${"CONTINUATION_PLACEHOLDER"}
         chunkNote = `
 CONTINUATION — CHAPTER ${chunk + 1} of ${totalChunks}:
 You are writing scenes ${allScenes.length + 1}-${allScenes.length + scenesThisChunk} of a ${totalScenesTarget}-scene script.
-WORLD CONTEXT: The overall theme is ${angleResult || angle}. The setting is ${settingText || 'as established'}.
-PREVIOUSLY: The story so far ended with: "${prevSummary.substring(0, 500)}"
-
-STRICT CONTINUITY:
-- Maintain character identity: ${JSON.stringify(characterIdentities)}
-- Use visual style: ${visualStyle}
-- NO SPACE PICTURES: Keep visuals grounded in the established world. Do NOT drift into generic or unrelated sci-fi unless explicit.
-- Return EXACTLY ${scenesThisChunk} scenes in the JSON.
-- Every scene must include 'visual_variations' (6 items) and 'narration' (no physical descriptions).
-- Return ONLY raw JSON.
+The story so far ended with: "${prevSummary.substring(0, 500)}"
+Continue the story seamlessly. Do NOT repeat the hook or introduction.
+Keep the same title: "${title}"
+${isLastChunk ? "This is the FINAL chapter — build to a powerful, memorable conclusion." : "Build tension and progress the narrative forward."}
 `;
       } else {
         chunkNote = `
@@ -954,86 +813,17 @@ Write a gripping opening that hooks viewers immediately. Set up the story arc th
 `;
       }
 
-      const chunkPrompt = isFirstChunk 
-        ? prompt
-            .replace("SCENE_COUNT_PLACEHOLDER", String(scenesThisChunk))
-            .replace("CONTINUATION_PLACEHOLDER", chunkNote)
-        : `
-You are continuing the Link2Video script for chapter ${chunk + 1}.
-
-Subject: ${extractedText.substring(0, 500)}...
-Original Angle: ${angle}
-
-${chunkNote}
-
-SLIM CORE RULES:
-- Return exactly ${scenesThisChunk} scenes in the JSON.
-- Maintain character identity: ${JSON.stringify(characterIdentities)}
-- Use the visual style: ${visualStyle}
-- Cinematic Documentary mood, focus on kinetic action verbs.
-- No static shots, no posing.
-- Return ONLY raw JSON with a "scenes" array.
-`;
+      const chunkPrompt = prompt
+        .replace("SCENE_COUNT_PLACEHOLDER", String(scenesThisChunk))
+        .replace("CONTINUATION_PLACEHOLDER", chunkNote);
 
       console.log(`Generating chunk ${chunk + 1}/${totalChunks} (${scenesThisChunk} scenes)...`);
-      
-      // Per-chunk retry with prompt sanitization on failure
-      let chunkData: any = null;
-      const MAX_CHUNK_RETRIES = 2;
-      for (let attempt = 0; attempt <= MAX_CHUNK_RETRIES; attempt++) {
-        try {
-          const promptToUse = attempt >= MAX_CHUNK_RETRIES 
-            ? sanitizeForContentFilter(chunkPrompt) // Last attempt: sanitize for content filters
-            : chunkPrompt;
-          
-          if (attempt > 0) {
-            console.log(`Chunk ${chunk + 1} retry ${attempt}/${MAX_CHUNK_RETRIES}${attempt >= MAX_CHUNK_RETRIES ? " (sanitized)" : ""}...`);
-            await new Promise(r => setTimeout(r, 2000)); // Brief pause between retries
-          }
-          
-          const responseText = await generateGeminiText(promptToUse);
-          chunkData = parseScriptData(responseText);
-          break; // Success — exit retry loop
-        } catch (retryErr: any) {
-          console.warn(`Chunk ${chunk + 1} attempt ${attempt + 1} failed: ${retryErr.message}`);
-          if (attempt >= MAX_CHUNK_RETRIES) {
-            // All retries exhausted for this chunk
-            console.error(`Chunk ${chunk + 1} failed after ${MAX_CHUNK_RETRIES + 1} attempts. Generating minimal fallback scenes.`);
-            // Generate minimal placeholder scenes so the video can still complete
-            const fallbacks = [
-              "Cinematic wide shot of a vast landscape at golden hour, dramatic clouds, volumetric lighting, photorealistic 4k",
-              "Close up of an open book on a wooden table, sunlight streaming through a window, dust motes dancing in the air, macro photography",
-              "A bustling city street at night, neon lights reflecting on wet pavement, cinematic bokeh, 8k resolution",
-              "Abstract cinematic shot of light and shadow playing across a textured wall, moody atmosphere, high contrast",
-              "Aerial drone shot of ocean waves crashing against rugged cliffs, turquoise water, white foam, epic scale"
-            ];
-            const randomFallback = fallbacks[Math.floor(Math.random() * fallbacks.length)];
-            
-            chunkData = {
-              title: title || "Untitled",
-              angle: angleResult || angle,
-              character_identities: characterIdentities,
-              scenes: Array.from({ length: Math.min(scenesThisChunk, 3) }, (_, i) => ({
-                id: i + 1,
-                scene_number: i + 1,
-                narration: i === 0 
-                  ? "The story continues, weaving through unexpected turns."
-                  : i === 1
-                    ? "Every chapter reveals new layers of complexity and depth."
-                    : "And so the narrative unfolds, leading us to what comes next.",
-                visual_prompt: randomFallback,
-                duration_estimate_seconds: 5,
-                mood: "contemplative",
-              }))
-            };
-          }
-        }
-      }
+      const responseText = await generateGeminiText(chunkPrompt);
+      const chunkData = parseScriptData(responseText);
 
       if (isFirstChunk) {
         title = chunkData.title || "Untitled";
         angleResult = chunkData.angle || angle;
-        characterIdentities = chunkData.character_identities || {};
       }
 
       // Re-number scenes to be sequential across chunks
@@ -1047,25 +837,9 @@ SLIM CORE RULES:
       console.log(`Chunk ${chunk + 1} done: ${chunkData.scenes.length} scenes (${allScenes.length}/${totalScenesTarget} total)`);
     }
 
-    return NextResponse.json({ title, angle: angleResult, character_identities: characterIdentities, scenes: allScenes });
+    return NextResponse.json({ title, angle: angleResult, scenes: allScenes });
   } catch (error: any) {
     console.error("Script generation error:", error);
-    const msg = error.message || "";
-    
-    // Pass through specific error codes from Pollinations
-    if (msg.includes("402")) {
-      return NextResponse.json(
-        { error: "Insufficient balance to generate script. Please top up your Pollinations credits." },
-        { status: 402 }
-      );
-    }
-    if (msg.includes("502") || msg.includes("503") || msg.includes("504")) {
-      return NextResponse.json(
-        { error: "AI service is temporarily overloaded. Please try again in a few seconds." },
-        { status: 503 }
-      );
-    }
-
-    return NextResponse.json({ error: msg || "Failed to generate script" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to generate script" }, { status: 500 });
   }
 }
